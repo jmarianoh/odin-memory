@@ -280,6 +280,22 @@ npm run check:clean-room
 
 Pruebas manuales: `node bin/odin.js doctor`, `doctor --json --project demo`, `doctor --check unowned_session_project`, `doctor --help`; con `serve`, `curl localhost:7438/doctor`.
 
-## F6.2 y siguientes — reparación, self-tests, versión · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+### F6.3 y F6.4 — Autopruebas y comprobación de versión (spec 0.20.0)
+
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/selftest/selftest.test.js`, `test/unit/cli/selftest.test.js`, `test/unit/version-check.test.js`) y `src/cli/usage.js`.
+2. Crear, según `20-selftest.md`: `src/selftest/{index,scenarios,worker}.js`, `src/cli/commands/selftest.js`, `src/version/check.js`.
+3. Modificar `src/cli/index.js` (despacho de `test` antes de la configuración y comprobación de versión).
+
+Aceptación:
+```bash
+node --test test/unit/selftest/*.test.js test/unit/cli/selftest.test.js test/unit/version-check.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Pruebas manuales: `node bin/odin.js test --quick`, `test performance --json`, `test --help`; `ODIN_UPDATE_CHECK_URL=<servicio> node bin/odin.js stats`.
+
+## F6.2 — reparación (pendiente) · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

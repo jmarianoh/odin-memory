@@ -1,6 +1,7 @@
 import { homedir } from 'node:os';
 import { Store } from '../store/store.js';
 import { VERSION } from '../version/index.js';
+import { checkLatest, CHECK_STATUS, shouldCheckForUpdates } from '../version/check.js';
 import { cmdInstanceId, runCompatibility, runMigrateCopy } from './commands/admin.js';
 import { cmdConflicts } from './commands/conflicts.js';
 import { cmdContext } from './commands/context.js';
@@ -14,6 +15,7 @@ import { cmdSave } from './commands/save.js';
 import { cmdSearch } from './commands/search.js';
 import { cmdServe } from './commands/serve.js';
 import { cmdStats } from './commands/stats.js';
+import { runTest } from './commands/selftest.js';
 import { cmdSync } from './commands/sync.js';
 import { cmdTimeline } from './commands/timeline.js';
 import { resolveConfig } from './config.js';
@@ -83,6 +85,9 @@ async function dispatch(cli) {
     throw new CliExit(1);
   }
 
+  // Las autopruebas se despachan antes que la configuración: nunca tocan los datos del usuario.
+  if (command.trim().toLowerCase() === 'test') throw new CliExit(await runTest(cli));
+
   // Estos dos no resuelven configuración ni abren el almacén y devuelven su propio código.
   if (command === 'migrate-copy') throw new CliExit(runMigrateCopy(cli));
   if (command === 'compatibility') throw new CliExit(runCompatibility(cli));
@@ -91,6 +96,11 @@ async function dispatch(cli) {
   if ((command === 'export' || command === 'import') && cli.args.slice(1).includes('--help')) {
     println(cli, command === 'export' ? EXPORT_HELP : IMPORT_HELP);
     return;
+  }
+
+  if (shouldCheckForUpdates(cli.args)) {
+    const result = await (cli.checkForUpdates ?? ((current) => checkLatest(current, { env: cli.env })))(VERSION);
+    if (result.status !== CHECK_STATUS.upToDate && result.message) cli.err(`${result.message}\n\n`);
   }
 
   switch (command.toLowerCase().trim()) {

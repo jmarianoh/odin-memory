@@ -1,5 +1,5 @@
 {
-  "version": "0.19.0",
+  "version": "0.20.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -10,7 +10,7 @@
         "test/unit/cli/dispatch.test.js"
       ],
       "sha256": "dd878277029875ddf169e45e60eb27bd66778991524332a485cc270b49f270c2",
-      "docSha256": "583c0a7adbe251e9f82dcf446a952476549e971b2c0bd7a3b22be75a50929c06"
+      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
     },
     {
       "path": "src/cli/commands/admin.js",
@@ -129,6 +129,16 @@
       "docSha256": "b72d34af7d96131db4d696720e4a9a96337bbd917bd42dd7dd85b2bf03fa4c8f"
     },
     {
+      "path": "src/cli/commands/selftest.js",
+      "doc": "20-selftest.md",
+      "phase": "F6",
+      "tests": [
+        "test/unit/cli/selftest.test.js"
+      ],
+      "sha256": "3e38ddb0d11609d22e20f816560c0c29a21c251e77f54d05f8d9df4211086ab8",
+      "docSha256": "f366ddca8aed9c7105750452ddd39cf1e15c5b6f00f2196d4297f89f0cca1be3"
+    },
+    {
       "path": "src/cli/commands/serve.js",
       "doc": "14-http-api/02-servidor-y-serve.md",
       "phase": "F4",
@@ -179,7 +189,7 @@
         "test/unit/cli/dispatch.test.js"
       ],
       "sha256": "a85710a93c05b3bcadcb430c286911f2014eea32d357400a309aa11db6f364a9",
-      "docSha256": "583c0a7adbe251e9f82dcf446a952476549e971b2c0bd7a3b22be75a50929c06"
+      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
     },
     {
       "path": "src/cli/index.js",
@@ -188,8 +198,8 @@
       "tests": [
         "test/unit/cli/dispatch.test.js"
       ],
-      "sha256": "7e8152e2667ccde4208b1a620a3bb42aa4bf1d6d060358aaaaa9b88a54e02509",
-      "docSha256": "583c0a7adbe251e9f82dcf446a952476549e971b2c0bd7a3b22be75a50929c06"
+      "sha256": "2379936ee1892668cbfc6b5b125f2cb7c7f7857c51f53bcd095a0d9bb98e3794",
+      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
     },
     {
       "path": "src/cli/init-config.js",
@@ -211,7 +221,7 @@
         "test/unit/cli/details.test.js"
       ],
       "sha256": "332ff09db5697513cd88c5f3fd481cfc8d95a57935036dc9246dcd776135b67e",
-      "docSha256": "583c0a7adbe251e9f82dcf446a952476549e971b2c0bd7a3b22be75a50929c06"
+      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
     },
     {
       "path": "src/cli/runtime.js",
@@ -221,7 +231,7 @@
         "test/unit/cli/dispatch.test.js"
       ],
       "sha256": "ddeb7e2b47f3f90a7b7fded95a6b9db4ce0612057b3303243496c31502e01a68",
-      "docSha256": "583c0a7adbe251e9f82dcf446a952476549e971b2c0bd7a3b22be75a50929c06"
+      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
     },
     {
       "path": "src/cli/usage.js",
@@ -230,7 +240,7 @@
       "tests": [
         "test/unit/cli/dispatch.test.js"
       ],
-      "sha256": "627aa557307792de341ab58006a545db0568e5cd9a088a74c858aeb038e162fd",
+      "sha256": "1c5413576a201d0199e1a38e6985d694a9cf9299eee3906d9764035425552527",
       "docSha256": "a75af43cafd7e638ec0e171e14cc0b28a24742959c0f6286c65cfab4621636c3"
     },
     {
@@ -726,7 +736,7 @@
         "test/unit/store/migrate-copy.test.js"
       ],
       "sha256": "2192ee768c491cf9c7a92654585b96db2ec7c2b1d1a95eef850fd49586b9d89e",
-      "docSha256": "583c0a7adbe251e9f82dcf446a952476549e971b2c0bd7a3b22be75a50929c06"
+      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
     },
     {
       "path": "src/runtime/warnings.js",
@@ -737,6 +747,36 @@
       ],
       "sha256": "26bea461165d188e4370844d0fc7e332c8f5fdb8b0ef614038cbc7db994553c6",
       "docSha256": "e9cfd56f22e219f3250f6f528b7b82397ec0bddb49f5412c84af1f365d02f258"
+    },
+    {
+      "path": "src/selftest/index.js",
+      "doc": "20-selftest.md",
+      "phase": "F6",
+      "tests": [
+        "test/unit/selftest/selftest.test.js"
+      ],
+      "sha256": "355df96d8d1cdb74142e12dc9da88be8d84d279a47c9ba04c83f382e1ac2123c",
+      "docSha256": "f366ddca8aed9c7105750452ddd39cf1e15c5b6f00f2196d4297f89f0cca1be3"
+    },
+    {
+      "path": "src/selftest/scenarios.js",
+      "doc": "20-selftest.md",
+      "phase": "F6",
+      "tests": [
+        "test/unit/selftest/selftest.test.js"
+      ],
+      "sha256": "3840d307fbf39927902fb351702aa2866a3b14a5ea00f406bd258a861579ec58",
+      "docSha256": "f366ddca8aed9c7105750452ddd39cf1e15c5b6f00f2196d4297f89f0cca1be3"
+    },
+    {
+      "path": "src/selftest/worker.js",
+      "doc": "20-selftest.md",
+      "phase": "F6",
+      "tests": [
+        "test/unit/selftest/selftest.test.js"
+      ],
+      "sha256": "0f06a1e293b27e81f4c665e1edd40754de7fd50f167ac5cf6c97e5766f43507d",
+      "docSha256": "f366ddca8aed9c7105750452ddd39cf1e15c5b6f00f2196d4297f89f0cca1be3"
     },
     {
       "path": "src/server/auth.js",
@@ -1351,6 +1391,16 @@
       ],
       "sha256": "142af296818ffbdd805d0109a9cf3fc14a54bc869f5822b17cec7b9595cf8e5b",
       "docSha256": "e9cfd56f22e219f3250f6f528b7b82397ec0bddb49f5412c84af1f365d02f258"
+    },
+    {
+      "path": "src/version/check.js",
+      "doc": "20-selftest.md",
+      "phase": "F6",
+      "tests": [
+        "test/unit/version-check.test.js"
+      ],
+      "sha256": "169680048f9a413e35de7e7ddac7121922ef926595cf75091a17c5f6f574b14f",
+      "docSha256": "f366ddca8aed9c7105750452ddd39cf1e15c5b6f00f2196d4297f89f0cca1be3"
     },
     {
       "path": "src/version/index.js",

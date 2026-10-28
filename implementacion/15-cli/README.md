@@ -9,7 +9,8 @@
 | F4.3 (spec 0.17.0) | `../17-conflictos-llm.md` | `conflicts` (`list`, `show`, `stats`, `scan`, `deferred`, `prune`), `instance-id`, `compatibility`, `migrate-copy` |
 | F5 (spec 0.18.0) | `../16-git-sync.md` | `sync` (`--import`, `--status`, `--all`, `--include-prompts`), `projects rescue-ownership`, `conflicts deferred --replay` |
 | F6.1 (spec 0.19.0) | `../18-doctor.md` | `doctor [--json] [--project P] [--check CODE]` |
-| F6.2 y siguientes | — | `doctor repair`, `doctor discard-empty-prompt`, `test`, `cloud`, `hook`, `setup`, `tui` |
+| F6.3 (spec 0.20.0) | `../20-selftest.md` | `test [suite] [--quick] [--json]` y la comprobación de versión |
+| F6.2 y siguientes | — | `doctor repair`, `doctor discard-empty-prompt`, `cloud`, `hook`, `setup`, `tui` |
 
 ## Decisiones de diseño
 
