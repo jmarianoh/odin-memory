@@ -161,6 +161,51 @@ export function sanitizeFts(query) {
     .join(' ');
 }
 
+/** Términos de búsqueda: palabras sin comillas en los extremos, sin vacías. */
+export function searchTerms(query) {
+  return goFields(query)
+    .map((w) => w.replace(/^"+|"+$/g, ''))
+    .filter((w) => w !== '');
+}
+
+/** true si algún término tiene menos de 3 caracteres (el índice trigram no lo cubre). */
+export function hasShortFtsTerm(query) {
+  return searchTerms(query).some((t) => [...t].length < 3);
+}
+
+/** Escapa `\`, `%` y `_` para un LIKE con `ESCAPE '\'`. */
+export function escapeLike(term) {
+  return term.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
+}
+
+/**
+ * Términos entrecomillados para un OR de candidatos. A diferencia de `sanitizeFts`,
+ * un par de comillas consecutivas dentro de una palabra se convierte en un solo `""`.
+ */
+export function candidateTerms(title) {
+  const quoted = [];
+  for (const raw of goFields(title ?? '')) {
+    const w = raw.replace(/^"+|"+$/g, '');
+    if (w === '') continue;
+    let escaped = '';
+    for (let i = 0; i < w.length; i++) {
+      if (w[i] === '"') {
+        escaped += '""';
+        if (i + 1 < w.length && w[i + 1] === '"') i++;
+        continue;
+      }
+      escaped += w[i];
+    }
+    quoted.push(`"${escaped}"`);
+  }
+  return quoted;
+}
+
+/** Consulta FTS que acepta cualquiera de los términos: `"a" OR "b"`. */
+export function sanitizeFtsCandidates(title) {
+  return candidateTerms(title).join(' OR ');
+}
+
 /** "" → null, para columnas opcionales. */
 export function nullableString(v) {
   return v === undefined || v === null || v === '' ? null : v;

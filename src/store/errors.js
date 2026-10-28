@@ -61,6 +61,10 @@ const MESSAGES = {
   observation_find_replace_result_too_large: 'replacement result exceeds maximum observation length',
   observation_find_replace_legacy_content_large: 'cannot partially replace oversized legacy observation',
   prompt_content_required: 'prompt content is required',
+  prompt_inbox_deleted: 'prompt inbox identity was deleted',
+  pulled_prompt_identity_invalid: 'pulled prompt identity is invalid',
+  invalid_match_mode: 'invalid match_mode',
+  search_failed: 'search',
   invalid_project_name: 'invalid project name',
   sync_journal_unavailable: 'sync journal is not available for enrolled projects yet',
 };

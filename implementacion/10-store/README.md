@@ -6,7 +6,7 @@ El store es la capa de persistencia: una base SQLite con búsqueda de texto comp
 |---|---|---|
 | 1 | `01-conexion-y-migraciones.md` | Directorio de datos, identidad de instalación, apertura de la base, migraciones, FTS, fence de generación, transacciones |
 | 2 | `02-observaciones-sesiones.md` | Observaciones (guardado idempotente, `topic_key`, deduplicación, versiones, actualización, borrado, fijado, revisión) y sesiones básicas |
-| 3 | `03-busqueda-prompts.md` (pendiente) | Búsqueda FTS, línea de tiempo y prompts |
+| 3 | `03-busqueda-prompts.md` | Búsqueda FTS y LIKE, línea de tiempo y prompts |
 | 4 | `04-relaciones-proyectos-contexto.md` (pendiente) | Relaciones y juicios, alias y fusión de proyectos, contexto, captura pasiva, consolidación |
 | 5 | `05-sesiones-de-runtime.md` (pendiente) | Registro de sesiones de runtime, continuación, concesiones y sesiones aisladas |
 

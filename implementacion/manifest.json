@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -58,7 +58,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "b6a6540042f9a3ca54b15ace3c26c30f3e7a237fe3e27b7c11eef16c8a9596df",
+      "sha256": "31537f75352d9b5a08e670446168557310a13fe71f8db27bbfb5102812046ee7",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -78,7 +78,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "9cefddf94908f31d37f37c572497d8f97eb1db46d4eb4aa8740d7365fbc40026",
+      "sha256": "c562a63aac77bd52adce6af4c45a406ecaa2c831595b2e5567d049d05300fd6a",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -123,6 +123,16 @@
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {
+      "path": "src/store/prompts.js",
+      "doc": "10-store/03-busqueda-prompts.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/prompts.test.js"
+      ],
+      "sha256": "1d4a6b5ee4d811919f1555934b5b6c2b13c03ccc55aa4be9021c1be99ddefbf6",
+      "docSha256": "df726db1c55a9d7e086d3291f1533d3a2f3e0228996f2951a6e0ddc7eda2d4f0"
+    },
+    {
       "path": "src/store/schema.js",
       "doc": "10-store/01-conexion-y-migraciones.md",
       "phase": "F1",
@@ -131,6 +141,16 @@
       ],
       "sha256": "a7fac82f1d472e9d2d6f2f7f6836dc1abdb5a57f117d97b8af0ad904565e06a9",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/search.js",
+      "doc": "10-store/03-busqueda-prompts.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/search.test.js"
+      ],
+      "sha256": "f2b23a6901cce9eb3864dca2df3d822cf1554c2d32a0302f078584ee0017852a",
+      "docSha256": "df726db1c55a9d7e086d3291f1533d3a2f3e0228996f2951a6e0ddc7eda2d4f0"
     },
     {
       "path": "src/store/sessions.js",
@@ -159,7 +179,7 @@
       "tests": [
         "test/unit/store/text.test.js"
       ],
-      "sha256": "d3c24a116924022f61e42af14b0bd6421ef8ce0b4524d205470ddcc70df3cd2a",
+      "sha256": "d77291ab03f0fce9586f0f2a8c04cb9e6f6d160b3af165eb1a373abd04d0d69c",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {

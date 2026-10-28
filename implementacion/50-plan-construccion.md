@@ -45,9 +45,22 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F1.3 a F1.5
+### F1.3 — Búsqueda, línea de tiempo y prompts (spec 0.4.0)
 
-Búsqueda, línea de tiempo y prompts (F1.3); relaciones, proyectos y contexto (F1.4); sesiones de runtime (F1.5). Se detallan en `10-store/03-…`, `04-…` y `05-…` al completarse.
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/store/{search,prompts}.test.js`).
+2. Crear, según `10-store/03-busqueda-prompts.md`: ampliar `errors.js` y `text.js`; crear `search.js` y `prompts.js`; exportarlos desde `src/store/index.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/store/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F1.4 y F1.5
+
+Relaciones, proyectos y contexto (F1.4); sesiones de runtime (F1.5). Se detallan en `10-store/04-…` y `05-…` al completarse.
 
 ## F2 — Proyecto · F3 — MCP · F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
