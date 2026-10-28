@@ -4,6 +4,7 @@ import { toGoJson } from '../../store/backup.js';
 import { goTrim } from '../../store/text.js';
 import { resolveCliProject } from '../project.js';
 import { exit, fatal, println, withStore } from '../runtime.js';
+import { cmdDoctorRepair } from './doctor-repair.js';
 
 export const DISCARD_PROMPT_USAGE = 'usage: odin doctor discard-empty-prompt --project PROJECT --seq SEQ [--dry-run|--apply --backup PATH] [--json]';
 
@@ -86,17 +87,14 @@ export const doctorJson = (value) => toGoJson(value, 2);
 
 /**
  * `odin doctor [--json] [--project P] [--check CODE]`: diagnósticos operativos de solo lectura.
- * `doctor repair` y `doctor discard-empty-prompt` los atiende `Cli.doctorRepair`.
+ * `doctor repair` lo atiende `doctor-repair.js`; `doctor discard-empty-prompt` llega con la nube.
  * @param {import('../runtime.js').Cli} cli
  * @param {{ dataDir: string }} config
  */
 export function cmdDoctor(cli, config) {
   const args = cli.args.slice(1);
-  if (args[0] === 'discard-empty-prompt' || args[0] === 'repair') {
-    const handler = cli.doctorRepair?.[args[0]];
-    if (!handler) return fatal(cli, new Error(`doctor ${args[0]} is not available in this build`));
-    return handler(cli, config);
-  }
+  if (args[0] === 'repair') return cmdDoctorRepair(cli, config);
+  if (args[0] === 'discard-empty-prompt') return fatal(cli, new Error('doctor discard-empty-prompt is not available in this build'));
   let jsonOut = false;
   let project = '';
   let check = '';

@@ -1,5 +1,5 @@
 {
-  "version": "0.20.0",
+  "version": "0.21.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -10,7 +10,7 @@
         "test/unit/cli/dispatch.test.js"
       ],
       "sha256": "dd878277029875ddf169e45e60eb27bd66778991524332a485cc270b49f270c2",
-      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
+      "docSha256": "077234ef5316d773e56f092ea69f1e133bdf7d0b6a109d20097d6eaa6e9fc92f"
     },
     {
       "path": "src/cli/commands/admin.js",
@@ -66,14 +66,24 @@
       "docSha256": "b72d34af7d96131db4d696720e4a9a96337bbd917bd42dd7dd85b2bf03fa4c8f"
     },
     {
+      "path": "src/cli/commands/doctor-repair.js",
+      "doc": "18-doctor.md",
+      "phase": "F6",
+      "tests": [
+        "test/unit/cli/doctor-repair.test.js"
+      ],
+      "sha256": "37ebba8f71ed55d2bebc5ffd9854f490e07a20f661f7f320eb3c4471019602bf",
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
+    },
+    {
       "path": "src/cli/commands/doctor.js",
       "doc": "18-doctor.md",
       "phase": "F6",
       "tests": [
         "test/unit/cli/doctor.test.js"
       ],
-      "sha256": "d2b29b950a3ced81c3d81e6597897239bb096479913c5f23e24d8f9457e4b79c",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "sha256": "7807092c5baf0e0968069562c1f6830cd2635feb6124618be3424061b6041d87",
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/cli/commands/init.js",
@@ -189,7 +199,7 @@
         "test/unit/cli/dispatch.test.js"
       ],
       "sha256": "a85710a93c05b3bcadcb430c286911f2014eea32d357400a309aa11db6f364a9",
-      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
+      "docSha256": "077234ef5316d773e56f092ea69f1e133bdf7d0b6a109d20097d6eaa6e9fc92f"
     },
     {
       "path": "src/cli/index.js",
@@ -199,7 +209,7 @@
         "test/unit/cli/dispatch.test.js"
       ],
       "sha256": "2379936ee1892668cbfc6b5b125f2cb7c7f7857c51f53bcd095a0d9bb98e3794",
-      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
+      "docSha256": "077234ef5316d773e56f092ea69f1e133bdf7d0b6a109d20097d6eaa6e9fc92f"
     },
     {
       "path": "src/cli/init-config.js",
@@ -221,7 +231,7 @@
         "test/unit/cli/details.test.js"
       ],
       "sha256": "332ff09db5697513cd88c5f3fd481cfc8d95a57935036dc9246dcd776135b67e",
-      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
+      "docSha256": "077234ef5316d773e56f092ea69f1e133bdf7d0b6a109d20097d6eaa6e9fc92f"
     },
     {
       "path": "src/cli/runtime.js",
@@ -231,7 +241,7 @@
         "test/unit/cli/dispatch.test.js"
       ],
       "sha256": "ddeb7e2b47f3f90a7b7fded95a6b9db4ce0612057b3303243496c31502e01a68",
-      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
+      "docSha256": "077234ef5316d773e56f092ea69f1e133bdf7d0b6a109d20097d6eaa6e9fc92f"
     },
     {
       "path": "src/cli/usage.js",
@@ -252,7 +262,7 @@
         "test/unit/server/doctor.test.js"
       ],
       "sha256": "7b9122405e710d17efac0732efae20e38c9b0463670165529721126b4c8fda7c",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/diagnostic/checks.js",
@@ -262,7 +272,7 @@
         "test/unit/diagnostic/checks.test.js"
       ],
       "sha256": "11834162095a15ec165d24eae1895e1bd53bc49bf695622efd055b1e091abe1a",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/diagnostic/core.js",
@@ -273,7 +283,7 @@
         "test/unit/diagnostic/checks.test.js"
       ],
       "sha256": "c652b220d9397aefe9b6e5847807d18bde37cf37005f57ddc7b951574fa1f62f",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/diagnostic/evidence.js",
@@ -283,7 +293,7 @@
         "test/unit/diagnostic/checks.test.js"
       ],
       "sha256": "08b6949822c700ebd9094ca19f1aaf51c62fe85735f4ff191ef91ba300e11b05",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/diagnostic/index.js",
@@ -294,7 +304,7 @@
         "test/unit/diagnostic/checks.test.js"
       ],
       "sha256": "af75aa4e9ebb9b69f588b10acfb80d12a8cdb02b6aa593d608e7a6f2a517f237",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/diagnostic/registry.js",
@@ -305,7 +315,7 @@
         "test/unit/diagnostic/checks.test.js"
       ],
       "sha256": "0b24eccc4e07680f036034a6fed70bfc472bcdbac3355d4ee9f430d2d848cea4",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/diagnostic/repair-codes.js",
@@ -315,7 +325,18 @@
         "test/unit/cli/doctor.test.js"
       ],
       "sha256": "6519819ede2e082ad45c66c75176e25370ae4bf899b3df013be523e3d00f4ae5",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
+    },
+    {
+      "path": "src/diagnostic/repair.js",
+      "doc": "18-doctor.md",
+      "phase": "F6",
+      "tests": [
+        "test/unit/diagnostic/repair.test.js",
+        "test/unit/cli/doctor-repair.test.js"
+      ],
+      "sha256": "462fd6b0d60beca62760faa688cc1b7b8210b076a3782166b25ecc1a408c90c1",
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/hostbind/index.js",
@@ -545,7 +566,7 @@
         "test/unit/mcp/tools.test.js"
       ],
       "sha256": "b513eefa8eb974e7bf8491639402d389c655084783230eafde7f05905d1eb5cf",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/mcp/tools/projects.js",
@@ -736,7 +757,7 @@
         "test/unit/store/migrate-copy.test.js"
       ],
       "sha256": "2192ee768c491cf9c7a92654585b96db2ec7c2b1d1a95eef850fd49586b9d89e",
-      "docSha256": "7d7b5cda4ebbaa476bbc7ff9030bc8d68442ae856313557adeee0478856f5369"
+      "docSha256": "077234ef5316d773e56f092ea69f1e133bdf7d0b6a109d20097d6eaa6e9fc92f"
     },
     {
       "path": "src/runtime/warnings.js",
@@ -860,7 +881,7 @@
         "test/unit/server/doctor.test.js"
       ],
       "sha256": "5e88b57b1596ff78275d9340e41a1c8e5cd7d5013d90fa0a9a2868891e47e254",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/server/routes/maintenance.js",
@@ -1063,7 +1084,7 @@
         "test/unit/diagnostic/checks.test.js"
       ],
       "sha256": "24f45a10f3fc3473ed9a6b71a27ca1fc9e185f4c1d56eda1e086192e2d644fee",
-      "docSha256": "e059411ae8e647402ce21aa2e790871349db67cae57c9aeb82253c6081d41433"
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/store/errors.js",
@@ -1237,6 +1258,17 @@
       ],
       "sha256": "d441ff87eea63acfe71d6301abd41a39012041a5f983912f3577573798cec1ce",
       "docSha256": "1629bc259a2fc5daaa0fa3e9e31c29ae9fd78b1e2745b2879d717c6491666c41"
+    },
+    {
+      "path": "src/store/repair.js",
+      "doc": "18-doctor.md",
+      "phase": "F6",
+      "tests": [
+        "test/unit/store/repair.test.js",
+        "test/unit/cli/doctor-repair.test.js"
+      ],
+      "sha256": "df0189be1842cf37c0c5f79bd2bb5ca00a5173fb69deaca024271402d83a7f0b",
+      "docSha256": "742c93e49b1924436cc55571f306f96be47424b030ea04f0b9340c254ae6be22"
     },
     {
       "path": "src/store/runtime-sessions.js",

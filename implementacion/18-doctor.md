@@ -2,7 +2,7 @@
 
 ## Qué cubre este capítulo
 
-La entrega F6.1 (spec 0.19.0) añade el diagnóstico operativo de **solo lectura**: diez chequeos con códigos estables, el comando `odin doctor`, las rutas `GET /doctor` y `POST /doctor/caller-binding` y la herramienta MCP `mem_doctor`. La reparación (`doctor repair`) llega en F6.2.
+La entrega F6.1 (spec 0.19.0) añade el diagnóstico operativo de **solo lectura**: diez chequeos con códigos estables, el comando `odin doctor`, las rutas `GET /doctor` y `POST /doctor/caller-binding` y la herramienta MCP `mem_doctor`. La reparación (`odin doctor repair`) se describe en la sección «Reparación» (F6.2, spec 0.21.0).
 
 | Pieza | Dónde |
 |---|---|
@@ -126,7 +126,7 @@ odin doctor [--json] [--project PROJECT] [--check CODE]
 - Sin `--project` ni `--check`, el informe completo añade el chequeo `stale_mcp_command` si el gancho `Cli.staleMcpCommands()` devuelve registros con un ejecutable inexistente (lo aporta la integración con Copilot, F7), o `mcp_inspection_error` si el gancho falla. Cada uno suma 1 al total y al contador `warnings`/`errors` y sube el estado (`warning` solo si era `ok`; `error` siempre).
 - Texto: `Odin Doctor: <estado>`, `Project: <p>` si lo hay, `Checks: N ok=… warnings=… blocked=… errors=…`, línea en blanco y, por chequeo, `[<result>] <check_id> — <message>`, `  why: …`, `  next: …` y, por hallazgo, `  - <reason_code>: <message>`, `    next: …`, `    evidence: <JSON compacto>`.
 - `--json`: el informe con sangría de dos espacios y un salto de línea final.
-- `doctor repair` y `doctor discard-empty-prompt` se despachan a `Cli.doctorRepair.repair` / `.discard-empty-prompt` (F6.2); sin ellos: `odin: doctor repair is not available in this build`.
+- `doctor repair` se describe más abajo. `doctor discard-empty-prompt` llega con la nube: sale con `odin: doctor discard-empty-prompt is not available in this build`.
 
 El uso (`--help`) lista `checks:` (los diez, ordenados) y `diagnostic-only checks with no repair:` (los no reparables: `ambiguous_active_runtime_sessions`, `sqlite_lock_contention`, `unowned_session_project`).
 
@@ -134,6 +134,50 @@ El uso (`--help`) lista `checks:` (los diez, ordenados) y `diagnostic-only check
 
 - `GET /doctor` y `POST /doctor/caller-binding`: ver `14-http-api/01-rutas.md`. Ninguna exige autenticación.
 - `mem_doctor` (perfil `agent`, diferida, solo lectura): argumentos `project` (se resuelve como una lectura sin crear el vínculo del repositorio; debe existir) y `check`. Devuelve el informe como texto JSON compacto con claves ordenadas; si su `status` es `error`, el resultado lleva `isError`. Con ella `tools/list` devuelve 23 herramientas con `--tools=agent` y 27 con `all`.
+
+## Reparación (`odin doctor repair`)
+
+```
+odin doctor repair --project PROJECT --check CODE (--plan|--dry-run|--apply)
+```
+
+Solo `--apply` escribe, y siempre después de una copia de la base. `--plan` y `--dry-run` calculan lo mismo y solo difieren en `status` (`planned` / `dry_run`). Código de salida 1 en cualquier error; todo error imprime `odin doctor repair failed: <mensaje>` por el error estándar y el uso por la salida estándar. La salida es el plan en JSON con sangría de dos espacios.
+
+### Validación de argumentos (en este orden)
+
+1. Argumento desconocido: `unknown doctor repair argument "x"`; `--project`, `--check`, `--replacement-id` o `--source-id` sin valor: `<flag> requires a value`. `--help`/`-h`/`help` imprime el uso de reparación y sale con 0.
+2. El proyecto se normaliza. `--project is required` salvo para `sync_mutation_required_fields` y `orphaned_pending_relations`. `--check is required`.
+3. Se exige exactamente una de `--plan`, `--dry-run`, `--apply` (`exactly one of --plan, --dry-run, or --apply is required`); `sync_mutation_required_fields` sin ninguna usa `--dry-run`.
+4. `identity flags require --check invalid_session_identity`; `--source-id requires --replacement-id`.
+5. Un chequeo que existe pero no se repara: `<código> is a diagnostic-only check with no repair; run odin doctor --check <código>`; uno que no existe: `unsupported repair check <código>`.
+6. Las reparaciones que reescriben el diario de la nube (`sync_mutation_required_fields`, `sync_target_closed_space` y `invalid_session_identity` con `--replacement-id`) salen con `<código> repair rewrites the cloud sync journal, which is not available in this build` hasta que exista la nube. `invalid_session_identity` sin `--replacement-id` sí produce su plan (informativo).
+
+Los chequeos reparables son siete (`REPAIRABLE_CODES`); el uso los lista ordenados y separa los que no tienen reparación.
+
+### El plan
+
+`buildRepairPlan(scope, report, check, mode)` ejecuta antes el chequeo y reparte su evidencia. Campos en este orden: `project`, `check`, `mode` (`plan`/`dry_run`/`apply`), `status`, `actions`, y solo si no están vacíos `target_actions`, `placeholder_sessions`, `identity_repair`, `orphaned_pending_relations`, `blockers`, `skipped`; después `counts` y, si hubo copia, `backup_path`.
+
+- `status` inicial: `planned` (`plan` y `apply`) o `dry_run`; pasa a `noop` si no hay acciones, sesiones de reemplazo ni relaciones candidatas; el comando lo cambia a `applied` / `noop` al aplicar.
+- `counts`: `sessions_planned`, `observations_planned`, `prompts_planned`, `sessions_applied`, `observations_applied`, `prompts_applied`, `corrected_mutations_planned`, `corrected_mutations_applied`, `relations_planned`, `relations_applied`.
+- `skipped`: `{session_id?, reason_code, message}`, ordenado por `session_id` (el vacío primero) y luego por `reason_code`. `actions`: sin repeticiones y ordenadas por `session_id`.
+
+| Chequeo | Qué planifica |
+|---|---|
+| `session_project_directory_mismatch` | Una acción `{session_id, from_project, to_project, reason_code, evidence_source?, evidence_path?}` por hallazgo cuya evidencia sea `git_remote` o `git_root` (si no: `untrusted_directory_evidence`), cuyo proyecto de sesión sea el del plan y cuyo destino difiera (si no: `invalid_reclassification_evidence`) |
+| `manual_session_name_project_mismatch` | Para cada sesión del proyecto con nombre `manual-save-<x>` distinto: `directory_basename_corroborates_persisted_project` si el nombre del directorio coincide con el proyecto persistido; `manual_name_unknown_project` si `<x>` no es un proyecto con sesiones locales; si no, acción hacia `<x>` |
+| `orphaned_observation_session` | Una sesión de reemplazo `{session_id, project, observation_count, started_at}` por ID, ordenadas por ID. El mismo ID desde varios proyectos: `ambiguous_orphaned_session_project`; evidencia incompleta: `invalid_orphaned_session_evidence` |
+| `orphaned_pending_relations` | Evidencia nueva de todos los proyectos (`candidates`, `one_endpoint_missing`, `live_pending`) y `relations_planned`; ignora `--project` |
+| `invalid_session_identity` | Solo `skipped`: `cannot_repair_without_explicit_canonical_session_id` por sesión y `quarantined_pulled_session_identity` por cada recibida en cuarentena |
+
+Las dos acciones de traslado de proyecto pasan por un **veto de alias** que vuelve a leer los alias actuales: se descarta (`project_alias_contradicts_reclassification`) toda acción cuando hay conflicto de alias o cuando existe un alias cuyo proyecto difiere del destino. Los alias nunca crean una acción ni eligen dueño.
+
+### Aplicación (`src/store/repair.js`)
+
+- **Copia** (`backupSqlite`): `VACUUM INTO` a `<datos>/backups/odin-repair-<UTC con nueve decimales>.db` (por ejemplo `20260102T030405.678000000Z`), directorio `0700` y archivo `0600` reservado antes de que SQLite lo abra (`wx`). `backupSqliteUnderWriteLock` hace lo mismo desde **otra conexión** mientras la transacción de escritura sigue abierta: en modo WAL lee el último estado confirmado.
+- **Sesiones huérfanas** (`restoreOrphanedObservationSessions`, una transacción): por acción valida el ID y exige proyecto y fecha; si la sesión ya existe del mismo proyecto es una operación nula y de otro proyecto un error (`orphaned session "x" already belongs to project "a", not "b"`); exige que todas las observaciones de ese ID sean de un único proyecto igual al pedido (`has no supporting observations`, `is referenced by multiple projects`, `evidence belongs to a different project`, `has observation evidence without a project`); recalcula el recuento y la fecha mínima de las observaciones actuales e inserta una sesión terminada (`ended_at = started_at`), `project_owned`, directorio vacío y resumen «Recovered local placeholder for orphaned observations.». No toca observaciones ni emite mutaciones de sincronización. Un error revierte todo.
+- **Relaciones huérfanas** (`reclassifyOrphanedPendingRelations`): copia bajo el bloqueo, revalida el predicado dentro de la transacción y pone `judgment_status = 'orphaned'` y `updated_at = datetime('now')`. Sin mutaciones de sincronización. Devuelve `reclassified`, `candidates_at_apply`, `one_endpoint_missing`, `live_pending`, `backup_path`. Es idempotente.
+- **Traslado de proyecto**: `estimateSessionProjectReclassification` cuenta lo que cambiaría (también en plan y simulacro). `applySessionProjectReclassification` hace la copia y, en una transacción, por acción: `UPDATE sessions SET project, ownership_mode` (`project_owned` solo si el ID es `manual-save-<destino>` normalizado; si no `shared`), y reasigna las observaciones y prompts de esa sesión que tenían el proyecto de origen. Las acciones se normalizan antes (ID recortado, proyectos normalizados, descartando vacías, iguales y repetidas).
 
 ## Cambios de almacén que acompañan a esta entrega
 

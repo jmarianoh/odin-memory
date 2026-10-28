@@ -296,6 +296,22 @@ npm run check:clean-room
 
 Pruebas manuales: `node bin/odin.js test --quick`, `test performance --json`, `test --help`; `ODIN_UPDATE_CHECK_URL=<servicio> node bin/odin.js stats`.
 
-## F6.2 — reparación (pendiente) · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+### F6.2 — Reparación (spec 0.21.0)
+
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/store/repair.test.js`, `test/unit/diagnostic/repair.test.js`, `test/unit/cli/{doctor,doctor-repair}.test.js`).
+2. Crear, según `18-doctor.md`: `src/store/repair.js`, `src/diagnostic/repair.js`, `src/cli/commands/doctor-repair.js`.
+3. Modificar `src/cli/commands/doctor.js` (despacha `repair`; `discard-empty-prompt` sigue sin estar disponible).
+
+Aceptación:
+```bash
+node --test test/unit/store/repair.test.js test/unit/diagnostic/repair.test.js test/unit/cli/doctor-repair.test.js test/unit/cli/doctor.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Pruebas manuales: con una base de pruebas con una observación cuya sesión falta, `node bin/odin.js doctor repair --project demo --check orphaned_observation_session --plan`, `--dry-run` y `--apply`; después `odin doctor --check orphaned_observation_session`.
+
+## F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

@@ -29,6 +29,7 @@ after(() => {
 });
 
 const MASKS = [
+  [/<DIR>\/backups\/(?:engram|odin)-repair-[0-9TZ.]+\.db/g, '<BACKUP>'],
   [/"checkpoint_log": \d+/g, '"checkpoint_log": N'],
   [/"checkpointed_frames": \d+/g, '"checkpointed_frames": N'],
   [/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2} /gm, ''],
@@ -228,4 +229,148 @@ test('sesiones: ambigüedad de ejecución y proyecto distinto del directorio', {
   world.same(['doctor', '--check', 'manual_session_name_project_mismatch', '--json']);
   world.same(['doctor', '--check', 'session_project_directory_mismatch', '--json']);
   world.same(['doctor', '--json']);
+});
+
+/** Estado de propiedad y proyecto de ambos almacenes, para compararlo tras reparar. */
+function snapshot(world, side) {
+  const db = new DatabaseSync(dbPath(world, side), { readOnly: true, timeout: 5000 });
+  const rows = (query) => db.prepare(query).all().map((r) => ({ ...r }));
+  const out = {
+    sessions: rows('SELECT id, project, ownership_mode, directory, ended_at IS NOT NULL AS ended, summary FROM sessions ORDER BY id'),
+    observations: rows('SELECT id, session_id, project FROM observations ORDER BY id'),
+    prompts: rows('SELECT id, session_id, project FROM user_prompts ORDER BY id'),
+    relations: rows('SELECT sync_id, judgment_status FROM memory_relations ORDER BY sync_id'),
+  };
+  db.close();
+  return JSON.parse(maskText(JSON.stringify(out), world));
+}
+
+function sameState(world, label) {
+  assert.deepEqual(snapshot(world, 'odin'), snapshot(world, 'ref'), label);
+}
+
+test('reparar: validación de argumentos y ayuda', { skip }, async () => {
+  const world = newWorld('repara-args');
+  await seed(world);
+  for (const args of [
+    ['doctor', 'repair'], ['doctor', 'repair', '--help'], ['doctor', 'repair', '--project', 'demo'], ['doctor', 'repair', '--check', 'orphaned_observation_session'],
+    ['doctor', 'repair', '--project', 'demo', '--check', 'orphaned_observation_session'], ['doctor', 'repair', '--project', 'demo', '--check', 'orphaned_observation_session', '--plan', '--apply'],
+    ['doctor', 'repair', '--project', 'demo', '--check', 'unowned_session_project', '--plan'], ['doctor', 'repair', '--project', 'demo', '--check', 'no_existe', '--plan'],
+    ['doctor', 'repair', '--project', 'demo', '--check', 'sqlite_lock_contention', '--plan'], ['doctor', 'repair', '--bogus'], ['doctor', 'repair', '--project'], ['doctor', 'repair', '--check'],
+    ['doctor', 'repair', '--project', 'demo', '--check', 'orphaned_observation_session', '--plan', '--replacement-id', 'x'],
+    ['doctor', 'repair', '--project', 'demo', '--check', 'invalid_session_identity', '--source-id', 'x', '--plan'], ['doctor', 'repair', '--replacement-id'],
+    ['doctor', 'repair', '--check', 'orphaned_pending_relations', '--plan'], ['doctor', 'repair', '--check', 'orphaned_pending_relations', '--dry-run'],
+  ]) world.same(args);
+});
+
+test('reparar sesiones huérfanas: plan, simulacro, aplicación y repetición', { skip }, async () => {
+  const world = newWorld('repara-huerfanas');
+  await seed(world);
+  both(world, [
+    ['PRAGMA foreign_keys = OFF'],
+    ["UPDATE observations SET session_id = 'perdida-a' WHERE id IN (1, 2)"],
+    ["UPDATE observations SET session_id = 'perdida-b' WHERE id = 3"],
+    ["UPDATE observations SET project = 'otro' WHERE id = 3"],
+  ]);
+  for (const mode of ['--plan', '--dry-run']) {
+    world.same(['doctor', 'repair', '--project', 'demo', '--check', 'orphaned_observation_session', mode]);
+    world.same(['doctor', 'repair', '--project', 'otro', '--check', 'orphaned_observation_session', mode]);
+  }
+  sameState(world, 'tras plan y simulacro nada cambia');
+  world.same(['doctor', 'repair', '--project', 'demo', '--check', 'orphaned_observation_session', '--apply']);
+  sameState(world, 'tras aplicar');
+  const placeholders = snapshot(world, 'odin').sessions.filter((x) => x.id.startsWith('perdida'));
+  assert.deepEqual(placeholders.map((x) => [x.id, x.project, x.ownership_mode, x.ended]), [['perdida-a', 'demo', 'project_owned', 1]], 'solo la sesión del proyecto pedido se repone');
+  world.same(['doctor', 'repair', '--project', 'demo', '--check', 'orphaned_observation_session', '--apply']);
+  world.same(['doctor', 'repair', '--project', 'otro', '--check', 'orphaned_observation_session', '--apply']);
+  sameState(world, 'tras repetir');
+  world.same(['doctor', '--check', 'orphaned_observation_session', '--json']);
+});
+
+test('reparar sesiones huérfanas referenciadas desde dos proyectos falla igual y no cambia nada', { skip }, async () => {
+  const world = newWorld('repara-mixta');
+  await seed(world);
+  both(world, [
+    ['PRAGMA foreign_keys = OFF'],
+    ["INSERT INTO observations (sync_id, session_id, type, title, content, project, scope) VALUES ('obs-mix-1', 'perdida-c', 'manual', 't', 'c', 'demo', 'project'), ('obs-mix-2', 'perdida-c', 'manual', 't2', 'c2', 'otro', 'project')"],
+  ]);
+  world.same(['doctor', 'repair', '--project', 'demo', '--check', 'orphaned_observation_session', '--plan']);
+  world.same(['doctor', 'repair', '--project', 'demo', '--check', 'orphaned_observation_session', '--apply']);
+  sameState(world, 'el fallo no deja cambios');
+});
+
+test('reparar relaciones pendientes huérfanas', { skip }, async () => {
+  const world = newWorld('repara-relaciones');
+  await seed(world);
+  world.same(['doctor', 'repair', '--check', 'orphaned_pending_relations', '--apply']);
+  both(world, [
+    ["INSERT INTO memory_relations (sync_id, source_id, target_id, relation, judgment_status, marked_by_actor, marked_by_kind) VALUES ('rel-0000000000000001', 'x1', 'y1', 'related', 'pending', 's', 'system'), ('rel-0000000000000002', 'x2', 'y2', 'related', 'pending', 's', 'system'), ('rel-0000000000000003', 'x3', 'y3', 'related', 'judged', 's', 'system')"],
+  ]);
+  world.same(['doctor', 'repair', '--check', 'orphaned_pending_relations', '--plan']);
+  world.same(['doctor', 'repair', '--project', 'cualquiera', '--check', 'orphaned_pending_relations', '--dry-run']);
+  sameState(world, 'sin cambios en plan y simulacro');
+  world.same(['doctor', 'repair', '--check', 'orphaned_pending_relations', '--apply']);
+  sameState(world, 'tras aplicar');
+  assert.deepEqual(snapshot(world, 'odin').relations.map((r) => r.judgment_status).filter((x) => x !== 'pending').sort(), ['judged', 'orphaned', 'orphaned']);
+  world.same(['doctor', 'repair', '--check', 'orphaned_pending_relations', '--apply']);
+  world.same(['doctor', '--check', 'orphaned_pending_relations']);
+});
+
+test('reparar el proyecto de una sesión por el directorio y por el nombre manual', { skip }, async () => {
+  const world = newWorld('repara-proyecto');
+  await seed(world);
+  both(world, [
+    ["INSERT INTO sessions (id, project, directory, started_at, ownership_mode) VALUES ('s-dir', 'viejo', '__DIR__', '2026-01-01 00:00:00', 'shared')"],
+  ]);
+  // El directorio de cada lado es el suyo: se escribe aparte para que el nombre del repositorio coincida.
+  for (const [side, repo] of [['ref', world.refRepo], ['odin', world.odinRepo]]) {
+    const db = new DatabaseSync(dbPath(world, side), { timeout: 5000 });
+    db.prepare("UPDATE sessions SET directory = ? WHERE id = 's-dir'").run(repo);
+    db.prepare("INSERT INTO observations (sync_id, session_id, type, title, content, project, scope) VALUES ('obs-dir', 's-dir', 'manual', 't', 'c', 'viejo', 'project')").run();
+    db.prepare("INSERT INTO user_prompts (sync_id, session_id, content, project) VALUES ('prompt-dir', 's-dir', 'p', 'viejo')").run();
+    db.close();
+  }
+  world.same(['doctor', '--check', 'session_project_directory_mismatch', '--project', 'viejo', '--json']);
+  world.same(['doctor', 'repair', '--project', 'viejo', '--check', 'session_project_directory_mismatch', '--plan']);
+  world.same(['doctor', 'repair', '--project', 'viejo', '--check', 'session_project_directory_mismatch', '--dry-run']);
+  sameState(world, 'sin cambios en el simulacro');
+  world.same(['doctor', 'repair', '--project', 'viejo', '--check', 'session_project_directory_mismatch', '--apply']);
+  sameState(world, 'tras aplicar');
+  const moved = snapshot(world, 'odin');
+  assert.equal(moved.sessions.find((x) => x.id === 's-dir').project, 'repara-proyecto');
+  assert.equal(moved.observations.find((x) => x.session_id === 's-dir').project, 'repara-proyecto');
+  assert.equal(moved.prompts.find((x) => x.session_id === 's-dir').project, 'repara-proyecto');
+  world.same(['doctor', 'repair', '--project', 'viejo', '--check', 'session_project_directory_mismatch', '--apply']);
+
+  // Alias local que contradice el traslado.
+  both(world, [["INSERT INTO sessions (id, project, directory, started_at, ownership_mode) VALUES ('s-dir2', 'viejo2', '/nada', '2026-01-02 00:00:00', 'shared')"]]);
+  world.same(['doctor', 'repair', '--project', 'viejo2', '--check', 'session_project_directory_mismatch', '--plan']);
+
+  // Nombre manual que apunta a un proyecto conocido.
+  both(world, [
+    ["INSERT INTO sessions (id, project, directory, started_at, ownership_mode) VALUES ('s-demo', 'demo', '/tmp/inexistente', '2026-01-03 00:00:00', 'shared')"],
+    ["INSERT INTO sessions (id, project, directory, started_at, ownership_mode) VALUES ('manual-save-demo', 'otro', '/tmp/inexistente', '2026-01-03 00:00:00', 'shared')"],
+    ["INSERT INTO observations (sync_id, session_id, type, title, content, project, scope) VALUES ('obs-man', 'manual-save-demo', 'manual', 't', 'c', 'otro', 'project')"],
+    ["INSERT INTO sessions (id, project, directory, started_at, ownership_mode) VALUES ('manual-save-fantasma', 'otro', '/tmp/inexistente', '2026-01-03 00:00:00', 'shared')"],
+  ]);
+  world.same(['doctor', '--check', 'manual_session_name_project_mismatch', '--project', 'otro', '--json']);
+  world.same(['doctor', 'repair', '--project', 'otro', '--check', 'manual_session_name_project_mismatch', '--plan']);
+  world.same(['doctor', 'repair', '--project', 'otro', '--check', 'manual_session_name_project_mismatch', '--apply']);
+  sameState(world, 'tras reparar el nombre manual');
+  const manual = snapshot(world, 'odin').sessions.find((x) => x.id === 'manual-save-demo');
+  assert.deepEqual([manual.project, manual.ownership_mode], ['demo', 'project_owned']);
+  world.same(['doctor', 'repair', '--project', 'otro', '--check', 'manual_session_name_project_mismatch', '--apply']);
+});
+
+test('identidad de sesión inválida: el plan sin ID de reemplazo explica qué falta', { skip }, async () => {
+  const world = newWorld('repara-identidad');
+  await seed(world);
+  both(world, [
+    ['PRAGMA foreign_keys = OFF'],
+    ["INSERT INTO sessions (id, project, directory, started_at, ownership_mode) VALUES (' ', 'demo', '/tmp/x', '2026-01-01 00:00:00', 'shared')"],
+    ["INSERT INTO sync_apply_deferred (sync_id, entity, payload, target_key, project, scope_class, apply_status, reason_code, first_seen_at, entity_key, op, remote_seq) VALUES ('d1', 'session', '{}', 'local', 'demo', 'scoped', 'dead', 'sync_session_identity_invalid', '2026-01-01 00:00:00', ' ', 'upsert', 1)"],
+  ]);
+  world.same(['doctor', 'repair', '--project', 'demo', '--check', 'invalid_session_identity', '--plan']);
+  world.same(['doctor', 'repair', '--project', 'demo', '--check', 'invalid_session_identity', '--apply']);
+  sameState(world, 'sin cambios');
 });
