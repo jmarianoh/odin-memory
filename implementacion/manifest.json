@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -8,8 +8,119 @@
       "tests": [
         "test/unit/version.test.js"
       ],
-      "sha256": "4f36b1a2cd0c1916c7b963d7f5b115e8f6a1db24ebaff4b63f2fc1753d077b14",
-      "docSha256": "64467449bedc119f04b48858a575ae27a353be53bb224bb445130a74e13b22c4"
+      "sha256": "1697fafc900717ec9e04cf35f110cafa0090eaa2d53913b12e7e0eebfe8535d6",
+      "docSha256": "9e4cf7e46f87f7c2d258fd6dc419f3eda907d9e20989adcb46f2a05dcd213451"
+    },
+    {
+      "path": "src/runtime/warnings.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/runtime-warnings.test.js"
+      ],
+      "sha256": "26bea461165d188e4370844d0fc7e332c8f5fdb8b0ef614038cbc7db994553c6",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/data-dir.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/open.test.js"
+      ],
+      "sha256": "ef13389b72923d680f969178272ca728a92c3f20b3f7f8b2c2d85b3a96c34851",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/db.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/db.test.js"
+      ],
+      "sha256": "6705dc1a8a7c7c919e7e26ff937beceb805c2b6c266270aab5762a293754f4d2",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/errors.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/open.test.js"
+      ],
+      "sha256": "01ca99385fe3ef023cf1df380ef8f5dd1a5024b1b327419bfcc73b4adaa7ec15",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/generation.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/open.test.js"
+      ],
+      "sha256": "2ee14be45899d70d79ed0c0eaa4a04b4c1ac5d9a6ee0179d51629a069897e79d",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/index.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/open.test.js"
+      ],
+      "sha256": "bf9cdb97e85439d1a36cc0bf191bebdbba74d29488a4fe50f3323259dd97ca3f",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/instance-id.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/open.test.js"
+      ],
+      "sha256": "8aaa7edd11b853b9bff4322931ae51c31b3212850cc29048eaed16ad1a410bbd",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/migrate.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/fts.test.js",
+        "test/unit/store/open.test.js"
+      ],
+      "sha256": "62af8d4a2e53ed630610cb7e6e30dbe52ee992ccbd8d2baf6befc9ed72c6de8e",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/schema.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/schema.test.js"
+      ],
+      "sha256": "a7fac82f1d472e9d2d6f2f7f6836dc1abdb5a57f117d97b8af0ad904565e06a9",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/store.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/open.test.js"
+      ],
+      "sha256": "3d5fcfc3bbd6ae987c413a27141a9a9fa46f6eb65e2bcafdd854f60d7c2f677f",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/timeutil/index.js",
+      "doc": "10-store/01-conexion-y-migraciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/timeutil.test.js"
+      ],
+      "sha256": "26b26998417e60dfbfe34c3202b92faca0be030273da965dcc228887ad8c9485",
+      "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
       "path": "src/version/index.js",
@@ -19,7 +130,7 @@
         "test/unit/version.test.js"
       ],
       "sha256": "7d16145c07bcf0c294d8ebcb6ba7feb4539473bd673bd50c1fd565f9373c7960",
-      "docSha256": "2a471ba1de8ed23290a5b33eebf4b0e0a28aa2d022c5e8e3a70d8099d78ef572"
+      "docSha256": "b9de7db911bcdacc7bd84cd59035151f20576f99773f855d1fa13938b109662c"
     }
   ]
 }

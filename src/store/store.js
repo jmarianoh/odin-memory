@@ -1,0 +1,74 @@
+import { randomBytes } from 'node:crypto';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { validateDataDirectory } from './data-dir.js';
+import { openDatabase } from './db.js';
+import { DatabaseGeneration, ensureDatabaseFile } from './generation.js';
+import { ensureInstanceId } from './instance-id.js';
+import { runStartupMigrations } from './migrate.js';
+
+/** Nombre del archivo de base de datos dentro del directorio de datos. */
+export const DB_FILE_NAME = 'odin.db';
+
+/**
+ * @typedef {object} StoreConfig
+ * @property {string} dataDir ruta absoluta del directorio de datos
+ * @property {(message: string) => void} [log] destino de avisos; por defecto stderr
+ */
+
+/** Almacén de memoria: base SQLite con FTS5 e identidad de instalación. */
+export class Store {
+  /**
+   * @param {StoreConfig} config
+   * @param {import('./db.js').Database} db
+   * @param {DatabaseGeneration} generation
+   * @param {string} instanceId
+   */
+  constructor(config, db, generation, instanceId) {
+    this.config = config;
+    this.db = db;
+    this.generation = generation;
+    this.instanceId = instanceId;
+    /** Identificador del proceso en ejecución; cambia en cada apertura. */
+    this.runtimeId = randomBytes(16).toString('hex');
+  }
+
+  /**
+   * Abre (y crea o migra si hace falta) el almacén del directorio de datos.
+   * @param {StoreConfig} config
+   * @returns {Store}
+   */
+  static open(config) {
+    validateDataDirectory(config.dataDir);
+    mkdirSync(config.dataDir, { recursive: true, mode: 0o755 });
+    const instanceId = ensureInstanceId(config.dataDir);
+    const dbPath = join(config.dataDir, DB_FILE_NAME);
+    ensureDatabaseFile(dbPath);
+    const generation = new DatabaseGeneration(dbPath);
+    const db = openDatabase(dbPath, generation);
+    try {
+      runStartupMigrations(db, generation, config.log ?? ((m) => process.stderr.write(`${m}\n`)));
+    } catch (err) {
+      db.close();
+      throw err;
+    }
+    return new Store(config, db, generation, instanceId);
+  }
+
+  get dataDir() {
+    return this.config.dataDir;
+  }
+
+  get dbPath() {
+    return join(this.config.dataDir, DB_FILE_NAME);
+  }
+
+  /** Error permanente de generación ya observado, o null. */
+  generationError() {
+    return this.generation.error;
+  }
+
+  close() {
+    this.db.close();
+  }
+}

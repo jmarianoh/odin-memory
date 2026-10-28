@@ -26,7 +26,9 @@ static/                recursos estáticos del dashboard
 
 - `node:test` y `node:assert/strict`. Un archivo `*.test.js` por módulo.
 - Cada prueba usa un directorio temporal propio (`fs.mkdtemp`) y no toca `~/.odin-memory`.
-- Se ejecutan con `npm test`.
+- Se ejecutan con `npm test`. Para una carpeta concreta, usar un glob entre comillas: `node --test "test/unit/store/*.test.js"` (pasar un directorio no recorre subdirectorios).
+- Los contratos externos (esquema SQLite, herramientas MCP…) viven como fixtures JSON en `test/contract/fixtures/`; las pruebas de contrato comparan el comportamiento real con ellos.
+- Las filas devueltas por `node:sqlite` tienen prototipo nulo: en `assert.deepEqual` hay que copiarlas con `{ ...fila }`.
 
 ## Registro en `implementacion/`
 

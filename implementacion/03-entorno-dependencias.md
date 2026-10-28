@@ -4,7 +4,7 @@
 
 - Node.js **≥ 24** (`engines` en `package.json`; `bin/odin.js` lo comprueba al arrancar).
 - `node:sqlite` es nativo; incluye FTS5 con tokenizador `trigram`.
-- Node emite una advertencia experimental al cargar `node:sqlite`; la CLI y el servidor MCP la silencian con `process.removeAllListeners('warning')` solo para esa advertencia.
+- Node emite una advertencia experimental al cargar `node:sqlite`. `bin/odin.js` la descarta con `silenceSqliteWarning()` (`src/runtime/warnings.js`), que filtra solo esa advertencia y deja pasar las demás.
 
 ## Registro npm (Nexus)
 

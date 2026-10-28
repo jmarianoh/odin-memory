@@ -32,6 +32,8 @@
 | `cloud/` | Servidor, store Postgres, autenticación, dashboard y autosync |
 | `cli/` | Un módulo por comando |
 | `version/` | Versión del producto y comprobación de runtime |
+| `timeutil/` | Marcas de tiempo (`now`, `sqliteDatetime`) y espera síncrona |
+| `runtime/` | Ajustes del proceso (silenciar la advertencia experimental de SQLite) |
 
 ## Reglas de dependencia
 

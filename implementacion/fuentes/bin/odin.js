@@ -1,5 +1,8 @@
 #!/usr/bin/env node
+import { silenceSqliteWarning } from '../src/runtime/warnings.js';
 import { MIN_NODE_MAJOR, VERSION, nodeIsSupported } from '../src/version/index.js';
+
+silenceSqliteWarning();
 
 if (!nodeIsSupported()) {
   process.stderr.write(

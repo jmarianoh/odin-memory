@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Verifica que implementacion/ describe fielmente el repositorio:
-//  1. VERSION es semver y existe implementacion/cambios/<VERSION>.md.
+//  1. VERSION es semver, coincide con package.json y existe implementacion/cambios/<VERSION>.md.
 //  2. Cada archivo de bin/ y src/ está registrado en implementacion/manifest.json y viceversa.
 //  3. Los hashes registrados (código y documento) coinciden con los actuales.
 //     Tras revisar la documentación, `--update` vuelve a registrarlos.
@@ -39,6 +39,8 @@ if (!existsSync(versionFile)) {
   if (!existsSync(join(impl, 'cambios', `${version}.md`))) {
     errors.push(`falta implementacion/cambios/${version}.md`);
   }
+  const pkgVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+  if (pkgVersion !== version) errors.push(`package.json (${pkgVersion}) y implementacion/VERSION (${version}) difieren`);
 }
 
 // 2 y 3. manifest
