@@ -93,9 +93,10 @@ export class McpServer {
    * @param {NodeJS.ReadableStream} streams.input
    * @param {NodeJS.WritableStream} streams.output
    * @param {number} [streams.graceMs] espera máxima por peticiones en curso (5000 por defecto)
+   * @param {AbortSignal} [streams.signal] si se aborta, deja de leer y termina sin esperar a las peticiones en curso
    * @returns {Promise<void>}
    */
-  serve({ input, output, graceMs = 5000 }) {
+  serve({ input, output, graceMs = 5000, signal }) {
     const lines = createInterface({ input, crlfDelay: Infinity });
     let chain = Promise.resolve();
     const write = (response) => output.write(`${JSON.stringify(response)}\n`);
@@ -114,8 +115,19 @@ export class McpServer {
       });
     });
     return new Promise((resolveDone) => {
+      let aborted = false;
+      const onAbort = () => {
+        aborted = true;
+        lines.close();
+        resolveDone();
+      };
+      if (signal?.aborted) onAbort();
+      else signal?.addEventListener('abort', onAbort, { once: true });
       lines.on('close', () => {
+        if (aborted) return;
+        // Cierre de la entrada (EOF): se espera a las peticiones en curso, pero no más de `graceMs`.
         const timer = setTimeout(resolveDone, graceMs);
+        timer.unref();
         chain.finally(() => {
           clearTimeout(timer);
           resolveDone();

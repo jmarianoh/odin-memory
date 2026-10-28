@@ -4,10 +4,10 @@ import { silenceSqliteWarning } from '../../src/runtime/warnings.js';
 
 silenceSqliteWarning();
 const { Store } = await import('../../src/store/index.js');
-const { createServer } = await import('../../src/mcp/index.js');
+const { createServer, runMcp } = await import('../../src/mcp/index.js');
 const { resolveTools } = await import('../../src/mcp/profiles.js');
 
 const store = Store.open({ dataDir: process.env.ODIN_DATA_DIR, log: () => {} });
 const server = createServer(store, { defaultProject: process.env.ODIN_PROJECT ?? '' }, resolveTools(process.env.ODIN_TOOLS ?? 'all'));
-await server.serve({ input: process.stdin, output: process.stdout });
+await runMcp(server);
 store.close();

@@ -6,7 +6,7 @@ El servidor MCP expone la memoria al agente como herramientas `mem_*` sobre el p
 |---|---|---|
 | F3.1 (spec 0.11.0) | `01-protocolo-y-servidor.md`, `02-herramientas-lectura.md` | Protocolo, perfiles, instrucciones, actividad de sesión, envelope de proyecto y errores; herramientas de lectura |
 | F3.2 (spec 0.12.0) | `03-herramientas-escritura.md`, `04-vinculo-anfitrion.md` | Herramientas de escritura, resolución del proyecto de escritura, cola serializada y vínculo con el anfitrión |
-| F3.3 | (pendiente) | Juicios, comparación, fusión, consolidación y arranque del proceso |
+| F3.3 (spec 0.13.0) | `05-herramientas-curacion.md` | Juicios, comparación, fusión de proyectos, consolidación, finalización de sesión y ciclo de vida del proceso (`mem_doctor` llega con el diagnóstico, F6) |
 
 ## Decisión de diseño: protocolo propio, sin SDK
 
@@ -30,11 +30,13 @@ Por eso `03-entorno-dependencias.md` ya no lista el SDK. Si en el futuro se nece
 | `errors.js` | `McpProjectError` y sus constructores |
 | `envelope.js` | Respuestas con proyecto y errores estructurados |
 | `args.js` | Lectura tolerante de argumentos |
-| `serialize.js` | Proyecciones JSON de prompts y relaciones |
+| `serialize.js` | Proyecciones JSON de prompts, relaciones y observaciones |
 | `projects.js` | Resolución del proyecto de una lectura |
 | `tools/projects.js`, `tools/context.js`, `tools/search.js` | Herramientas de lectura |
 | `warnings.js`, `write-projects.js`, `write-support.js`, `session-helpers.js`, `write-queue.js` | Soporte de las herramientas de escritura (`03-herramientas-escritura.md`) |
 | `tools/write.js`, `tools/sessions.js` | Herramientas de escritura |
+| `tools/curation.js` | Juicios, comparación, fusión, consolidación y finalización (`05-herramientas-curacion.md`) |
+| `run.js` | Ciclo de vida por stdio: EOF con gracia y señales |
 | `server.js` | `createServer` y `buildHandlers` |
 | `index.js` | Reexportaciones |
 

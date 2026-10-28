@@ -184,6 +184,7 @@ Lectura tolerante: `intArg(args, clave, defecto)` (número → `Math.trunc`; otr
 
 - `promptJson(p)`: `{ id, sync_id, session_id, content, created_at }` más `project` si no es vacío y `source_inbox_id` si no es vacío.
 - `relationJson(rel)`: solo las claves `id sync_id source_id target_id relation reason evidence confidence judgment_status marked_by_actor marked_by_kind marked_by_model session_id created_at updated_at`, omitiendo las nulas o indefinidas (así no salen `source_int_id`, `*_title` ni `*_missing`).
+- `observationJson(obs)`: ver `05-herramientas-curacion.md`.
 - `relationsJson({ as_source, as_target })`: cada lado es la lista de `relationJson` o **`null`** si está vacía (no `[]`).
 
 ## `projects.js`

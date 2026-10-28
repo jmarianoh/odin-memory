@@ -6,6 +6,7 @@ import { TOOL_DEFINITIONS } from './tool-definitions.js';
 import { contextTool } from './tools/context.js';
 import { currentProject, listProjects, statsTool, suggestTopicKeyTool } from './tools/projects.js';
 import { getObservationTool, searchPromptsTool, searchTool, timelineTool } from './tools/search.js';
+import { compareTool, consolidateTool, judgeManyTool, judgeTool, mergeProjectsTool, sessionFinalizeTool } from './tools/curation.js';
 import { capturePassiveTool, savePromptTool, sessionEndTool, sessionStartTool, sessionSummaryTool } from './tools/sessions.js';
 import { deleteTool, pinTool, reviewTool, saveTool, updateTool } from './tools/write.js';
 import { WriteQueue, queuedWriteHandler } from './write-queue.js';
@@ -49,6 +50,12 @@ export function buildHandlers(ctx) {
     mem_session_start: queued(sessionStartTool(ctx)),
     mem_session_end: queued(sessionEndTool(ctx)),
     mem_capture_passive: queued(capturePassiveTool(ctx)),
+    mem_judge: queued(judgeTool(ctx)),
+    mem_judge_many: queued(judgeManyTool(ctx)),
+    mem_compare: compareTool(ctx),
+    mem_merge_projects: queued(mergeProjectsTool(ctx)),
+    mem_consolidate: queued(consolidateTool(ctx)),
+    mem_session_finalize: queued(sessionFinalizeTool(ctx)),
     mem_pin: pinTool(ctx, true),
     mem_unpin: pinTool(ctx, false),
   };

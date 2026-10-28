@@ -120,3 +120,21 @@ test('serve: el plazo de gracia evita esperar para siempre una petición colgada
   await done;
   assert.ok(Date.now() - start < 1500);
 });
+
+test('serve: una señal de apagado termina al instante, sin esperar a peticiones colgadas', async () => {
+  const server = make([tool('colgada', () => new Promise(() => {}))]);
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const controller = new AbortController();
+  const done = server.serve({ input, output, graceMs: 60_000, signal: controller.signal });
+  input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'colgada', arguments: {} } })}\n`);
+  await new Promise((r) => setTimeout(r, 20));
+  const start = Date.now();
+  controller.abort();
+  await done;
+  assert.ok(Date.now() - start < 500);
+  // con la señal ya abortada ni siquiera empieza
+  const again = new AbortController();
+  again.abort();
+  await make().serve({ input: new PassThrough(), output: new PassThrough(), signal: again.signal });
+});

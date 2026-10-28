@@ -169,7 +169,20 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-Las siguientes entregas de F3 (juicios, comparación, fusión, consolidación y arranque del proceso) se detallan en `12-mcp/` al completarse.
+### F3.3 — Curación y ciclo de vida (spec 0.13.0)
+
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/mcp/{curation-tools,run}.test.js`) y las versiones actualizadas de `protocol.test.js` y `tools.test.js`.
+2. Crear, según `12-mcp/05-herramientas-curacion.md`: `observationJson` en `serialize.js`; `src/mcp/tools/curation.js`; `src/mcp/run.js`; ampliar `serve` con `signal`; registrar las herramientas en `server.js` y exportar `run.js` desde `index.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/mcp/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Con F3.3 queda completo el servidor MCP salvo `mem_doctor` (F6).
 
 ## F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 

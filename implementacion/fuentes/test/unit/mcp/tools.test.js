@@ -29,7 +29,7 @@ function setup(t, { allowlist = null, config = {} } = {}) {
   return { store, server, run };
 }
 
-test('el servidor se presenta con su nombre, versión y las herramientas registradas', async (t) => {
+test('el servidor se presenta con su nombre, versión y las herramientas registradas (todas menos mem_doctor)', async (t) => {
   const { server } = setup(t);
   const init = await server.handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } });
   assert.equal(init.result.serverInfo.name, SERVER_NAME);
@@ -41,6 +41,8 @@ test('el servidor se presenta con su nombre, versión y las herramientas registr
     // escritura
     'mem_capture_passive', 'mem_delete', 'mem_pin', 'mem_review', 'mem_save', 'mem_save_prompt', 'mem_session_end', 'mem_session_start', 'mem_session_summary', 'mem_unpin',
     'mem_update',
+    // curación (mem_doctor se registra con el diagnóstico)
+    'mem_compare', 'mem_consolidate', 'mem_judge', 'mem_judge_many', 'mem_merge_projects', 'mem_session_finalize',
   ].sort());
   assert.ok(list.result.tools.filter((x) => x.defer_loading).length > 0);
 });
