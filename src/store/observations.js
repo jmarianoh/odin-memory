@@ -33,11 +33,11 @@ export const DECAY_REVIEW_AFTER_MONTHS = Object.freeze({
   bugfix: 12,
 });
 
-const SELECT_COLUMNS = `id, ifnull(sync_id, '') AS sync_id, session_id, type, title, content, tool_name, project,
+export const SELECT_COLUMNS = `id, ifnull(sync_id, '') AS sync_id, session_id, type, title, content, tool_name, project,
   scope, topic_key, revision_count, duplicate_count, last_seen_at, review_after, pinned, created_at, updated_at, deleted_at, superseded_by_sync_id`;
 
 /** Fila de la base → observación (`pinned` pasa a booleano). */
-function toObservation(row) {
+export function toObservation(row) {
   if (!row) return null;
   return { ...row, pinned: Boolean(row.pinned) };
 }

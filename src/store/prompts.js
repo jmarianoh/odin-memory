@@ -189,7 +189,7 @@ export function searchPrompts(store, query, project = '', limit = 10) {
 }
 
 /** Lápida de un prompt borrado; rechaza identidades que contradicen la ya establecida. */
-function recordPromptTombstone(db, syncId, sessionId, project, inboxId, deletedAt) {
+export function recordPromptTombstone(db, syncId, sessionId, project, inboxId, deletedAt) {
   if (project != null) project = nullableString(normalizeProject(goTrim(project)).normalized);
   const existing = db.get(
     "SELECT ifnull(session_id, '') AS session_id, ifnull(source_inbox_id, '') AS source_inbox_id, ifnull(project, '') AS project FROM prompt_tombstones WHERE sync_id = ?",
@@ -215,7 +215,7 @@ function recordPromptTombstone(db, syncId, sessionId, project, inboxId, deletedA
 }
 
 /** Como `recordPromptTombstone`, y conserva la marca de creación local original si se verifica. */
-function recordLocalPromptTombstone(db, id, syncId, sessionId, project, inboxId, deletedAt) {
+export function recordLocalPromptTombstone(db, id, syncId, sessionId, project, inboxId, deletedAt) {
   let existing = 0;
   let count = 0;
   if (syncId !== '') {

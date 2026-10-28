@@ -184,6 +184,23 @@ npm run check:clean-room
 
 Con F3.3 queda completo el servidor MCP salvo `mem_doctor` (F6).
 
-## F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+## F4 — CLI y HTTP
+
+### F4.0 — Exportación e importación del store (spec 0.14.0)
+
+1. Copiar de `fuentes/` el test nuevo (`test/unit/store/backup.test.js`).
+2. Crear, según `10-store/10-exportacion-importacion.md`: `src/store/backup.js` y `src/store/session-delete.js`; exportar `SELECT_COLUMNS` y `toObservation` desde `observations.js`, `recordPromptTombstone` y `recordLocalPromptTombstone` desde `prompts.js`; añadir el código `session_has_observations` a `errors.js`; exportar ambos módulos desde `src/store/index.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/store/backup.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Las siguientes entregas de F4 (CLI y servidor HTTP) se detallan en sus capítulos al completarse.
+
+## F4 (resto) · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

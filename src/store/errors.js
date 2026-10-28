@@ -87,6 +87,7 @@ const MESSAGES = {
   relation_endpoint_required: 'relation endpoint is required',
   sync_journal_unavailable: 'sync journal is not available for enrolled projects yet',
   invalid_project_provenance: 'invalid project_provenance',
+  session_has_observations: 'session still has observations',
 };
 
 /**

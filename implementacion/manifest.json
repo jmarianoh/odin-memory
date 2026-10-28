@@ -1,5 +1,5 @@
 {
-  "version": "0.13.0",
+  "version": "0.14.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -372,6 +372,16 @@
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
+      "path": "src/store/backup.js",
+      "doc": "10-store/10-exportacion-importacion.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/store/backup.test.js"
+      ],
+      "sha256": "60e584d8dc49a76dff4a10358825a03d8acd708802947f9c561fd83ebaf0d7bf",
+      "docSha256": "ede37fb4cb2409a0f872d9ad08cb3ca3c5e74acea24964c22b18c9b97ed5f408"
+    },
+    {
       "path": "src/store/consolidate.js",
       "doc": "10-store/05-proyectos-captura.md",
       "phase": "F1",
@@ -418,7 +428,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "8962df7b0b0faa9752848e0a9fa42625b07b10ca10716133c92009e38e93e369",
+      "sha256": "0fd404486f54228d098bf4182aac5f3956767f24ffcdb09ada2d416f3d13ca9a",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -438,7 +448,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "ce70366417b987542ed8258e97a0a81d0bcff8bbb4e7957d20cab970f92d45f5",
+      "sha256": "7c251b7c7b257042118e658015462ddb867a896a58561fb2723fed1b64b56d21",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -479,7 +489,7 @@
       "tests": [
         "test/unit/store/observations.test.js"
       ],
-      "sha256": "4cbeee0216363e849cc26f982e38a5675236a49c4f6303b3b06f40bb48fa9b6c",
+      "sha256": "d61f48e6e744dd900f46d461e4d9089146b1fcd63fab8060e26daf7ad6741614",
       "docSha256": "76db7a2d5666c63438edc4964a9784e1929ffebde4dae7b73a408978128f696d"
     },
     {
@@ -529,7 +539,7 @@
       "tests": [
         "test/unit/store/prompts.test.js"
       ],
-      "sha256": "add12fe3afb694d6b923bae47a84b8e2c00a031be1e5bb5f988f920b89952d5e",
+      "sha256": "0d689de93771f4371722539a907e94c39a7370adeb4a89dd823a6d5313dac802",
       "docSha256": "54eabfa0d87a418ab80ced33c3b41643b064e7c89fa03ab629570444f586d15b"
     },
     {
@@ -591,6 +601,16 @@
       ],
       "sha256": "2326ab957ca68e95da54294a5335ecfdc22f2ef77cb7309c1a05c9a5c019c4fa",
       "docSha256": "54eabfa0d87a418ab80ced33c3b41643b064e7c89fa03ab629570444f586d15b"
+    },
+    {
+      "path": "src/store/session-delete.js",
+      "doc": "10-store/10-exportacion-importacion.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/store/backup.test.js"
+      ],
+      "sha256": "010bac90fe5437a6c930c51a2fb323e48fd351205e7a30b2ffe3ed0f7ab9e63a",
+      "docSha256": "ede37fb4cb2409a0f872d9ad08cb3ca3c5e74acea24964c22b18c9b97ed5f408"
     },
     {
       "path": "src/store/sessions.js",
