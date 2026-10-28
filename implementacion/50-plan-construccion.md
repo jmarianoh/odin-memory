@@ -110,9 +110,20 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F1.8
+### F1.8 — Sesiones de runtime (spec 0.9.0)
 
-Sesiones de runtime (registro, continuación, concesiones y sesiones aisladas). Se detalla en `10-store/08-…` al completarse.
+1. Copiar de `fuentes/` el test nuevo (`test/unit/store/runtime-sessions.test.js`).
+2. Crear, según `10-store/08-sesiones-de-runtime.md`: ampliar `errors.js`; extraer `insertObservationRow` en `observations.js`; extraer `endSessionInTransaction` y exportar `foreignRecordOwner`, `sessionRow` y `journalSession` en `sessions.js`; crear `src/project/worktree.js` y `src/store/runtime-sessions.js`; exportar este último desde `src/store/index.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/store/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Con F1.8 queda completo el store (capítulos `10-store/01` a `08`).
 
 ## F2 — Proyecto · F3 — MCP · F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 

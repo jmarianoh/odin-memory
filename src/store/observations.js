@@ -147,6 +147,27 @@ function recordSaveOperation(db, operationId, fingerprint, observationId, obs) {
 }
 
 /**
+ * Inserta una observación nueva y le fija `review_after` según su tipo. Quien
+ * llama es responsable de la preparación del texto, la propiedad de la sesión,
+ * la deduplicación y el diario de sincronización.
+ * @param {import('./db.js').Database} db
+ * @param {{ session_id: string, type: string, title: string, content: string, tool_name?: string, project: string, scope: string, topic_key: string, hash: string }} row
+ * @returns {number} id de la fila
+ */
+export function insertObservationRow(db, row) {
+  const inserted = db.run(
+    `INSERT INTO observations (sync_id, session_id, type, title, content, tool_name, project, scope, topic_key, normalized_hash, revision_count, duplicate_count, last_seen_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, CAST(? AS TEXT), ?, ?, ?, 1, 1, datetime('now'), datetime('now'))`,
+    newSyncId('obs'), row.session_id, row.type, row.title, row.content,
+    nullableString(row.tool_name), nullableString(row.project), row.scope, nullableString(row.topic_key), row.hash,
+  );
+  const id = Number(inserted.lastInsertRowid);
+  const months = DECAY_REVIEW_AFTER_MONTHS[row.type];
+  if (months !== undefined) db.run('UPDATE observations SET review_after = ? WHERE id = ?', reviewAfterFrom(months), id);
+  return id;
+}
+
+/**
  * Guarda una observación.
  *
  * Reglas, en orden:
@@ -246,15 +267,9 @@ export function addObservation(store, p) {
       return { id, replayed: false };
     }
 
-    const inserted = db.run(
-      `INSERT INTO observations (sync_id, session_id, type, title, content, tool_name, project, scope, topic_key, normalized_hash, revision_count, duplicate_count, last_seen_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, CAST(? AS TEXT), ?, ?, ?, 1, 1, datetime('now'), datetime('now'))`,
-      newSyncId('obs'), input.session_id, input.type, title, content,
-      nullableString(input.tool_name), nullableString(project), scope, nullableString(topicKey), hash,
-    );
-    const id = Number(inserted.lastInsertRowid);
-    const months = DECAY_REVIEW_AFTER_MONTHS[input.type];
-    if (months !== undefined) db.run('UPDATE observations SET review_after = ? WHERE id = ?', reviewAfterFrom(months), id);
+    const id = insertObservationRow(db, {
+      session_id: input.session_id, type: input.type, title, content, tool_name: input.tool_name, project, scope, topic_key: topicKey, hash,
+    });
     recordSaveOperation(db, input.operation_id, fingerprint, id, getObservationRow(db, id));
     return { id, replayed: false };
   });

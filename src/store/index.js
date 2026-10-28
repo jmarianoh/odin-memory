@@ -16,6 +16,7 @@ export * from './prompts.js';
 export * from './relation-udf.js';
 export * from './relations.js';
 export { SCHEMA_VERSION } from './schema.js';
+export * from './runtime-sessions.js';
 export * from './search.js';
 export * from './sessions.js';
 export { DB_FILE_NAME, DEFAULT_SETTINGS, Store } from './store.js';

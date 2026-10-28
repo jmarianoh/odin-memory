@@ -58,7 +58,7 @@ export function sessionProjectWriteError(sessionId, sessionProject, mode, reques
 }
 
 /** Primer proyecto, distinto de `exclude`, dueño de un registro hijo de la sesión. */
-function foreignRecordOwner(db, sessionId, exclude) {
+export function foreignRecordOwner(db, sessionId, exclude) {
   const sources = [
     ['an observation', "SELECT project FROM observations WHERE session_id = ? AND ifnull(trim(project), '') <> '' AND deleted_at IS NULL"],
     ['a prompt', "SELECT project FROM user_prompts WHERE session_id = ? AND ifnull(trim(project), '') <> ''"],
@@ -73,14 +73,14 @@ function foreignRecordOwner(db, sessionId, exclude) {
 }
 
 /** Fila de sesión con la forma de su carga de sincronización. */
-function sessionRow(db, id) {
+export function sessionRow(db, id) {
   return db.get(
     "SELECT id, ifnull(project, '') AS project, ifnull(ownership_mode, '') AS ownership_mode, directory, started_at, ended_at, summary FROM sessions WHERE id = ?",
     id,
   );
 }
 
-function journalSession(db, row) {
+export function journalSession(db, row) {
   if (goTrim(row.directory ?? '') === '') return; // una sesión sin directorio no se sincroniza
   journalMutation(db, {
     entity: SYNC_ENTITY.session,
@@ -205,11 +205,20 @@ export function resolveManualSession(store, project, directory) {
  */
 export function endSession(store, id, summary = '') {
   validateSessionId(id);
-  store.db.writeTransaction((db) => {
-    const res = db.run("UPDATE sessions SET ended_at = datetime('now'), summary = ? WHERE id = ?", nullableString(summary), id);
-    if (Number(res.changes) === 0) return;
-    journalSession(db, sessionRow(db, id));
-  });
+  store.db.writeTransaction((db) => endSessionInTransaction(db, id, nullableString(summary)));
+}
+
+/**
+ * Cierra una sesión dentro de una transacción ya abierta, con el valor de
+ * resumen indicado (`null` lo deja vacío). No falla si la sesión no existe.
+ * @param {import('./db.js').Database} db
+ * @param {string} id
+ * @param {string|null} summary
+ */
+export function endSessionInTransaction(db, id, summary) {
+  const res = db.run("UPDATE sessions SET ended_at = datetime('now'), summary = ? WHERE id = ?", summary, id);
+  if (Number(res.changes) === 0) return;
+  journalSession(db, sessionRow(db, id));
 }
 
 /**

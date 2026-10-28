@@ -1,5 +1,5 @@
 {
-  "version": "0.8.0",
+  "version": "0.9.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -20,6 +20,16 @@
       ],
       "sha256": "9014b4fb5562cd2b7643cf8873502da09739a6a5e99f9426fc68bc80d92d8966",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
+    },
+    {
+      "path": "src/project/worktree.js",
+      "doc": "10-store/08-sesiones-de-runtime.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/runtime-sessions.test.js"
+      ],
+      "sha256": "3843edf98b1da2157a56e69fde709130f0ae8de07f50ad51f2c9975254d85b7f",
+      "docSha256": "d013b4d8922f094a011cbf6a40f2edfc8e92ccd3213754fbe91bae2c867c92c7"
     },
     {
       "path": "src/runtime/warnings.js",
@@ -78,7 +88,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "cf74fcbba6248626738d26edd601066f319197d2be3bc682ef46b980e9666666",
+      "sha256": "2bcb48bc1437927d6b4c867e9011f2b49297c30afe35f16ad2ad22df117680c7",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -98,7 +108,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "87d9724f05053a433a0ec93b40046ca6810197d6aa6c698b1bd780e898d7bf2c",
+      "sha256": "390d2978b503155f23cd5c473317d028340ae7a4e343173f728e13b010211bb9",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -139,7 +149,7 @@
       "tests": [
         "test/unit/store/observations.test.js"
       ],
-      "sha256": "8d46304d6549b1316c2e6eacac526fbe05edcdb4810d4c673810e6d410a5981a",
+      "sha256": "620cc08f3804b79204bb5389833043ebcb94f1a9f14807912501c0cc124a99cb",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {
@@ -203,6 +213,16 @@
       "docSha256": "1629bc259a2fc5daaa0fa3e9e31c29ae9fd78b1e2745b2879d717c6491666c41"
     },
     {
+      "path": "src/store/runtime-sessions.js",
+      "doc": "10-store/08-sesiones-de-runtime.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/runtime-sessions.test.js"
+      ],
+      "sha256": "7cdab050715aa49ef84fddd856599879117363c5ef51b991240ae1f352e12743",
+      "docSha256": "d013b4d8922f094a011cbf6a40f2edfc8e92ccd3213754fbe91bae2c867c92c7"
+    },
+    {
       "path": "src/store/schema.js",
       "doc": "10-store/01-conexion-y-migraciones.md",
       "phase": "F1",
@@ -229,7 +249,7 @@
       "tests": [
         "test/unit/store/sessions.test.js"
       ],
-      "sha256": "ed37beefde637df297878e4f711640deb57fd5a5b9e4153d5fd594453b24bd1c",
+      "sha256": "6e79e05e949968cf254b25133084e7fc15dd020d5622df410698e98e1a673393",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {

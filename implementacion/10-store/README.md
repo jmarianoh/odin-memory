@@ -11,7 +11,7 @@ El store es la capa de persistencia: una base SQLite con búsqueda de texto comp
 | 5 | `05-proyectos-captura.md` | Estadísticas, listado y alias de proyectos, captura pasiva, consolidación |
 | 6 | `06-contexto.md` | Contexto de sesión (`mem_context`), historial antiguo y contexto de compactación |
 | 7 | `07-mantenimiento-proyectos.md` | Renombrado, fusión, poda y borrado de proyectos |
-| 8 | `08-sesiones-de-runtime.md` (pendiente) | Registro de sesiones de runtime, continuación, concesiones y sesiones aisladas |
+| 8 | `08-sesiones-de-runtime.md` | Registro de sesiones de runtime, continuación, concesiones, sesiones aisladas y finalización |
 
 ## Reglas generales del store
 

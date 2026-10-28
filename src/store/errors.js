@@ -67,6 +67,8 @@ const MESSAGES = {
   search_failed: 'search',
   cross_project_relation: 'relation rejected: source and target observations are in different projects',
   invalid_project_name: 'invalid project name',
+  session_isolation_conflict: 'isolated session registration requires an empty directory; existing runtime-bound sessions cannot be reused',
+  runtime_session_scope_conflict: 'runtime session scope conflict',
   project_not_found: 'project not found',
   project_name_required: 'project name must not be empty',
   project_prune_blocked: 'project still has observations',
