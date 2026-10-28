@@ -16,10 +16,11 @@ Todas con versión **exacta** (sin `^` ni `~`). Se incorporan por fases:
 
 | Paquete | Fase | Uso |
 |---|---|---|
-| `@modelcontextprotocol/sdk` | F3 | Servidor MCP |
 | `pg` | F9 | Cliente Postgres de Cloud |
 | `ink`, `react`, `htm` | F8 | TUI (`htm` evita JSX) |
 | `htmx.org`, `@picocss/pico` | F9 | Se copian a `static/`; no se cargan desde CDN |
+
+El servidor MCP (F3) **no** usa ningún SDK: el protocolo se implementa a mano (`12-mcp/README.md`).
 
 Las versiones exactas se fijan al incorporar cada paquete y se anotan aquí. Hasta entonces `package.json` no declara dependencias.
 

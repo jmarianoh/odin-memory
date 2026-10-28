@@ -398,3 +398,19 @@ export function countRelations(store, opts = {}) {
   const { sql, args } = relationsQuery(opts, true);
   return Number(Object.values(store.db.get(sql, ...args))[0]);
 }
+
+/**
+ * Relaciones de los resultados de una búsqueda con vista previa. Un fallo al
+ * leerlas se ignora (la búsqueda sigue sin relaciones).
+ * @param {import('./store.js').Store} store
+ * @param {{ sync_id: string }[]} results
+ */
+export function searchPreviewRelations(store, results) {
+  const ids = results.map((r) => r.sync_id).filter((id) => id !== '');
+  if (ids.length === 0) return {};
+  try {
+    return getRelationsForObservations(store, ids);
+  } catch {
+    return {};
+  }
+}

@@ -311,6 +311,42 @@ export function getObservationVersions(store, id) {
   );
 }
 
+export const DEFAULT_OBSERVATION_VERSION_PAGE_SIZE = 50;
+export const MAX_OBSERVATION_VERSION_PAGE_SIZE = 100;
+
+/**
+ * Una página acotada del historial de versiones de una observación, de la más
+ * antigua a la más reciente. `cursor` 0 empieza por las más recientes; un cursor
+ * (`next_cursor` de la página anterior) continúa con las anteriores a esa versión.
+ * `total` es siempre el número real de versiones guardadas.
+ * @param {import('./store.js').Store} store
+ * @param {number} id
+ * @param {number} [limit] entre 1 y 100 (por defecto 50)
+ * @param {number} [cursor]
+ * @returns {{ versions: object[], total: number, has_more: boolean, next_cursor: number }}
+ */
+export function getObservationVersionPage(store, id, limit = DEFAULT_OBSERVATION_VERSION_PAGE_SIZE, cursor = 0) {
+  if (limit < 1 || limit > MAX_OBSERVATION_VERSION_PAGE_SIZE) {
+    throw new Error(`GetObservationVersionPage: limit must be between 1 and ${MAX_OBSERVATION_VERSION_PAGE_SIZE}`);
+  }
+  if (cursor < 0) throw new Error('GetObservationVersionPage: cursor must be non-negative');
+  return store.db.readTransaction((db) => {
+    const total = Number(db.get('SELECT COUNT(*) AS n FROM observation_versions WHERE observation_id = ?', id).n);
+    let sql = "SELECT id, observation_id, ifnull(title, '') AS title, content, version, ifnull(created_at, '') AS created_at FROM observation_versions WHERE observation_id = ?";
+    const args = [id];
+    if (cursor > 0) {
+      sql += ' AND version < ?';
+      args.push(cursor);
+    }
+    sql += ' ORDER BY version DESC LIMIT ?';
+    args.push(limit + 1);
+    const fetched = db.all(sql, ...args);
+    const hasMore = fetched.length > limit;
+    const versions = (hasMore ? fetched.slice(0, limit) : fetched).reverse();
+    return { versions, total, has_more: hasMore, next_cursor: hasMore ? versions[0].version : 0 };
+  });
+}
+
 /**
  * Sustituye `find` por `replacement` respetando el límite de tamaño.
  * @returns {{ content: string, noop: boolean }}

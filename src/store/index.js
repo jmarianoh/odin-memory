@@ -11,6 +11,7 @@ export {
 export * from './observations.js';
 export * from './passive.js';
 export * from './project-maintenance.js';
+export * from './project-history.js';
 export * from './projects.js';
 export * from './prompts.js';
 export * from './relation-udf.js';

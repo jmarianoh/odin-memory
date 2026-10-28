@@ -15,12 +15,15 @@ export function resolveBinary() {
   return { bin, cleanup: () => rmSync(work, { recursive: true, force: true }) };
 }
 
-/** Arranca `engram mcp` y expone call(name, args) → { text, json, isError }. */
-export function startMcp(bin, { cwd } = {}) {
-  const dataDir = mkdtempSync(join(tmpdir(), 'conformance-data-'));
-  const child = spawn(bin, ['mcp', '--tools=all'], {
+/**
+ * Arranca un servidor MCP por stdio (cualquier comando) y expone call(name, args).
+ * `dataDir` se elimina al cerrar.
+ */
+export function startMcpCommand(command, args, { cwd, env = {}, dataDir } = {}) {
+  const ownedDataDir = dataDir ?? mkdtempSync(join(tmpdir(), 'conformance-data-'));
+  const child = spawn(command, args, {
     cwd,
-    env: { ...process.env, ENGRAM_DATA_DIR: dataDir, ENGRAM_NO_UPDATE_CHECK: '1' },
+    env: { ...process.env, ...env },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   const pending = new Map();
@@ -50,15 +53,27 @@ export function startMcp(bin, { cwd } = {}) {
       });
       child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`);
     });
-  const ready = rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'conformance', version: '0' } }).then(() => {
-    child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`);
-  });
+  let initialized;
+  const initialize = () => {
+    initialized ??= rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'conformance', version: '0' } }).then((msg) => {
+      child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`);
+      return msg;
+    });
+    return initialized;
+  };
+  initialize();
   return {
-    dataDir,
-    async call(name, args) {
-      await ready;
-      const msg = await rpc('tools/call', { name, arguments: args });
-      if (msg.error) return { isError: true, text: msg.error.message, json: null };
+    dataDir: ownedDataDir,
+    rpc,
+    initialize,
+    async listTools() {
+      await initialize();
+      return (await rpc('tools/list', {})).result.tools;
+    },
+    async call(name, toolArgs) {
+      await initialize();
+      const msg = await rpc('tools/call', { name, arguments: toolArgs });
+      if (msg.error) return { isError: true, text: msg.error.message, json: null, rpcError: msg.error };
       const text = (msg.result.content ?? []).map((c) => c.text ?? '').join('\n');
       let json = null;
       try {
@@ -71,7 +86,21 @@ export function startMcp(bin, { cwd } = {}) {
     close() {
       child.stdin.end();
       child.kill();
-      rmSync(dataDir, { recursive: true, force: true });
+      if (!dataDir) rmSync(ownedDataDir, { recursive: true, force: true });
     },
   };
+}
+
+/** Arranca `engram mcp` en un directorio de datos temporal. */
+export function startMcp(bin, { cwd } = {}) {
+  const dataDir = mkdtempSync(join(tmpdir(), 'conformance-data-'));
+  const handle = startMcpCommand(bin, ['mcp', '--tools=all'], {
+    cwd, dataDir, env: { ENGRAM_DATA_DIR: dataDir, ENGRAM_NO_UPDATE_CHECK: '1' },
+  });
+  const close = handle.close;
+  handle.close = () => {
+    close();
+    rmSync(dataDir, { recursive: true, force: true });
+  };
+  return handle;
 }

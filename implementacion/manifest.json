@@ -1,5 +1,5 @@
 {
-  "version": "0.10.0",
+  "version": "0.11.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -10,6 +10,156 @@
       ],
       "sha256": "1697fafc900717ec9e04cf35f110cafa0090eaa2d53913b12e7e0eebfe8535d6",
       "docSha256": "9e4cf7e46f87f7c2d258fd6dc419f3eda907d9e20989adcb46f2a05dcd213451"
+    },
+    {
+      "path": "src/mcp/activity.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/activity.test.js"
+      ],
+      "sha256": "259f341a85769dcc4a14763ebbd9601ccc00382e971b2569e19d10d5eef851f1",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/args.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/envelope.test.js"
+      ],
+      "sha256": "188fcda6497651418ab59a8e03fa138c29b0fd968ad53582fb31924e755a95c2",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/envelope.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/envelope.test.js"
+      ],
+      "sha256": "e389e52037020e1a770f98b1339ddeeae2fe4dc7dd3a81057ee4a7a0593a3c6d",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/errors.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/envelope.test.js"
+      ],
+      "sha256": "31533bff8d62ae0ed4ea5c1076747c976834cfc846ff7bb27ac70d370b907fcd",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/index.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/tools.test.js"
+      ],
+      "sha256": "939359fb765146078fe9c3445587302d9688f91af4ec5887fa64858f08df24d9",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/json.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/envelope.test.js"
+      ],
+      "sha256": "ca7d4dacbb42834ddbd42c02e6122b006494197f27c62f4e9557dd6480b7b77a",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/profiles.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/profiles.test.js"
+      ],
+      "sha256": "847fbed007c148ffb89f8787ce6fed823a08555a98065b29a0f43f5a808399c8",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/projects.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/tools.test.js"
+      ],
+      "sha256": "c4b61cf30756ccf32b6e57538028da532c387a593b407a77cbcab4fe1683753b",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/protocol.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/protocol.test.js"
+      ],
+      "sha256": "307ce14f729edc154894e748bae810e7c6d8f5cb1d41f52894b00efe2b9c2cc5",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/serialize.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/envelope.test.js"
+      ],
+      "sha256": "108a23422f008470d88f02b065f0f6e17922ce83d7b33f7a004d8b097a204423",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/server.js",
+      "doc": "12-mcp/01-protocolo-y-servidor.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/tools.test.js"
+      ],
+      "sha256": "00aa9ccb7c28b37bd965ee779a5c350196f6e082d34a838af7a114a3fef612e2",
+      "docSha256": "d993c0c4caadf41b4b9a8475a176c55f6f777e8f9eb6c7d58900e3d47bab87f3"
+    },
+    {
+      "path": "src/mcp/tool-definitions.js",
+      "doc": "12-mcp/README.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/profiles.test.js"
+      ],
+      "sha256": "e5730f945f2566013bcf81177667c0c45fbc8d57fd7f9c75be207820f9e087e5",
+      "docSha256": "254f2c301b00adee48151fe99f8bab4cf58990875b89c1a38923af7da7339d5e"
+    },
+    {
+      "path": "src/mcp/tools/context.js",
+      "doc": "12-mcp/02-herramientas-lectura.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/tools.test.js"
+      ],
+      "sha256": "be417b394455f6197518b17655d1407040b939cbe3ba4e6f63362eacc981f151",
+      "docSha256": "951033413b5bc91f7e0cb4ff548a48fad791a45d522f1bd7b204f12e26dd5692"
+    },
+    {
+      "path": "src/mcp/tools/projects.js",
+      "doc": "12-mcp/02-herramientas-lectura.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/tools.test.js"
+      ],
+      "sha256": "a4c81f4763e8ef6ac23df1533bc8ceafb0ec1d7a1799031b629a8561ae94f21f",
+      "docSha256": "951033413b5bc91f7e0cb4ff548a48fad791a45d522f1bd7b204f12e26dd5692"
+    },
+    {
+      "path": "src/mcp/tools/search.js",
+      "doc": "12-mcp/02-herramientas-lectura.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/tools.test.js"
+      ],
+      "sha256": "cfc82114e249925db79d108b9fef4be7f8846c9d61d6d7a35bd69b450ad72ad5",
+      "docSha256": "951033413b5bc91f7e0cb4ff548a48fad791a45d522f1bd7b204f12e26dd5692"
     },
     {
       "path": "src/project/canonical.js",
@@ -188,7 +338,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "390d2978b503155f23cd5c473317d028340ae7a4e343173f728e13b010211bb9",
+      "sha256": "0a47d26fd0c6e78cd2c7153172972757baedfb8b72ea46bc25b692b9876d4e1d",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -229,7 +379,7 @@
       "tests": [
         "test/unit/store/observations.test.js"
       ],
-      "sha256": "620cc08f3804b79204bb5389833043ebcb94f1a9f14807912501c0cc124a99cb",
+      "sha256": "99514b15f75d014eee600dc687d7f09ba2e63daef361d310494ff0b3c110c97f",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {
@@ -241,6 +391,16 @@
       ],
       "sha256": "2829a32a115b3fff27f28ce4a3560c5dfdc178f5ec7437ebadf81caf09d37a1c",
       "docSha256": "54604398154fcd66417252daf66215ac3d23c8ae7285acd7a7894de6d85a0424"
+    },
+    {
+      "path": "src/store/project-history.js",
+      "doc": "12-mcp/README.md",
+      "phase": "F3",
+      "tests": [
+        "test/unit/mcp/tools.test.js"
+      ],
+      "sha256": "1dc118f0a996b89a3fb4cfa2e9d7152cb22202f83383f55898ead4607e91a774",
+      "docSha256": "254f2c301b00adee48151fe99f8bab4cf58990875b89c1a38923af7da7339d5e"
     },
     {
       "path": "src/store/project-maintenance.js",
@@ -289,7 +449,7 @@
       "tests": [
         "test/unit/store/relations.test.js"
       ],
-      "sha256": "f64ec0b5c23e2f87ecd8096c30a426bb83fd2e5c7f1b4823a01e4041d6df1bc2",
+      "sha256": "d441ff87eea63acfe71d6301abd41a39012041a5f983912f3577573798cec1ce",
       "docSha256": "1629bc259a2fc5daaa0fa3e9e31c29ae9fd78b1e2745b2879d717c6491666c41"
     },
     {
@@ -319,7 +479,7 @@
       "tests": [
         "test/unit/store/search.test.js"
       ],
-      "sha256": "f2b23a6901cce9eb3864dca2df3d822cf1554c2d32a0302f078584ee0017852a",
+      "sha256": "2326ab957ca68e95da54294a5335ecfdc22f2ef77cb7309c1a05c9a5c019c4fa",
       "docSha256": "df726db1c55a9d7e086d3291f1533d3a2f3e0228996f2951a6e0ddc7eda2d4f0"
     },
     {
@@ -370,7 +530,7 @@
         "test/unit/version.test.js"
       ],
       "sha256": "7d16145c07bcf0c294d8ebcb6ba7feb4539473bd673bd50c1fd565f9373c7960",
-      "docSha256": "b9de7db911bcdacc7bd84cd59035151f20576f99773f855d1fa13938b109662c"
+      "docSha256": "704baa3ef1e577aef4b8d911e355159e55c04f656ee8c30bedcb72335cb5310b"
     }
   ]
 }

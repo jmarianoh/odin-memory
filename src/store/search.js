@@ -1,5 +1,6 @@
 import { normalizeProject } from '../project/canonical.js';
 import { StoreError, storeError } from './errors.js';
+import { observationState } from './observations.js';
 import { getSession } from './sessions.js';
 import {
   escapeLike, hasShortFtsTerm, normalizeScope, sanitizeFts, sanitizeFtsCandidates, searchTerms,
@@ -238,4 +239,25 @@ export function timeline(store, observationId, before = 5, after = 5) {
     session_info: getSession(store, focus.session_id),
     total_in_range: Number(total),
   };
+}
+
+/**
+ * Proyección compacta de resultados de búsqueda para clientes: identificación,
+ * estado, vista previa y, si las hay, las relaciones del resultado.
+ * @param {object[]} results resultados de `searchObservationPreviews`
+ * @param {Record<string, { as_source: object[], as_target: object[] }>} relations
+ */
+export function compactSearchProjection(results, relations) {
+  return results.map((r) => {
+    const entry = {
+      id: r.id, sync_id: r.sync_id, title: r.title, type: r.type, state: observationState(r.review_after),
+      scope: r.scope, pinned: r.pinned, preview: r.preview, truncated: r.truncated,
+    };
+    if (r.project != null) entry.project = r.project;
+    if (r.topic_key != null && r.topic_key !== '') entry.topic_key = r.topic_key;
+    if (r.review_after != null) entry.review_after = r.review_after;
+    const rels = relations[r.sync_id];
+    if (rels) entry.relations = { as_source: rels.as_source, as_target: rels.as_target };
+    return entry;
+  });
 }
