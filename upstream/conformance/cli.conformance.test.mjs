@@ -42,12 +42,9 @@ const MASKS = [
   [/engram/g, 'odin'],
 ];
 
-/** La referencia imprime además el uso de `projects rescue-ownership`, que odin incorpora con la sincronización. */
-const RESCUE_USAGE = /^ {7}engram projects rescue-ownership .*\n/m;
-
 /** Enmascara lo que difiere por construcción: identidad, rutas, fechas e identificadores. */
 function mask(text, world) {
-  let out = String(text ?? '').replace(RESCUE_USAGE, '');
+  let out = String(text ?? '');
   for (const dir of [world.refDir, world.odinDir]) out = out.split(dir).join('<DATA>');
   for (const dir of [join(world.dir, 'out-ref'), join(world.dir, 'out-odin')]) out = out.split(dir).join('<OUT>');
   out = out.split(world.repo).join('<REPO>');

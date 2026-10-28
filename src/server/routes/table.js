@@ -10,6 +10,7 @@ import {
 import {
   compareRoute, conflictStatsRoute, consolidateRoute, getConflictRoute, judgeManyRoute, judgeRoute, listConflictsRoute, listDeferredRoute, scanConflictsRoute,
 } from './workflows.js';
+import { replayDeferredRoute, rescueOwnershipRoute } from './maintenance.js';
 import { compatibilityRoute, healthRoute, runtimeContractRoute, syncStatusRoute } from './system.js';
 
 /**
@@ -67,5 +68,8 @@ export const ROUTES = [
   { pattern: 'GET /conflicts/stats', handler: conflictStatsRoute },
   { pattern: 'GET /conflicts/deferred', handler: listDeferredRoute },
   { pattern: 'POST /conflicts/scan', handler: scanConflictsRoute },
+  { pattern: 'POST /conflicts/deferred/replay', handler: replayDeferredRoute },
+  { pattern: 'POST /projects/rescue-ownership', handler: rescueOwnershipRoute, configured: true },
+  { pattern: 'POST /projects/migrate', handler: rescueOwnershipRoute, configured: true },
   { pattern: 'GET /conflicts/{relation_id}', handler: getConflictRoute },
 ];

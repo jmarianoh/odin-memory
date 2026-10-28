@@ -212,8 +212,9 @@ test('conflicts deferred lista, inspecciona y exige reanudación de la sincroniz
   assert.deepEqual([missing.code, missing.err], [1, 'error: GetDeferred: deferred row "nada" not found\n']);
   const both = await w.odin(['conflicts', 'deferred', '--inspect', 'd1', '--replay']);
   assert.deepEqual([both.code, both.err], [1, 'error: --inspect and --replay are mutually exclusive\n']);
-  const noReplay = await w.odin(['conflicts', 'deferred', '--replay']);
-  assert.deepEqual([noReplay.code, noReplay.err], [1, 'odin: deferred replay is not available in this build\n']);
+  const none = await w.odin(['conflicts', 'deferred', '--replay']);
+  assert.deepEqual([none.code, none.err], [0, ''], 'sin gancho usa el reintento del almacén');
+  assert.match(none.out, /^Deferred Replay\n  retried:   \d+\n/);
   const replay = await w.odin(['conflicts', 'deferred', '--replay'], { overrides: { syncApply: { replayDeferred: () => ({ retried: 3, succeeded: 2, failed: 1, dead: 0 }) } } });
   assert.equal(replay.out, 'Deferred Replay\n  retried:   3\n  succeeded: 2\n  failed:    1\n  dead:      0\n');
 });

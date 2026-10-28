@@ -13,6 +13,7 @@ import { cmdSave } from './commands/save.js';
 import { cmdSearch } from './commands/search.js';
 import { cmdServe } from './commands/serve.js';
 import { cmdStats } from './commands/stats.js';
+import { cmdSync } from './commands/sync.js';
 import { cmdTimeline } from './commands/timeline.js';
 import { resolveConfig } from './config.js';
 import { CliExit, fatal, println, readLineSync } from './runtime.js';
@@ -33,6 +34,7 @@ const STORE_COMMANDS = {
   export: cmdExport,
   import: cmdImport,
   projects: cmdProjects,
+  sync: cmdSync,
 };
 
 /**

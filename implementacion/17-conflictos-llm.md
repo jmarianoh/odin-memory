@@ -12,7 +12,7 @@ La entrega F4.3 (spec 0.17.0) añade a la CLI y a la API HTTP las herramientas q
 | Comandos `conflicts`, `instance-id`, `compatibility`, `migrate-copy` | `src/cli/commands/conflicts.js`, `admin.js` | abajo |
 | Rutas `/conflicts/{stats,deferred,scan}` y `/compatibility` | `src/server/routes/` | `14-http-api/01-rutas.md` |
 
-Quedan para la sincronización (F5): `conflicts deferred --replay` y `POST /conflicts/deferred/replay` (necesitan aplicar mutaciones remotas), `projects rescue-ownership` y `POST /projects/rescue-ownership`. Mientras tanto, `--replay` sale con `odin: deferred replay is not available in this build`; el comando acepta un gancho `Cli.syncApply.replayDeferred(store) → { retried, succeeded, failed, dead }` que F5 rellena.
+`conflicts deferred --replay`, `POST /conflicts/deferred/replay`, `projects rescue-ownership` y `POST /projects/rescue-ownership` se entregan con la sincronización (F5) y se describen en `16-git-sync.md`. `--replay` usa `Cli.syncApply.replayDeferred(store) → { retried, succeeded, failed, dead }` si existe (gancho de pruebas) y, si no, `replayDeferred` del almacén.
 
 ## Ejecutor semántico (`src/llm/`)
 

@@ -705,3 +705,49 @@ test('compatibilidad con ODIN_HTTP_TOKEN', { skip }, async () => {
     w.close();
   }
 });
+
+test('rescate de propiedad y reintento de diferidos por HTTP', { skip }, async () => {
+  const w = await newWorld('rescate-http', { refEnv: { ENGRAM_HTTP_TOKEN: 's' }, odinEnv: { ODIN_HTTP_TOKEN: 's' } });
+  try {
+    const bearer = { Authorization: 'Bearer s' };
+    await w.same('POST', '/sessions', { id: 's1', project: 'demo', directory: w.repo });
+    await w.same('POST', '/observations', { session_id: 's1', title: 'Una', content: 'contenido uno', project: 'demo' }, {});
+    await w.same('POST', '/observations', { session_id: 's1', title: 'Dos', content: 'contenido dos', project: 'demo' }, {});
+    const { DatabaseSync } = await import('node:sqlite');
+    for (const path of [join(w.refDir, 'engram.db'), join(w.odinDir, 'odin.db')]) {
+      const db = new DatabaseSync(path, { timeout: 5000 });
+      db.exec("UPDATE observations SET project = NULL WHERE id = 2");
+      db.exec("UPDATE sessions SET project = ''");
+      db.close();
+    }
+    const body = { target_project: 'demo', confirmed: true, observation_ids: [2], session_ids: ['s1'] };
+    await w.same('POST', '/projects/rescue-ownership', body);
+    await w.same('POST', '/projects/rescue-ownership', body, { headers: { Authorization: 'Bearer x' } });
+    await w.same('POST', '/projects/rescue-ownership', { ...body, confirmed: false }, { headers: bearer });
+    await w.same('POST', '/projects/rescue-ownership', { ...body, target_project: ' ' }, { headers: bearer });
+    await w.same('POST', '/projects/rescue-ownership', { target_project: 'demo', confirmed: true }, { headers: bearer });
+    await w.same('POST', '/projects/rescue-ownership', { ...body, observation_ids: [0] }, { headers: bearer });
+    await w.same('POST', '/projects/rescue-ownership', 'no json', { headers: bearer });
+    await w.same('POST', '/projects/rescue-ownership', { ...body, observation_ids: [999], session_ids: [] }, { headers: bearer });
+    await w.same('POST', '/projects/rescue-ownership', { target_project: 'otro', confirmed: true, observation_ids: [1] }, { headers: bearer });
+    await w.same('POST', '/projects/rescue-ownership', body, { headers: bearer });
+    await w.same('POST', '/projects/migrate', body, { headers: bearer });
+    await w.same('POST', '/projects/migrate', body);
+    await w.same('GET', '/projects/migrate');
+    await w.same('POST', '/projects/rescue-ownership', 'x'.repeat(9000), { headers: bearer });
+
+    await w.same('POST', '/conflicts/deferred/replay', {});
+    for (const path of [join(w.refDir, 'engram.db'), join(w.odinDir, 'odin.db')]) {
+      const db = new DatabaseSync(path, { timeout: 5000 });
+      db.exec(`INSERT INTO sync_apply_deferred (sync_id, entity, payload, target_key, entity_key, op, project, scope_class, apply_status)
+        VALUES ('rel-0000000000000001', 'relation', '{"sync_id":"rel-0000000000000001","source_id":"obs-a","target_id":"obs-b","relation":"related","judgment_status":"judged","project":"demo"}', 'local', 'rel-0000000000000001', 'upsert', 'demo', 'scoped', 'deferred')`);
+      db.close();
+    }
+    await w.same('POST', '/conflicts/deferred/replay', {});
+    await w.same('POST', '/conflicts/deferred/replay', {});
+    await w.same('GET', '/conflicts/deferred');
+    await w.same('GET', '/conflicts/stats?project=demo');
+  } finally {
+    w.close();
+  }
+});

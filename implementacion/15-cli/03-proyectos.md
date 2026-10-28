@@ -10,7 +10,7 @@ odin projects prune [--dry-run] [--paths-only]
 odin projects alias <set|list|remove|resolve> …
 ```
 
-(`projects rescue-ownership` llega con el diario de sincronización, F5; hasta entonces no está registrado y no aparece en el uso.)
+`projects rescue-ownership` se describe en `../16-git-sync.md` (entrega F5).
 
 Sin subcomando se usa `list`. Un subcomando desconocido imprime `unknown projects subcommand: <x>` y después el uso de `projects` en el error estándar, código 1. El uso de `projects` (`printProjectsUsage`) es, en el error estándar:
 

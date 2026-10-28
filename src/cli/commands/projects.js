@@ -5,6 +5,7 @@ import { goQuote } from '../../mcp/json.js';
 import { toGoJson } from '../../store/backup.js';
 import { isProjectEnrolled } from '../../store/journal.js';
 import { detectProject } from '../../store/project-history.js';
+import { rescueNullProjectOwnership } from '../../store/project-rescue.js';
 import {
   mergeExplicitProjectVariants, mergeProjects, migrateProject, previewExplicitProjectMerge, pruneProject,
 } from '../../store/project-maintenance.js';
@@ -13,7 +14,7 @@ import {
   resolveProjectAlias, setProjectAlias,
 } from '../../store/projects.js';
 import { goTrim } from '../../store/text.js';
-import { exit, fatal, padLeft, padRight, println, scanLeadingInt, withStore } from '../runtime.js';
+import { exit, fatal, padLeft, padRight, parseInt64, println, scanLeadingInt, withStore } from '../runtime.js';
 
 const ALIAS_USAGE =
   'usage: odin projects alias set (--key <key>|--cwd <directory>) --project <project>\n       odin projects alias list\n       odin projects alias remove (--key <key>|--cwd <directory>)\n       odin projects alias resolve [--designation <name>] [--cwd <directory>]\n';
@@ -27,6 +28,7 @@ function printProjectsUsage(cli) {
   cli.err('       odin projects merge --from <source> --to <canonical> (--dry-run|--apply)\n');
   cli.err('       odin projects consolidate [--all] [--dry-run]\n');
   cli.err('       odin projects prune [--dry-run] [--paths-only]\n');
+  cli.err('       odin projects rescue-ownership --project <name> [--session <id>]... [--observation <id>]... [--prompt <id>]...\n');
 }
 
 /**
@@ -64,6 +66,8 @@ export function cmdProjects(cli, config) {
       return cmdProjectsConsolidate(cli, config);
     case 'prune':
       return cmdProjectsPrune(cli, config);
+    case 'rescue-ownership':
+      return cmdProjectsRescueOwnership(cli, config);
     case 'list':
     case '':
       return cmdProjectsList(cli, config);
@@ -72,6 +76,75 @@ export function cmdProjects(cli, config) {
       printProjectsUsage(cli);
       return exit(1);
   }
+}
+
+// ─── rescue-ownership ────────────────────────────────────────────────────────
+
+/**
+ * `odin projects rescue-ownership --project NOMBRE [--session ID]... [--observation ID]... [--prompt ID]...`:
+ * asigna un proyecto a registros históricos que no tenían dueño.
+ * @param {import('../runtime.js').Cli} cli
+ * @param {{ dataDir: string }} config
+ */
+function cmdProjectsRescueOwnership(cli, config) {
+  const params = { target_project: '', session_ids: [], observation_ids: [], prompt_ids: [] };
+  const args = cli.args;
+  for (let i = 2; i < args.length; i++) {
+    const next = () => (i + 1 < args.length ? args[++i] : null);
+    const id = (flag, list) => {
+      const value = next();
+      if (value === null) return;
+      const parsed = parseInt64(value);
+      if (parsed === null) {
+        const reason = /^[+-]?\d+$/.test(value) ? 'value out of range' : 'invalid syntax';
+        fatal(cli, new Error(`invalid ${flag} id ${goQuote(value)}: strconv.ParseInt: parsing ${goQuote(value)}: ${reason}`));
+      }
+      list.push(parsed);
+    };
+    switch (args[i]) {
+      case '--project': {
+        const value = next();
+        if (value !== null) params.target_project = value;
+        break;
+      }
+      case '--session': {
+        const value = next();
+        if (value !== null) params.session_ids.push(value);
+        break;
+      }
+      case '--observation': id('--observation', params.observation_ids); break;
+      case '--prompt': id('--prompt', params.prompt_ids); break;
+      default:
+    }
+  }
+  if (goTrim(params.target_project) === '') {
+    cli.err('--project <name> is required\n');
+    printProjectsUsage(cli);
+    return exit(1);
+  }
+  if (params.session_ids.length === 0 && params.observation_ids.length === 0 && params.prompt_ids.length === 0) {
+    cli.err('select at least one --session, --observation, or --prompt to rescue\n');
+    printProjectsUsage(cli);
+    return exit(1);
+  }
+  withStore(cli, config, (store) => {
+    let result;
+    try {
+      result = rescueNullProjectOwnership(store, params);
+    } catch (err) {
+      return fatal(cli, err);
+    }
+    println(cli, `Rescued ownership into ${goQuote(params.target_project)}: ${result.rescued_sessions} sessions, ${result.rescued_observations} observations, ${result.rescued_prompts} prompts`);
+    if (result.complete) {
+      println(cli, 'Everything selected now belongs to the target project.');
+    } else {
+      println(cli, `${result.blocked.length} selected item(s) were left behind:`);
+      for (const blocked of result.blocked) {
+        println(cli, `  ${padRight(blocked.kind, 11)} ${padRight(blocked.id, 24)} ${blocked.reason} (owner: ${blocked.owned_by || '-'})`);
+      }
+    }
+    if (result.journaled) println(cli, 'Local sync journal updated; autosync reports reconciliation state.');
+  });
 }
 
 // ─── list ────────────────────────────────────────────────────────────────────

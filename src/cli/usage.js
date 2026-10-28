@@ -39,6 +39,12 @@ Commands:
                      Cascade-delete a project: soft-deletes observations (or hard if --hard),
                      removes prompts; with --hard also removes sessions
   timeline <obs_id>  Show chronological context around an observation [--before N] [--after N] [--project PROJECT|--all]
+  sync [--import | --status] [--all] [--include-prompts] [--cloud --project PROJECT [--literal-project]]
+                     Share memories through Git: export new chunks to .odin-memory/ or import chunks from teammates
+                       --import           Import chunks that are not in this database yet
+                       --status           Show local, remote and pending chunk counts
+                       --all              Export every project (default: current project)
+                       --include-prompts  Also share prompts (excluded by default)
   conflicts <sub>   Inspect and manage memory conflict relations
                        list     [--project P|--all]  [--status S]  [--since RFC3339]  [--limit N]
                        show     <relation_id>
@@ -68,6 +74,8 @@ Commands:
                      Remove projects with no observations
                        --dry-run     Preview projects without removing data
                        --paths-only  Limit pruning to project names containing / or \\
+  projects rescue-ownership --project NAME [--session ID]... [--observation ID]... [--prompt ID]...
+                     Assign a project to historical records that have no owner
   projects alias <set|list|remove|resolve>
                      Manage local project aliases (future captures only)
 

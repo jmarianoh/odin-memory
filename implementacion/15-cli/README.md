@@ -7,7 +7,8 @@
 | F4.1 (spec 0.15.0) | `01-comandos-memoria.md`, `02-respaldo-e-init.md`, `03-proyectos.md`, `04-mcp-y-uso.md` | Despachador, contexto de ejecución y los comandos `version`, `help`, `mcp`, `init`, `search`, `save`, `delete`, `timeline`, `context`, `stats`, `export`, `import`, `projects` (`list`, `merge`, `consolidate`, `prune`, `alias`) |
 | F4.2 (spec 0.16.0) | `../14-http-api/` | `serve [puerto]`, `serve --socket`, `serve --session-owned` y la API HTTP local |
 | F4.3 (spec 0.17.0) | `../17-conflictos-llm.md` | `conflicts` (`list`, `show`, `stats`, `scan`, `deferred`, `prune`), `instance-id`, `compatibility`, `migrate-copy` |
-| F5 y siguientes | — | `projects rescue-ownership` y `conflicts deferred --replay` (llegan con el diario de sincronización, F5), `sync`, `cloud`, `doctor`, `test`, `hook`, `setup`, `tui` |
+| F5 (spec 0.18.0) | `../16-git-sync.md` | `sync` (`--import`, `--status`, `--all`, `--include-prompts`), `projects rescue-ownership`, `conflicts deferred --replay` |
+| F6 y siguientes | — | `cloud`, `doctor`, `test`, `hook`, `setup`, `tui` |
 
 ## Decisiones de diseño
 

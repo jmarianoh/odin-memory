@@ -1,7 +1,7 @@
 import { estimateScanCost, buildStorePrompt, resolveAgentRunner } from '../../llm/index.js';
 import {
   DEFAULT_DEAD_ROW_MAX_AGE_DAYS, DEFAULT_DEAD_ROW_MAX_PER_SCOPE, DEFAULT_SCAN_LIMIT, countRelations, getActionableRelationStats, getDeferred,
-  getRelationByIntId, listDeferred, listRelations, pruneDeadRows, scanAllProjects, scanProject,
+  getRelationByIntId, listDeferred, listRelations, pruneDeadRows, replayDeferred, scanAllProjects, scanProject,
 } from '../../store/index.js';
 import { resolveCliProjectScope } from '../project.js';
 import { CliExit, fatal, padRight, parseInt64, println, truncate, withStore } from '../runtime.js';
@@ -375,7 +375,7 @@ function deferredCommand(cli, config) {
     if (replay) {
       let result;
       try {
-        result = (cli.syncApply?.replayDeferred ?? (() => { throw new Error('deferred replay is not available in this build'); }))(store);
+        result = (cli.syncApply?.replayDeferred ?? replayDeferred)(store);
       } catch (err) {
         return fatal(cli, err);
       }

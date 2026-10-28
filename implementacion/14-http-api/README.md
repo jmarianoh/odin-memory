@@ -2,7 +2,7 @@
 
 `odin serve` publica la memoria por HTTP en el bucle local (`127.0.0.1`) o en un socket Unix, para los clientes que no hablan MCP: los *hooks* de Copilot, scripts y herramientas de diagnóstico. Es el mismo almacén que usan la CLI y el servidor MCP; el servidor no añade reglas de negocio, solo traduce peticiones y respuestas.
 
-Se construye en la entrega **F4.2 (spec 0.16.0)**. `/conflicts/{stats,deferred,scan}` y `/compatibility` llegan en la entrega F4.3 (spec 0.17.0); `/conflicts/deferred/replay` y `/projects/rescue-ownership` en F5 y `/doctor` en F6. Todas se añaden a la misma tabla de rutas.
+Se construye en la entrega **F4.2 (spec 0.16.0)**. `/conflicts/{stats,deferred,scan}` y `/compatibility` llegan en la entrega F4.3 (spec 0.17.0); `/conflicts/deferred/replay` y `/projects/rescue-ownership` en F5 (spec 0.18.0) y `/doctor` en F6. Todas se añaden a la misma tabla de rutas.
 
 | Documento | Contenido |
 |---|---|

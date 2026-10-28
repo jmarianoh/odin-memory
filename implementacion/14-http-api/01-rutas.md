@@ -94,6 +94,13 @@ Las rutas con **id** forman el *contrato de runtime* (`GET /runtime-contract`); 
 | `POST /conflicts/judge-many` (`conflict-judge-many`, `auth`) | Cuerpo de flujo `{"judgments":[1..32],"session_id"?}`. `200 {"outcomes":[{index,judgment_id,status:"success"\|"error",relation?,judgment_status?,error?}]}`. Los mensajes de error solo exponen rechazos conocidos (`relation "x" not found`, verbo inválido, relación entre proyectos); el resto es `judgment failed` |
 | `POST /conflicts/compare` (`conflict-compare`) | Cuerpo: `memory_id_a`, `memory_id_b`, `relation`, `confidence` (obligatoria), `reasoning`, `model`. `200 {"sync_id"}`; `404 observation id=N not found: sql: no rows in result set` |
 
+## Mantenimiento de la sincronización (F5)
+
+| Ruta | Detalle |
+|---|---|
+| `POST /conflicts/deferred/replay` | Reintenta las relaciones diferidas. `200 {"retried","succeeded","failed","dead"}`. Detalle en `../16-git-sync.md` |
+| `POST /projects/rescue-ownership` (`configured`) y su alias `POST /projects/migrate` | Asigna un proyecto a registros sin dueño. Exige token configurado (`503 server authorization is not configured` si no hay). Cuerpo ≤ 8 KiB: `{"target_project","confirmed":true,"session_ids"?,"observation_ids"?,"prompt_ids"?}`. Errores `400`: `invalid JSON`, `target_project is required`, `confirmed must be true`, `invalid ownership rescue request: provide a target project and at least one positive record ID or non-blank session ID`. `200 {"status":"rescued"\|"partially_rescued","complete","blocked","target_project","rescued_observations","rescued_sessions","rescued_prompts","conflicting_records","skipped_records","journaled_local","reconciliation_status"}`; avisa de escritura solo si algo cambió |
+
 ## Fuera de esta entrega
 
-`POST /conflicts/deferred/replay` (F5), `GET /doctor`, `POST /doctor/caller-binding` (F6), `POST /projects/rescue-ownership` y su alias `POST /projects/migrate` (F5; usarán `requireConfiguredAuth`).
+`GET /doctor` y `POST /doctor/caller-binding` (F6).

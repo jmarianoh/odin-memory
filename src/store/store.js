@@ -64,18 +64,19 @@ export class Store {
   static open(config) {
     validateDataDirectory(config.dataDir);
     mkdirSync(config.dataDir, { recursive: true, mode: 0o755 });
+    const log = config.log ?? ((m) => process.stderr.write(`${m}\n`));
     const instanceId = ensureInstanceId(config.dataDir);
     const dbPath = join(config.dataDir, DB_FILE_NAME);
     ensureDatabaseFile(dbPath);
     const generation = new DatabaseGeneration(dbPath);
     const db = openDatabase(dbPath, generation);
     try {
-      runStartupMigrations(db, generation, config.log ?? ((m) => process.stderr.write(`${m}\n`)));
+      runStartupMigrations(db, generation, log);
     } catch (err) {
       db.close();
       throw err;
     }
-    return new Store(config, db, generation, instanceId);
+    return new Store({ ...config, log }, db, generation, instanceId);
   }
 
   get dataDir() {

@@ -248,6 +248,22 @@ Pruebas manuales: `node bin/odin.js save "Usar Redis para la caché" "..." --pro
 
 `projects rescue-ownership` y `conflicts deferred --replay` se entregan con el diario de sincronización (F5); `hook resolve-hook-project` con los hooks de Copilot (F7).
 
-## F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+### F5 — Sincronización por Git (spec 0.18.0)
+
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/store/{sync-apply,sync-chunks,project-rescue}.test.js`, `test/unit/sync/{chunks,syncer}.test.js`, `test/unit/cli/sync.test.js`, `test/unit/server/maintenance.test.js`) y `src/cli/usage.js`.
+2. Crear, según `16-git-sync.md`: `src/store/{sync-chunks,sync-apply,project-rescue}.js`; `src/sync/{chunks,transport,syncer,index}.js`; `src/cli/commands/sync.js`; `src/server/routes/maintenance.js`.
+3. Modificar: `src/store/index.js` (reexporta los tres módulos), `src/store/store.js` (`Store.open` fija siempre `config.log`), `src/cli/index.js` (`sync` entre los comandos con almacén), `src/cli/commands/projects.js` (`rescue-ownership`), `src/cli/commands/conflicts.js` (`--replay`), `src/server/routes/table.js` (rutas de mantenimiento).
+
+Aceptación:
+```bash
+node --test "test/unit/store/*.test.js" "test/unit/sync/*.test.js" "test/unit/cli/*.test.js" "test/unit/server/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Pruebas manuales: en un repositorio con memorias, `node bin/odin.js sync`, `git add .odin-memory`, y en otro almacén (otro `ODIN_DATA_DIR`) `node bin/odin.js sync --import` y `sync --status`.
+
+## F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.
