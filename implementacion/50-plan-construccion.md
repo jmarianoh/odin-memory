@@ -97,9 +97,22 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F1.7 y F1.8
+### F1.7 — Mantenimiento de proyectos (spec 0.8.0)
 
-Fusión, migración, borrado y poda de proyectos (F1.7); sesiones de runtime (F1.8). Se detallan en `10-store/07-…` y `08-…` al completarse.
+1. Copiar de `fuentes/` el test nuevo (`test/unit/store/project-maintenance.test.js`).
+2. Crear, según `10-store/07-mantenimiento-proyectos.md`: ampliar `errors.js`; añadir `backfillProjectSyncMutations` a `journal.js`; exportar `recordDeleteTombstone` en `observations.js`; crear `project-maintenance.js`; exportarlo desde `src/store/index.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/store/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F1.8
+
+Sesiones de runtime (registro, continuación, concesiones y sesiones aisladas). Se detalla en `10-store/08-…` al completarse.
 
 ## F2 — Proyecto · F3 — MCP · F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 

@@ -429,7 +429,7 @@ export function deleteObservation(store, id, { hardDelete = false, expectedProje
 }
 
 /** Lápida de un borrado duro: evita que una réplica resucite la entidad. */
-function recordDeleteTombstone(db, entity, entityKey, sessionId, project, deletedAt) {
+export function recordDeleteTombstone(db, entity, entityKey, sessionId, project, deletedAt) {
   entityKey = goTrim(entityKey ?? '');
   if (entityKey === '') throw new Error('sync delete tombstone entity key is required');
   const floorRow = db.get(

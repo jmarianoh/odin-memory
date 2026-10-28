@@ -10,6 +10,7 @@ export {
 } from './errors.js';
 export * from './observations.js';
 export * from './passive.js';
+export * from './project-maintenance.js';
 export * from './projects.js';
 export * from './prompts.js';
 export * from './relation-udf.js';

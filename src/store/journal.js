@@ -55,3 +55,17 @@ export function journalMutation(db, { entity, entityKey, op, project = '', sessi
   if (owner === '' || !isProjectEnrolled(db, owner)) return;
   throw storeError('sync_journal_unavailable', `${entity} ${op} for project ${JSON.stringify(owner)}`);
 }
+
+/**
+ * Materializa en el diario el estado local de un proyecto tras renombrarlo o
+ * fusionarlo, para que Cloud converja. Solo es necesario si el proyecto está
+ * inscrito; mientras el diario no esté implementado, un proyecto inscrito falla
+ * (y la operación se revierte entera) en lugar de dejarse sin sincronizar.
+ * @param {import('./db.js').Database} db
+ * @param {string} project proyecto canónico
+ */
+export function backfillProjectSyncMutations(db, project) {
+  const owner = normalizeProject(goTrim(project ?? '')).normalized;
+  if (owner === '' || !isProjectEnrolled(db, owner)) return;
+  throw storeError('sync_journal_unavailable', `project backfill for ${JSON.stringify(owner)}`);
+}

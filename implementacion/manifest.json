@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.8.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -78,7 +78,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "9743d0308adde46351e6eaa6bd4b431eff894b86745f9338f8ceac67ac5f1ec7",
+      "sha256": "cf74fcbba6248626738d26edd601066f319197d2be3bc682ef46b980e9666666",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -98,7 +98,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "76cc915e4c6f56def933809628b56e619e81b69f1380cb345060b8fd068f1e74",
+      "sha256": "87d9724f05053a433a0ec93b40046ca6810197d6aa6c698b1bd780e898d7bf2c",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -118,7 +118,7 @@
       "tests": [
         "test/unit/store/observations.test.js"
       ],
-      "sha256": "e5512fd21e0a4842d0de0e1e65f358af01dfbc649b43cd33a08cb348dbccfd8f",
+      "sha256": "f1c3d2172c1e79c18a90f2cf2191efae16af1adf0eae11b3fab4fddb836d207b",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {
@@ -139,7 +139,7 @@
       "tests": [
         "test/unit/store/observations.test.js"
       ],
-      "sha256": "0079f2ffbaa12673e496977b5cd3fc86bcd8fb47d6e8449ba13ea4d2e8923ebd",
+      "sha256": "8d46304d6549b1316c2e6eacac526fbe05edcdb4810d4c673810e6d410a5981a",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {
@@ -151,6 +151,16 @@
       ],
       "sha256": "2829a32a115b3fff27f28ce4a3560c5dfdc178f5ec7437ebadf81caf09d37a1c",
       "docSha256": "54604398154fcd66417252daf66215ac3d23c8ae7285acd7a7894de6d85a0424"
+    },
+    {
+      "path": "src/store/project-maintenance.js",
+      "doc": "10-store/07-mantenimiento-proyectos.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/project-maintenance.test.js"
+      ],
+      "sha256": "7f77260e47664865b8794e13a6687ae479fabe4cf4dec66c49ed26116381d93a",
+      "docSha256": "259e2ea5f733adb1ccad01f232a559b18721a9f7780b23dad4e3c43603144f47"
     },
     {
       "path": "src/store/projects.js",
