@@ -84,9 +84,22 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F1.6 a F1.8
+### F1.6 — Contexto de sesión (spec 0.7.0)
 
-Contexto de sesión (F1.6); fusión, migración, borrado y poda de proyectos (F1.7); sesiones de runtime (F1.8). Se detallan en `10-store/06-…`, `07-…` y `08-…` al completarse.
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/store/context.test.js`).
+2. Crear, según `10-store/06-contexto.md`: ampliar `timeutil` (`parseStored`, `formatLocal`), `text.js` (`truncate`), `observations.js`, `prompts.js`, `db.js` (`readTransaction`) y `store.js` (reloj opcional); crear `context.js`; exportarlo desde `src/store/index.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/store/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F1.7 y F1.8
+
+Fusión, migración, borrado y poda de proyectos (F1.7); sesiones de runtime (F1.8). Se detallan en `10-store/07-…` y `08-…` al completarse.
 
 ## F2 — Proyecto · F3 — MCP · F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 

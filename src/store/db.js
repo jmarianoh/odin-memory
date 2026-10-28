@@ -146,6 +146,35 @@ export class Database {
   }
 
   /**
+   * Ejecuta fn dentro de una transacción de solo lectura (`BEGIN` diferido): ve una
+   * instantánea coherente y no toma el bloqueo de escritura. Dentro de otra
+   * transacción simplemente ejecuta fn.
+   * @template T
+   * @param {(db: Database) => T} fn
+   * @returns {T}
+   */
+  readTransaction(fn) {
+    if (this.#depth > 0) return fn(this);
+    this.#fenceRead();
+    this.#raw.exec('BEGIN');
+    this.#depth++;
+    try {
+      const result = fn(this);
+      if (result && typeof (/** @type {any} */ (result).then) === 'function') {
+        throw new TypeError('readTransaction(fn): fn debe ser síncrona');
+      }
+      return result;
+    } finally {
+      this.#depth--;
+      try {
+        this.#raw.exec('ROLLBACK'); // no hay escrituras que confirmar
+      } catch {
+        // la transacción ya fue cerrada por SQLite
+      }
+    }
+  }
+
+  /**
    * Transacción de escritura con reintentos ante contención. Solo la más externa
    * reintenta: dentro de una transacción abierta se comporta como `transaction`.
    * @template T

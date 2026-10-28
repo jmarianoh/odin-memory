@@ -497,6 +497,31 @@ export function allObservations(store, project = '', scope = '', limit = 0) {
   });
 }
 
+/** Observaciones recientes que no están fijadas (las fijadas se muestran aparte). */
+export function recentUnpinnedObservations(store, project = '', scope = '', limit = 0) {
+  return listObservations(store, {
+    project: normalizeProject(project).normalized,
+    scope,
+    limit: limit > 0 ? limit : store.settings.maxContextResults,
+    canonical: true,
+    extra: ' AND o.pinned = 0',
+    order: NEWEST_FIRST,
+  });
+}
+
+/** Observaciones de una sesión y proyecto para el contexto de compactación. */
+export function compactionObservations(store, sessionId, project, pinned, limit = 0) {
+  let sql = `SELECT ${SELECT_COLUMNS} FROM observations o
+    WHERE o.deleted_at IS NULL AND o.session_id = ? AND LOWER(o.project) = ? AND o.pinned = ?
+    ORDER BY datetime(o.created_at) DESC, o.id DESC`;
+  const args = [sessionId, project, pinned ? 1 : 0];
+  if (limit > 0) {
+    sql += ' LIMIT ?';
+    args.push(limit);
+  }
+  return store.db.all(sql, ...args).map(toObservation);
+}
+
 /** Observaciones fijadas (`pinned`) de un proyecto y ámbito; `limit` 0 = sin tope. */
 export function pinnedObservations(store, project = '', scope = '', limit = 0) {
   return listObservations(store, {

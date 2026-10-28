@@ -1,4 +1,5 @@
 export * from './consolidate.js';
+export * from './context.js';
 export { Database, RETRY_BACKOFFS_MS, isRetryableLockError, withLockRetry } from './db.js';
 export {
   DatabaseGenerationChangedError,

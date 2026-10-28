@@ -206,6 +206,12 @@ export function sanitizeFtsCandidates(title) {
   return candidateTerms(title).join(' OR ');
 }
 
+/** Recorta a `max` caracteres (puntos de código) y añade `...` si hubo recorte. */
+export function truncate(s, max) {
+  const chars = [...s];
+  return chars.length <= max ? s : `${chars.slice(0, max).join('')}...`;
+}
+
 /** "" → null, para columnas opcionales. */
 export function nullableString(v) {
   return v === undefined || v === null || v === '' ? null : v;

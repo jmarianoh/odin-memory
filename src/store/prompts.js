@@ -78,6 +78,16 @@ export function recentPrompts(store, project = '', limit = 20) {
   return store.db.all(sql, ...args);
 }
 
+/** Prompts de una sesión y proyecto para el contexto de compactación (por defecto 10). */
+export function compactionPrompts(store, sessionId, project, limit = 10) {
+  return store.db.all(
+    `SELECT ${PROMPT_COLUMNS} FROM user_prompts
+     WHERE session_id = ? AND LOWER(ifnull(project, '')) = ?
+     ORDER BY created_at DESC LIMIT ?`,
+    sessionId, project, limit > 0 ? limit : 10,
+  );
+}
+
 /**
  * Busca prompts. Con algún término corto usa LIKE; si no, FTS5 trigram ordenado
  * por `rank`. El filtro de proyecto es exacto (no se normaliza).

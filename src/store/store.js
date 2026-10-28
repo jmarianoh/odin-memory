@@ -18,6 +18,7 @@ export const DB_FILE_NAME = 'odin.db';
  * @property {number} [maxContextResults] resultados por defecto en contexto y listados (20)
  * @property {number} [maxSearchResults] resultados máximos de búsqueda (20)
  * @property {number} [dedupeWindowMs] ventana de deduplicación en ms (900000 = 15 min)
+ * @property {() => Date} [now] reloj del historial de contexto (solo pruebas)
  */
 
 /** Valores por defecto de los límites configurables. */
@@ -44,6 +45,7 @@ export class Store {
       maxContextResults: config.maxContextResults ?? DEFAULT_SETTINGS.maxContextResults,
       maxSearchResults: config.maxSearchResults ?? DEFAULT_SETTINGS.maxSearchResults,
       dedupeWindowMs: config.dedupeWindowMs ?? DEFAULT_SETTINGS.dedupeWindowMs,
+      now: config.now,
     };
     this.db = db;
     this.generation = generation;
