@@ -47,6 +47,7 @@ export function readLineSync(fd = 0) {
  * @property {() => string|null} readLine lee una línea de la entrada (`null` en EOF)
  * @property {(config: { dataDir: string }) => import('../store/store.js').Store} openStore
  * @property {object} [mcp] sobrescrituras del servidor MCP (pruebas): `input`, `output`, `graceMs`, `processRef`
+ * @property {object} [serve] sobrescrituras de `odin serve` (pruebas): `input`, `processRef`, `signal`, `graceMs`, `log`, `ready`
  */
 
 /** `fmt.Println`. */

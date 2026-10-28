@@ -12,7 +12,7 @@ const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 // ─── mem_judge / mem_judge_many ──────────────────────────────────────────────
 
 /** Parámetros de `judgeRelation` a partir de los argumentos de la herramienta, o un error de uso. */
-function judgeParams(args) {
+export function judgeParams(args) {
   const p = { marked_by_actor: 'agent', marked_by_kind: 'agent' };
   p.judgment_id = typeof args.judgment_id === 'string' ? args.judgment_id : '';
   p.relation = typeof args.relation === 'string' ? args.relation : '';
@@ -43,7 +43,7 @@ export function judgeTool(ctx) {
 }
 
 /** Error de tipo de un elemento del lote, sin forzar tipos; `''` si es válido. */
-function judgmentItemError(raw) {
+export function judgmentItemError(raw) {
   if (!isObject(raw)) return 'judgment must be an object';
   for (const key of ['judgment_id', 'relation', 'reason', 'evidence']) {
     if (Object.hasOwn(raw, key) && typeof raw[key] !== 'string') return `${key} must be a string`;
@@ -151,7 +151,7 @@ const CONSOLIDATE_KEYS = new Set(['ids_to_delete', 'new_title', 'new_content', '
 const MAX_JSON_ID = 9007199254740991;
 
 /** Argumentos de `mem_consolidate`; nunca admite sustituir el dueño. */
-function parseConsolidate(args) {
+export function parseConsolidate(args) {
   for (const key of Object.keys(args)) {
     if (!CONSOLIDATE_KEYS.has(key)) return { error: `unsupported argument ${goQuote(key)}; source project/session/scope cannot be overridden` };
   }

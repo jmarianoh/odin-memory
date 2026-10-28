@@ -69,7 +69,9 @@ function normalize(value) {
   // bm25 puede diferir en la última cifra según cómo se compile SQLite.
   if (typeof value === 'number' && !Number.isInteger(value)) return Number(value.toPrecision(10));
   if (Array.isArray(value)) return value.map(normalize);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, normalize(v)]));
+  // Un `review_after` calculado desde el reloj puede diferir un segundo entre los dos procesos; los sembrados (2020) no.
+  const clockDerived = (k, v) => k === 'review_after' && typeof v === 'string' && !v.startsWith('2020-');
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, clockDerived(k, v) ? '<T>' : normalize(v)]));
   return value;
 }
 

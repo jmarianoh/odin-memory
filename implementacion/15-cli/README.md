@@ -5,7 +5,7 @@
 | Entrega | Capítulos | Contenido |
 |---|---|---|
 | F4.1 (spec 0.15.0) | `01-comandos-memoria.md`, `02-respaldo-e-init.md`, `03-proyectos.md`, `04-mcp-y-uso.md` | Despachador, contexto de ejecución y los comandos `version`, `help`, `mcp`, `init`, `search`, `save`, `delete`, `timeline`, `context`, `stats`, `export`, `import`, `projects` (`list`, `merge`, `consolidate`, `prune`, `alias`) |
-| F4.2 | (capítulo propio del servidor HTTP) | `serve`, API HTTP local |
+| F4.2 (spec 0.16.0) | `../14-http-api/` | `serve [puerto]`, `serve --socket`, `serve --session-owned` y la API HTTP local |
 | F4.3 y siguientes | — | `projects rescue-ownership` (llega con el diario de sincronización, F5), `conflicts`, `hook`, `migrate-copy`, `compatibility`, `instance-id`, `sync`, `cloud`, `doctor`, `test`, `setup`, `tui` |
 
 ## Decisiones de diseño
@@ -29,6 +29,7 @@
   openStore(config), // abre el almacén: Store.open
   home(),      // directorio personal (os.homedir)
   mcp,         // opcional: input, output, graceMs, processRef, log para el servidor MCP (pruebas)
+  serve,       // opcional: input, processRef, signal, graceMs, log, ready para `odin serve` (pruebas)
 }
 ```
 
@@ -64,7 +65,7 @@ Orden exacto de `dispatch(cli)`:
 4. Los demás comandos distinguen mayúsculas y se buscan en la tabla `STORE_COMMANDS` con `Object.hasOwn` (para que `toString` o `__proto__` no cuenten como comandos). Si no existe: `unknown command: <comando>\n\n` en el error estándar, luego el uso en la estándar y código 1.
 5. Resuelve la configuración y llama al manejador con `(cli, config)`.
 
-Tabla `STORE_COMMANDS`: `mcp`, `search`, `save`, `delete`, `timeline`, `context`, `stats`, `export`, `import`, `projects`.
+Tabla `STORE_COMMANDS`: `serve` (ver `../14-http-api/`), `mcp`, `search`, `save`, `delete`, `timeline`, `context`, `stats`, `export`, `import`, `projects`.
 
 ## Resolución de proyecto de las lecturas (`src/cli/project.js`)
 

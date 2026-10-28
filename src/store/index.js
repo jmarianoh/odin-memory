@@ -25,3 +25,4 @@ export * from './sessions.js';
 export { DB_FILE_NAME, DEFAULT_SETTINGS, Store } from './store.js';
 export * from './text.js';
 export * from './session-delete.js';
+export * from './sync-state.js';

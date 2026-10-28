@@ -214,8 +214,24 @@ npm run check:clean-room
 
 Pruebas manuales: `ODIN_DATA_DIR=$(mktemp -d) node bin/odin.js save "Título" "Contenido" --project demo`, luego `search Contenido --project demo`, `stats --all`, `projects` y `context --all`.
 
-Las siguientes entregas de F4 (servidor HTTP, `conflicts`, `hook`, `migrate-copy`, `compatibility`, `instance-id`) se detallan en sus capítulos al completarse. `projects rescue-ownership` se entrega con el diario de sincronización (F5).
+### F4.2 — API HTTP y `odin serve` (spec 0.16.0)
 
-## F4.2 y siguientes · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/server/{helpers,router,routes,serve,details}.test.js`) y `src/cli/usage.js`.
+2. Crear, según `14-http-api/`, en este orden: `src/store/sync-state.js`; `src/server/{http,decode,router,auth,project,sync-status,unix-socket}.js`; `src/server/routes/{workflow-body,sessions,observations,prompts,context,workflows,system,table}.js`; `src/server/{server,index}.js`; `src/cli/commands/serve.js`.
+3. Modificar: `src/store/index.js` (reexporta `sync-state.js`), `src/mcp/tools/curation.js` (exporta `parseConsolidate`, `judgeParams`, `judgmentItemError`), `src/cli/index.js` (registra `serve`) y `src/cli/runtime.js` (documenta `Cli.serve`).
+
+Aceptación:
+```bash
+node --test "test/unit/server/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Pruebas manuales: `ODIN_DATA_DIR=$(mktemp -d) node bin/odin.js serve 7438` y, en otra terminal, `curl localhost:7438/health`; con `ODIN_HTTP_TOKEN=secreto` las rutas `DELETE`, `/export` e `/import` piden `Authorization: Bearer secreto`.
+
+Las siguientes entregas de F4 (`conflicts`, `hook`, `migrate-copy`, `compatibility`, `instance-id` y las rutas de conflictos que faltan) se detallan en sus capítulos al completarse. `projects rescue-ownership` se entrega con el diario de sincronización (F5).
+
+## F4.3 y siguientes · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

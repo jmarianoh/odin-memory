@@ -9,6 +9,7 @@ import { cmdMcp } from './commands/mcp.js';
 import { cmdProjects } from './commands/projects.js';
 import { cmdSave } from './commands/save.js';
 import { cmdSearch } from './commands/search.js';
+import { cmdServe } from './commands/serve.js';
 import { cmdStats } from './commands/stats.js';
 import { cmdTimeline } from './commands/timeline.js';
 import { resolveConfig } from './config.js';
@@ -17,6 +18,7 @@ import { usageText } from './usage.js';
 
 /** Comandos que usan el almacén: reciben la configuración ya resuelta. */
 const STORE_COMMANDS = {
+  serve: cmdServe,
   mcp: cmdMcp,
   search: cmdSearch,
   save: cmdSave,

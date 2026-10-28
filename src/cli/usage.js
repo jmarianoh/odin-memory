@@ -12,6 +12,10 @@ Usage:
   odin <command> [arguments]
 
 Commands:
+  serve [port]       Start HTTP API server (default: 7438)
+  serve --socket PATH
+                     Serve the HTTP API on an owner-only Unix socket instead of TCP
+  serve --session-owned  Private ephemeral HTTP server; requires ODIN_TOKEN, stops on stdin EOF
   mcp [--tools=PROFILE] [--project NAME]
                      Start MCP server (stdio transport)
                         Profiles: agent (${agentTools} tools), admin (${adminTools} tools), all (default, ${allTools})
@@ -59,6 +63,15 @@ Commands:
 Environment:
   ODIN_DATA_DIR      Odin CLI data directory. Empty or whitespace-only values use the
                      platform default; nonblank values are used as provided (default: ~/.odin-memory)
+  ODIN_PORT          Override HTTP server port (default: 7438)
+  ODIN_SOCKET        Serve over this Unix socket path instead of TCP (cannot be combined with a port)
+  ODIN_HTTP_TOKEN    Optional Bearer auth for the local HTTP server (odin serve).
+                     When set, the following routes require Authorization: Bearer <token>:
+                       DELETE /sessions/{id}, DELETE /observations/{id}, DELETE /prompts/{id},
+                       GET /export, POST /import, POST /observations/consolidate,
+                       POST /conflicts/judge-many, POST /sessions/{id}/finalize
+                     Comparison is constant-time. Token is read per-request (no restart needed).
+                     Other routes remain open when unset (zero-config default).
   ODIN_PROJECT       Process-level default project override, applied by every entry point
                      with one precedence rule: explicit request project (odin save --project,
                      an MCP tool project argument) > process override (odin mcp --project,
