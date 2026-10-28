@@ -312,6 +312,22 @@ npm run check:clean-room
 
 Pruebas manuales: con una base de pruebas con una observación cuya sesión falta, `node bin/odin.js doctor repair --project demo --check orphaned_observation_session --plan`, `--dry-run` y `--apply`; después `odin doctor --check orphaned_observation_session`.
 
-## F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+### F7 — Integración con Copilot (spec 0.22.0)
+
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/hooks/*.test.js`, `test/unit/setup/setup.test.js`, `test/unit/cli/{hook,setup}.test.js`) y `src/cli/usage.js`.
+2. Crear, según `13-protocolo-memoria.md`, `21-copilot-vscode.md`, `22-copilot-cli.md` y `23-hooks-copilot.md`: `src/setup/{protocol,files,paths,hooks-config,install}.js`, `src/hooks/{input,project,handlers}.js`, `src/cli/commands/{hook,setup}.js`.
+3. Modificar `src/cli/index.js` (`readInput`; `hook` y `setup` se despachan antes de resolver la configuración) y `src/cli/commands/doctor.js` (chequeo de registros obsoletos por defecto).
+
+Aceptación:
+```bash
+node --test "test/unit/hooks/*.test.js" test/unit/setup/setup.test.js test/unit/cli/hook.test.js test/unit/cli/setup.test.js test/unit/cli/doctor.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Pruebas manuales: `HOME=$(mktemp -d) node bin/odin.js setup vscode-copilot` y `setup copilot-cli`; el ciclo de hooks del capítulo 23; en VS Code y con el CLI real, comprobar que el agente lista las herramientas y que `sessionStart` inyecta el contexto.
+
+## F8 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

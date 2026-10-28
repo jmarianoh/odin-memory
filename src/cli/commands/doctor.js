@@ -1,3 +1,5 @@
+import { isAbsolute } from 'node:path';
+import { staleMcpCommands } from '../../setup/install.js';
 import { Runner, InvalidCheckError, errorReport, registeredCodes } from '../../diagnostic/index.js';
 import { REPAIRABLE_CODES } from '../../diagnostic/repair-codes.js';
 import { toGoJson } from '../../store/backup.js';
@@ -39,7 +41,7 @@ export function printDoctorRepairUsage(cli) {
 function addStaleMcpCheck(cli, report) {
   let stale;
   try {
-    stale = cli.staleMcpCommands ? cli.staleMcpCommands() : [];
+    stale = cli.staleMcpCommands ? cli.staleMcpCommands() : staleMcpCommands({ env: cli.env, home: cli.home, platform: process.platform, isAbsolutePath: isAbsolute });
   } catch (err) {
     report.checks.push({
       check_id: 'mcp_inspection_error', result: 'error', severity: 'error', reason_code: 'mcp_inspection_error',

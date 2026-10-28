@@ -69,6 +69,12 @@ Commands:
   import <file>      Import memories from a JSON export file
   init [name]        Initialize an Odin project (.odin-memory/config.json) in current directory
                        --force, -f   Overwrite existing .odin-memory/config.json
+  hook <action>      Run a Copilot hook action (reads the hook JSON on stdin; never fails)
+                       copilot-session-start, copilot-user-prompt-submit, copilot-pre-compact,
+                       copilot-post-tool-use, copilot-subagent-stop, copilot-session-end
+                       resolve-hook-project  Inspect the absolute cwd in hook JSON without database or binding writes
+  setup <target>     Register odin for GitHub Copilot: vscode-copilot or copilot-cli
+                       [--workspace] [--insiders] [--no-hooks] [--remove] [--dry-run]
   projects list      List all projects with observation, session, and prompt counts
   projects merge --from <source> --to <canonical> (--dry-run|--apply)
                      Preview or apply a legacy case, separator or Unicode normalization variant merge

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { Store } from '../store/store.js';
 import { VERSION } from '../version/index.js';
@@ -7,6 +8,8 @@ import { cmdConflicts } from './commands/conflicts.js';
 import { cmdContext } from './commands/context.js';
 import { cmdDelete } from './commands/delete.js';
 import { cmdDoctor } from './commands/doctor.js';
+import { cmdHook } from './commands/hook.js';
+import { cmdSetup } from './commands/setup.js';
 import { EXPORT_HELP, IMPORT_HELP, cmdExport, cmdImport } from './commands/backup.js';
 import { cmdInit } from './commands/init.js';
 import { cmdMcp } from './commands/mcp.js';
@@ -55,6 +58,13 @@ export function createCli(args, overrides = {}) {
     out: (text) => process.stdout.write(text),
     err: (text) => process.stderr.write(text),
     readLine: () => readLineSync(),
+    readInput: () => {
+      try {
+        return readFileSync(0, 'utf8');
+      } catch {
+        return '';
+      }
+    },
     openStore: (config) => Store.open(config),
     home: homedir,
     ...overrides,
@@ -83,6 +93,16 @@ async function dispatch(cli) {
   if (command === undefined) {
     cli.out(usageText());
     throw new CliExit(1);
+  }
+
+  // Los hooks no deben fallar nunca ni exigir configuración válida; `setup` solo edita archivos de configuración.
+  if (command === 'hook') {
+    cmdHook(cli);
+    return;
+  }
+  if (command === 'setup') {
+    cmdSetup(cli);
+    return;
   }
 
   // Las autopruebas se despachan antes que la configuración: nunca tocan los datos del usuario.
