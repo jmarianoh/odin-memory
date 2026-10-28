@@ -154,7 +154,22 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-Las siguientes entregas de F3 (escritura, juicios y arranque del proceso) se detallan en `12-mcp/` al completarse.
+### F3.2 — Herramientas de escritura (spec 0.12.0)
+
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/store/provenance.test.js`, `test/unit/hostbind/hostbind.test.js`, `test/unit/mcp/{write-tools,support}.test.js`) y la versión actualizada de `test/unit/mcp/tools.test.js`.
+2. Crear, según `10-store/09-procedencia.md`: `src/store/provenance.js`; ampliar `errors.js`, `observations.js`, `prompts.js`, `sessions.js`, `runtime-sessions.js`, `passive.js`; exportarlo desde `src/store/index.js`.
+3. Crear, según `12-mcp/04-vinculo-anfitrion.md`: `src/hostbind/index.js`.
+4. Crear, según `12-mcp/03-herramientas-escritura.md`: `src/mcp/{warnings,write-queue,session-helpers,write-projects,write-support}.js` y `src/mcp/tools/{write,sessions}.js`; añadir `goQuote` a `json.js` y sustituir con ella las citas de valores; mover `captureProjectDetector` a `projects.js` y añadir `workingDirectory`; registrar las herramientas en `server.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/store/provenance.test.js" "test/unit/hostbind/*.test.js" "test/unit/mcp/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Las siguientes entregas de F3 (juicios, comparación, fusión, consolidación y arranque del proceso) se detallan en `12-mcp/` al completarse.
 
 ## F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 

@@ -3,6 +3,7 @@ import { normalizeProject } from '../project/canonical.js';
 import { now } from '../timeutil/index.js';
 import { SessionProjectConflictError, StoreError, storeError } from './errors.js';
 import { getObservationRow, insertObservationRow, journalObservation, prepareStoredContent } from './observations.js';
+import { captureProvenance, validateProvenance } from './provenance.js';
 import {
   SESSION_OWNERSHIP_PROJECT_OWNED, SESSION_OWNERSHIP_SHARED, endSessionInTransaction, foreignRecordOwner, journalSession,
   sessionOwnership, sessionProjectWriteError, sessionRow, validSessionOwnershipMode, validateSessionId,
@@ -79,7 +80,8 @@ function startSessionRow(db, id, project, directory, mode) {
  * Núcleo del registro de sesiones de runtime.
  * @returns {string} identificador efectivo (distinto de `root` si se continuó una sesión terminada)
  */
-function registerSession(store, rootId, projectInput, directory, mode, { resume, isolated }) {
+function registerSession(store, rootId, projectInput, directory, mode, { resume, isolated, provenance = null }) {
+  validateProvenance(provenance);
   validateSessionId(rootId);
   if (!validSessionOwnershipMode(mode)) throw storeError('invalid_session_ownership_mode', q(mode));
   const project = normalizeProject(projectInput ?? '').normalized;
@@ -157,6 +159,7 @@ function registerSession(store, rootId, projectInput, directory, mode, { resume,
     let regMode = mode;
     if (!found && resumeScope) ({ project: regProject, directory: regDirectory, mode: regMode } = resumeScope);
     startSessionRow(db, id, regProject, regDirectory, regMode);
+    if (!found) captureProvenance(db, 'session', id, provenance);
     if (identityRepaired) journalSession(db, sessionRow(db, id));
   });
   if (claimed) throw storeError('session_already_ended');
@@ -196,6 +199,22 @@ export function resumeSession(store, id, project, directory, mode = SESSION_OWNE
  */
 export function registerIsolatedSession(store, id, project, resume = false) {
   return registerSession(store, id, project, '', SESSION_OWNERSHIP_PROJECT_OWNED, { resume, isolated: true });
+}
+
+/**
+ * Registra una sesión conservando la evidencia de cómo se resolvió su proyecto.
+ * No cambia la propiedad ni el enrutado. Una sesión aislada ignora `directory` y
+ * `mode` (siempre sin directorio y `project_owned`).
+ * @param {import('./store.js').Store} store
+ * @param {{ id: string, project: string, directory?: string, mode?: string, resume?: boolean, isolated?: boolean, provenance?: object|null }} p
+ * @returns {string} identificador efectivo
+ */
+export function registerSessionWithProvenance(store, p) {
+  validateProvenance(p.provenance);
+  const isolated = p.isolated === true;
+  const directory = isolated ? '' : (p.directory ?? '');
+  const mode = isolated ? SESSION_OWNERSHIP_PROJECT_OWNED : (p.mode ?? SESSION_OWNERSHIP_SHARED);
+  return registerSession(store, p.id, p.project, directory, mode, { resume: p.resume === true, isolated, provenance: p.provenance ?? null });
 }
 
 /**

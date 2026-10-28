@@ -3,6 +3,7 @@ import { normalizeProject } from '../project/canonical.js';
 import { now } from '../timeutil/index.js';
 import { SessionProjectConflictError, storeError } from './errors.js';
 import { SYNC_ENTITY, SYNC_OP_UPSERT, journalMutation } from './journal.js';
+import { captureProvenance, validateProvenance } from './provenance.js';
 import { SQL_WHITESPACE_TRIM_SET, goTrim, isBlankSessionId, nullableString } from './text.js';
 
 export const SESSION_OWNERSHIP_SHARED = 'shared';
@@ -145,8 +146,10 @@ export function resolveWriteProject(db, sessionId, requested) {
  * @param {string} project
  * @param {string} directory
  * @param {string} [mode] `shared` (por defecto) o `project_owned`
+ * @param {import('./provenance.js').ProjectProvenance|null} [provenance] evidencia de captura (solo si la sesión es nueva)
  */
-export function createSession(store, id, project, directory, mode = SESSION_OWNERSHIP_SHARED) {
+export function createSession(store, id, project, directory, mode = SESSION_OWNERSHIP_SHARED, provenance = null) {
+  validateProvenance(provenance);
   validateSessionId(id);
   if (!validSessionOwnershipMode(mode)) throw storeError('invalid_session_ownership_mode', q(mode));
   project = normalizeProject(project).normalized;
@@ -170,6 +173,7 @@ export function createSession(store, id, project, directory, mode = SESSION_OWNE
       id, project, mode, directory, now(), project,
       SQL_WHITESPACE_TRIM_SET, SQL_WHITESPACE_TRIM_SET, SQL_WHITESPACE_TRIM_SET,
     );
+    if (!found) captureProvenance(db, 'session', id, provenance);
     journalSession(db, sessionRow(db, id));
   });
 }
@@ -181,19 +185,20 @@ export function createSession(store, id, project, directory, mode = SESSION_OWNE
  * @param {import('./store.js').Store} store
  * @param {string} project
  * @param {string} directory
+ * @param {import('./provenance.js').ProjectProvenance|null} [provenance]
  * @returns {string} identificador de la sesión
  */
-export function resolveManualSession(store, project, directory) {
+export function resolveManualSession(store, project, directory, provenance = null) {
   project = normalizeProject(project).normalized;
   let id = MANUAL_SESSION_ID_PREFIX + project;
   try {
-    createSession(store, id, project, directory, SESSION_OWNERSHIP_PROJECT_OWNED);
+    createSession(store, id, project, directory, SESSION_OWNERSHIP_PROJECT_OWNED, provenance);
     return id;
   } catch (err) {
     if (!(err instanceof SessionProjectConflictError)) throw err;
   }
   id = `manual-fallback-${createHash('sha256').update(project, 'utf8').digest('hex')}`;
-  createSession(store, id, project, directory, SESSION_OWNERSHIP_PROJECT_OWNED);
+  createSession(store, id, project, directory, SESSION_OWNERSHIP_PROJECT_OWNED, provenance);
   return id;
 }
 

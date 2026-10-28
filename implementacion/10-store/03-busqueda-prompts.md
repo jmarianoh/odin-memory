@@ -87,3 +87,7 @@ npm test
 npm run check:implementacion
 npm run check:clean-room
 ```
+
+## Ampliaciones posteriores
+
+- `addPrompt` acepta la evidencia de procedencia; `addPromptIfMissing` y `capturePromptForSave` están en `09-procedencia.md`.

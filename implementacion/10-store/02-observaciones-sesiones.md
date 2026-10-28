@@ -172,3 +172,7 @@ npm test
 npm run check:implementacion
 npm run check:clean-room
 ```
+
+## Ampliaciones posteriores
+
+- `addObservation`, `createSession` y `resolveManualSession` aceptan además la evidencia de procedencia de captura (`project_provenance` / argumento `provenance`) y `contentTruncation` expone los metadatos de truncamiento: ver `09-procedencia.md`.

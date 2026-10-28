@@ -3,6 +3,7 @@ import { now } from '../timeutil/index.js';
 import { storeError } from './errors.js';
 import { SYNC_ENTITY, SYNC_OP_DELETE, SYNC_OP_UPSERT, journalMutation, sessionProject } from './journal.js';
 import { prepareStoredContent } from './observations.js';
+import { captureProvenance, validateProvenance } from './provenance.js';
 import { resolveWriteProject } from './sessions.js';
 import { escapeLike, goTrim, hasShortFtsTerm, newSyncId, nullableString, sanitizeFts, searchTerms } from './text.js';
 
@@ -17,6 +18,7 @@ const PROMPT_COLUMNS = "id, ifnull(sync_id, '') AS sync_id, session_id, content,
  * @returns {{ id: number, inserted: boolean }}
  */
 export function addPrompt(store, p) {
+  validateProvenance(p.project_provenance);
   const sessionId = p.session_id ?? '';
   const inboxId = p.source_inbox_id ?? '';
   const content = prepareStoredContent(store, p.content).content;
@@ -45,6 +47,7 @@ export function addPrompt(store, p) {
       return { id: Number(existing.id), inserted: false };
     }
     const id = Number(res.lastInsertRowid);
+    captureProvenance(db, 'prompt', String(id), p.project_provenance);
     const createdAt = db.get('SELECT created_at FROM user_prompts WHERE id = ?', id).created_at;
     db.run('DELETE FROM prompt_tombstones WHERE sync_id = ?', syncId);
     journalMutation(db, {
@@ -57,6 +60,60 @@ export function addPrompt(store, p) {
     });
     return { id, inserted: true };
   });
+}
+
+/**
+ * Guarda un prompt salvo que ya exista uno idéntico (misma sesión, proyecto
+ * resuelto y contenido) en esa sesión.
+ * @param {import('./store.js').Store} store
+ * @param {{ session_id: string, content: string, project?: string, project_provenance?: object }} p
+ * @returns {{ id: number, inserted: boolean }}
+ */
+export function addPromptIfMissing(store, p) {
+  validateProvenance(p.project_provenance);
+  const sessionId = p.session_id ?? '';
+  const content = prepareStoredContent(store, p.content).content;
+  if (content === '') throw storeError('prompt_content_required');
+
+  return store.db.writeTransaction((db) => {
+    const project = resolveWriteProject(db, sessionId, normalizeProject(p.project ?? '').normalized);
+    const existing = db.get(
+      "SELECT id FROM user_prompts WHERE session_id = ? AND ifnull(project, '') = ? AND content = ? ORDER BY id DESC LIMIT 1",
+      sessionId, project, content,
+    );
+    if (existing) return { id: Number(existing.id), inserted: false };
+    const syncId = newSyncId('prompt');
+    const res = db.run(
+      'INSERT INTO user_prompts (sync_id, session_id, content, project) VALUES (?, ?, ?, ?)',
+      syncId, sessionId, content, nullableString(project),
+    );
+    const id = Number(res.lastInsertRowid);
+    const createdAt = db.get('SELECT created_at FROM user_prompts WHERE id = ?', id).created_at;
+    db.run('DELETE FROM prompt_tombstones WHERE sync_id = ?', syncId);
+    captureProvenance(db, 'prompt', String(id), p.project_provenance);
+    journalMutation(db, {
+      entity: SYNC_ENTITY.prompt,
+      entityKey: syncId,
+      op: SYNC_OP_UPSERT,
+      project,
+      sessionId,
+      payload: () => ({ sync_id: syncId, session_id: sessionId, content, project: nullableString(project), created_at: createdAt, source_inbox_id: '' }),
+    });
+    return { id, inserted: true };
+  });
+}
+
+/**
+ * Aplica la política de captura de prompt de un guardado: capturar salvo que se
+ * pida lo contrario; sin contenido (en blanco) no hace nada. Se llama tras un
+ * guardado correcto y sus errores no son fatales.
+ * @param {import('./store.js').Store} store
+ * @param {boolean|undefined} enabled
+ * @param {{ session_id: string, content: string, project?: string, project_provenance?: object }} prompt
+ */
+export function capturePromptForSave(store, enabled, prompt) {
+  if (enabled === false || goTrim(prompt.content ?? '') === '') return;
+  addPromptIfMissing(store, prompt);
 }
 
 /**

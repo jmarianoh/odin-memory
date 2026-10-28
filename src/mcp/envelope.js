@@ -1,5 +1,5 @@
 import { AMBIGUOUS_PROJECT_RECOVERY_TTL_SECONDS } from './activity.js';
-import { jsonMarshal, textResult } from './json.js';
+import { goQuote, jsonMarshal, textResult } from './json.js';
 
 /** Identificador de la sesión de reserva de un proyecto. */
 export const defaultSessionId = (project) => (project ? `manual-save-${project}` : 'manual-save');
@@ -92,28 +92,28 @@ export function writeProjectErrorResult(activity, sessionId, res, err) {
     case 'invalid_project_choice':
       return err.projectName === ''
         ? errorWithMeta('invalid_project_choice', 'Project choice is empty; choose exactly one value from available_projects and retry with project_choice_reason=user_selected_after_ambiguous_project', err.availableProjects)
-        : errorWithMeta('invalid_project_choice', `Project choice ${JSON.stringify(err.projectName)} is not one of available_projects`, err.availableProjects);
+        : errorWithMeta('invalid_project_choice', `Project choice ${goQuote(err.projectName)} is not one of available_projects`, err.availableProjects);
     case 'missing_recovery_token':
-      return errorWithMeta('missing_recovery_token', `project_choice_reason=user_selected_after_ambiguous_project for ${JSON.stringify(err.projectName)} requires the recovery_token from the ambiguous_project error`, err.availableProjects);
+      return errorWithMeta('missing_recovery_token', `project_choice_reason=user_selected_after_ambiguous_project for ${goQuote(err.projectName)} requires the recovery_token from the ambiguous_project error`, err.availableProjects);
     case 'invalid_recovery_token':
-      return errorWithMeta('invalid_recovery_token', `recovery_token is invalid, stale, or not valid for selected project ${JSON.stringify(err.projectName)}`, err.availableProjects);
+      return errorWithMeta('invalid_recovery_token', `recovery_token is invalid, stale, or not valid for selected project ${goQuote(err.projectName)}`, err.availableProjects);
     case 'invalid_explicit_project':
-      return errorWithMeta('invalid_project', `Project ${JSON.stringify(err.projectName)} is invalid: ${err.reason}`, available);
+      return errorWithMeta('invalid_project', `Project ${goQuote(err.projectName)} is invalid: ${err.reason}`, available);
     case 'project_name_collision':
       return errorWithMeta(
         'project_name_collision',
-        `Project ${JSON.stringify(err.projectName)} collapses to stored bucket ${JSON.stringify(err.normalized)}, but multiple exact candidates would share that bucket: ${err.collidingProjects.join(', ')}. Refuse write until the colliding project names are disambiguated.`,
+        `Project ${goQuote(err.projectName)} collapses to stored bucket ${goQuote(err.normalized)}, but multiple exact candidates would share that bucket: ${err.collidingProjects.join(', ')}. Refuse write until the colliding project names are disambiguated.`,
         available,
       );
     case 'unknown_session':
       return addErrorMetadata(
-        errorWithMeta('unknown_session', `Session ${JSON.stringify(err.sessionId)} was provided but does not exist`, available),
+        errorWithMeta('unknown_session', `Session ${goQuote(err.sessionId)} was provided but does not exist`, available),
         { invalid_session_id: err.sessionId, retry_without_session_id: true },
       );
     case 'unknown_project':
-      return errorWithMeta('unknown_project', `Project ${JSON.stringify(err.projectName)} is not backed by known context. Use an existing project, a matching session, repo .odin-memory/config.json, or ambiguous-project recovery.`, err.availableProjects);
+      return errorWithMeta('unknown_project', `Project ${goQuote(err.projectName)} is not backed by known context. Use an existing project, a matching session, repo .odin-memory/config.json, or ambiguous-project recovery.`, err.availableProjects);
     case 'session_project_mismatch':
-      return errorWithMeta('session_project_mismatch', `Session ${JSON.stringify(err.sessionId)} belongs to project ${JSON.stringify(err.sessionProject)}, but request targeted ${JSON.stringify(err.explicitProject)}`, available);
+      return errorWithMeta('session_project_mismatch', `Session ${goQuote(err.sessionId)} belongs to project ${goQuote(err.sessionProject)}, but request targeted ${goQuote(err.explicitProject)}`, available);
     default:
   }
   const result = errorWithMeta(code, `Cannot determine project: ${err.message}`, available);
@@ -133,7 +133,7 @@ export function writeProjectErrorResult(activity, sessionId, res, err) {
 export function readProjectErrorResult(activity, res, err) {
   let result;
   if (err.kind === 'unknown_project') {
-    result = errorWithMeta('unknown_project', `Project ${JSON.stringify(err.projectName)} not found in store`, err.availableProjects);
+    result = errorWithMeta('unknown_project', `Project ${goQuote(err.projectName)} not found in store`, err.availableProjects);
   } else {
     result = writeProjectErrorResult(activity, defaultSessionId(''), res, err);
   }

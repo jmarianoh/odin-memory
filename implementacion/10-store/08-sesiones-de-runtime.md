@@ -111,3 +111,7 @@ npm test
 npm run check:implementacion
 npm run check:clean-room
 ```
+
+## Ampliaciones posteriores
+
+- `registerSessionWithProvenance` registra una sesión conservando la evidencia de procedencia: ver `09-procedencia.md`.

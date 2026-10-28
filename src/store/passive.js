@@ -1,5 +1,6 @@
 import { StoreError } from './errors.js';
 import { addObservation } from './observations.js';
+import { validateProvenance } from './provenance.js';
 import { byteLength, cutBytes, goFields, hashNormalized, nullableString } from './text.js';
 import { normalizeProject } from '../project/canonical.js';
 
@@ -52,6 +53,7 @@ export function extractLearnings(text) {
  * @returns {{ extracted: number, saved: number, duplicates: number }}
  */
 export function passiveCapture(store, p) {
+  validateProvenance(p.project_provenance);
   const project = normalizeProject(p.project ?? '').normalized;
   const result = { extracted: 0, saved: 0, duplicates: 0 };
   const learnings = extractLearnings(p.content ?? '');
@@ -69,6 +71,7 @@ export function passiveCapture(store, p) {
     try {
       addObservation(store, {
         session_id: p.session_id, type: 'passive', title, content: learning, project, scope: 'project', tool_name: p.source,
+        project_provenance: p.project_provenance,
       });
     } catch (err) {
       const failure = new StoreError('passive_capture_failed', `passive capture save: ${err.message}`);

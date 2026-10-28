@@ -3,6 +3,7 @@ import { normalizeProject, normalizeProjectName } from '../project/canonical.js'
 import { now } from '../timeutil/index.js';
 import { storeError } from './errors.js';
 import { SYNC_ENTITY, SYNC_OP_DELETE, SYNC_OP_UPSERT, journalMutation, sessionProject } from './journal.js';
+import { captureProvenance, validateProvenance } from './provenance.js';
 import { resolveWriteProject, validateSessionId } from './sessions.js';
 import {
   TRUNCATION_MARKER,
@@ -90,6 +91,11 @@ export function prepareStoredContent(store, content) {
     content: truncateContent(stripped, limit),
     truncation: { original_bytes: byteLength(stripped), limit_bytes: limit, truncated: byteLength(stripped) > limit },
   };
+}
+
+/** Metadatos de truncamiento que aplicaría un guardado de ese contenido. */
+export function contentTruncation(store, content) {
+  return prepareStoredContent(store, content).truncation;
 }
 
 /**
@@ -195,6 +201,7 @@ export function insertObservationRow(db, row) {
  * @returns {{ id: number, replayed: boolean }}
  */
 export function addObservation(store, p) {
+  validateProvenance(p.project_provenance);
   const input = { ...p, session_id: p.session_id ?? '', project: normalizeProject(p.project ?? '').normalized };
   const title = stripPrivateTags(input.title ?? '');
   const { content } = prepareStoredContent(store, input.content);
@@ -270,6 +277,7 @@ export function addObservation(store, p) {
     const id = insertObservationRow(db, {
       session_id: input.session_id, type: input.type, title, content, tool_name: input.tool_name, project, scope, topic_key: topicKey, hash,
     });
+    captureProvenance(db, 'observation', String(id), input.project_provenance);
     recordSaveOperation(db, input.operation_id, fingerprint, id, getObservationRow(db, id));
     return { id, replayed: false };
   });

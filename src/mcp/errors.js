@@ -1,3 +1,5 @@
+import { goQuote } from './json.js';
+
 /** Errores propios de la capa MCP al resolver el proyecto de una llamada. */
 export class McpProjectError extends Error {
   /**
@@ -29,9 +31,9 @@ export const invalidExplicitProject = (name, reason) =>
   new McpProjectError('invalid_explicit_project', reason ? `invalid project: ${name} (${reason})` : `invalid project: ${name}`, { projectName: name, reason });
 
 export const projectNameCollision = (name, normalized, collidingProjects) =>
-  new McpProjectError('project_name_collision', `project ${JSON.stringify(name)} collides after normalization to ${JSON.stringify(normalized)}`, { projectName: name, normalized, collidingProjects });
+  new McpProjectError('project_name_collision', `project ${goQuote(name)} collides after normalization to ${goQuote(normalized)}`, { projectName: name, normalized, collidingProjects });
 
 export const unknownSession = (sessionId) => new McpProjectError('unknown_session', `unknown session: ${sessionId}`, { sessionId });
 
 export const sessionProjectMismatch = (sessionId, sessionProject, explicitProject) =>
-  new McpProjectError('session_project_mismatch', `session ${JSON.stringify(sessionId)} belongs to project ${JSON.stringify(sessionProject)}, not ${JSON.stringify(explicitProject)}`, { sessionId, sessionProject, explicitProject });
+  new McpProjectError('session_project_mismatch', `session ${goQuote(sessionId)} belongs to project ${goQuote(sessionProject)}, not ${goQuote(explicitProject)}`, { sessionId, sessionProject, explicitProject });

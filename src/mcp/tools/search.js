@@ -8,7 +8,7 @@ import { goTrim, truncate } from '../../store/text.js';
 import { formatLocal } from '../../timeutil/index.js';
 import { boolArg, historyCursorArg, intArg, strArg } from '../args.js';
 import { defaultSessionId, readProjectErrorResult, respondWithProject } from '../envelope.js';
-import { errorResult } from '../json.js';
+import { errorResult, goQuote } from '../json.js';
 import { resolveReadProject, storedProjectFallback } from '../projects.js';
 import { promptJson, relationsJson } from '../serialize.js';
 
@@ -23,8 +23,8 @@ export function searchTool(ctx) {
     const responseFormat = strArg(args, 'response_format');
     const allProjects = boolArg(args, 'all_projects', false);
     const limit = intArg(args, 'limit', 10);
-    if (matchMode !== '' && matchMode !== 'all' && matchMode !== 'any') return errorResult(`invalid match_mode ${JSON.stringify(matchMode)}: must be "all" or "any"`);
-    if (responseFormat !== '' && responseFormat !== 'compact') return errorResult(`invalid response_format ${JSON.stringify(responseFormat)}: must be "compact"`);
+    if (matchMode !== '' && matchMode !== 'all' && matchMode !== 'any') return errorResult(`invalid match_mode ${goQuote(matchMode)}: must be "all" or "any"`);
+    if (responseFormat !== '' && responseFormat !== 'compact') return errorResult(`invalid response_format ${goQuote(responseFormat)}: must be "compact"`);
     const compact = responseFormat === 'compact';
 
     let detected;
@@ -47,7 +47,7 @@ export function searchTool(ctx) {
     } catch (err) {
       return errorResult(`Search error: ${err.message}. Try simpler keywords.`);
     }
-    if (results.length === 0) return respondWithProject(detected, `No memories found for: ${JSON.stringify(query)}`);
+    if (results.length === 0) return respondWithProject(detected, `No memories found for: ${goQuote(query)}`);
     const relations = searchPreviewRelations(store, results);
 
     if (compact) {

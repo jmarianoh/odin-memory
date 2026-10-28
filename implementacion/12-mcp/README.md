@@ -5,7 +5,7 @@ El servidor MCP expone la memoria al agente como herramientas `mem_*` sobre el p
 | Entrega | Capítulo | Contenido |
 |---|---|---|
 | F3.1 (spec 0.11.0) | `01-protocolo-y-servidor.md`, `02-herramientas-lectura.md` | Protocolo, perfiles, instrucciones, actividad de sesión, envelope de proyecto y errores; herramientas de lectura |
-| F3.2 | (pendiente) | Herramientas de escritura y cola de escritura serializada |
+| F3.2 (spec 0.12.0) | `03-herramientas-escritura.md`, `04-vinculo-anfitrion.md` | Herramientas de escritura, resolución del proyecto de escritura, cola serializada y vínculo con el anfitrión |
 | F3.3 | (pendiente) | Juicios, comparación, fusión, consolidación y arranque del proceso |
 
 ## Decisión de diseño: protocolo propio, sin SDK
@@ -22,7 +22,7 @@ Por eso `03-entorno-dependencias.md` ya no lista el SDK. Si en el futuro se nece
 
 | Archivo | Responsabilidad |
 |---|---|
-| `json.js` | `jsonMarshal` (serialización estable), `textResult`, `errorResult` |
+| `json.js` | `jsonMarshal` (serialización estable), `textResult`, `errorResult`, `goQuote` |
 | `protocol.js` | `McpServer`: manejo de mensajes y bucle por stdio |
 | `tool-definitions.js` | Catálogo de las 27 herramientas. **No se escribe**: se copia de `fuentes/src/mcp/tool-definitions.js` |
 | `profiles.js` | Perfiles `agent`/`admin`, `resolveTools`, instrucciones del servidor |
@@ -33,6 +33,8 @@ Por eso `03-entorno-dependencias.md` ya no lista el SDK. Si en el futuro se nece
 | `serialize.js` | Proyecciones JSON de prompts y relaciones |
 | `projects.js` | Resolución del proyecto de una lectura |
 | `tools/projects.js`, `tools/context.js`, `tools/search.js` | Herramientas de lectura |
+| `warnings.js`, `write-projects.js`, `write-support.js`, `session-helpers.js`, `write-queue.js` | Soporte de las herramientas de escritura (`03-herramientas-escritura.md`) |
+| `tools/write.js`, `tools/sessions.js` | Herramientas de escritura |
 | `server.js` | `createServer` y `buildHandlers` |
 | `index.js` | Reexportaciones |
 

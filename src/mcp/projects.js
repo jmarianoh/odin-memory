@@ -4,6 +4,12 @@ import { detectProject, projectExists, stats } from '../store/index.js';
 import { goTrim } from '../store/text.js';
 import { invalidExplicitProject, unknownProject } from './errors.js';
 
+/** Detector de proyecto para capturas: con historial y exigiendo proyecto explícito en HOME. */
+export const captureProjectDetector = (store) => (dir) => detectProject(store, dir, { requireExplicitHomeProject: true });
+
+/** Directorio de trabajo del proceso (inyectable en pruebas con `ctx.cwd`). */
+export const workingDirectory = (ctx) => (ctx.cwd ? ctx.cwd() : process.cwd());
+
 /** Valor a citar en un error: el proyecto explícito o, si no, el del proceso. */
 export function firstProjectValue(explicit, defaultProject, env = process.env) {
   if (goTrim(explicit ?? '') !== '') return explicit;
@@ -28,7 +34,7 @@ export function resolveReadProject(ctx, explicit, detect, requireKnownProcess = 
       mode: 'current',
       explicit,
       processOverride: config.defaultProject ?? '',
-      directory: process.cwd(),
+      directory: workingDirectory(ctx),
       projectExists: (name) => projectExists(store, name),
       detect: detect ?? ((dir) => detectProject(store, dir)),
       requireKnownExplicit: goTrim(explicit ?? '') !== '',

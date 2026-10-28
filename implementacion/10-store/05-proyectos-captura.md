@@ -65,3 +65,7 @@ npm test
 npm run check:implementacion
 npm run check:clean-room
 ```
+
+## Ampliaciones posteriores
+
+- `passiveCapture` valida y propaga `project_provenance` a cada observación guardada (`09-procedencia.md`).

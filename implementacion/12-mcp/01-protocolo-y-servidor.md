@@ -1,10 +1,11 @@
 # 12.1 — Protocolo, perfiles y estado de sesión
 
-Módulos: `src/mcp/{json,protocol,profiles,activity,errors,envelope,args,serialize,projects,server,index}.js`.
+Módulos: `src/mcp/{json,protocol,profiles,activity,errors,envelope,args,serialize,projects,server,index}.js`. `projects.js` exporta además `captureProjectDetector(store)` (detección con historial exigiendo proyecto explícito en HOME) y `workingDirectory(ctx)` (`ctx.cwd()` o `process.cwd()`).
 
 ## `json.js`
 
 - `jsonMarshal(valor)`: `JSON.stringify` tras ordenar **alfabéticamente las claves de todos los objetos** (recursivo; los arreglos conservan el orden) y escapar `<` → `<`, `>` → `>`, `&` → `&`, U+2028 → ` `, U+2029 → ` `. Toda respuesta estructurada de una herramienta pasa por aquí.
+- `goQuote(texto)`: cita una cadena como el verbo `%q` de Go (`strconv.Quote`): comillas dobles; `"` y `\` escapados; `\a \b \f \n \r \t \v` para esos controles; `\xNN` para otros controles (< 0x20 y 0x7f); los caracteres Unicode imprimibles (letras, marcas, números, puntuación y símbolos) se conservan; los no imprimibles se escriben `\uNNNN` (BMP) o `\UNNNNNNNN`; un sustituto suelto se escribe como U+FFFD. **Todos los mensajes que citan un valor del usuario con comillas usan `goQuote`**, no `JSON.stringify`.
 - `textResult(texto)` → `{ content: [{ type: 'text', text }] }`.
 - `errorResult(texto)` → igual, con `isError: true`. Es el error de **uso** de una herramienta (texto plano); los errores de proyecto usan `errorWithMeta` (JSON).
 
@@ -194,5 +195,7 @@ Lectura tolerante: `intArg(args, clave, defecto)` (número → `Math.trunc`; otr
 ## `server.js`
 
 `SERVER_NAME = 'odin-memory'`. `buildHandlers(ctx)` devuelve el mapa nombre → manejador de las herramientas implementadas. `createServer(store, config = {}, allowlist = null, options = {})` construye el contexto `{ store, config: { defaultProject: '', ...config }, activity: options.activity ?? new SessionActivity(), env: options.env ?? process.env }`, registra **solo** las herramientas que están en `TOOL_DEFINITIONS`, permitidas por la lista y con manejador implementado, y devuelve un `McpServer` con `name = SERVER_NAME`, `version = config.version ?? VERSION` e `instructions = buildServerInstructions(allowlist)`.
+
+El contexto de las herramientas también incluye `cwd()`, `hostPid`, `hostbind` y `writeQueue` (ver `03-herramientas-escritura.md`).
 
 `config.defaultProject` es el proyecto fijado para el proceso (opción `--project` o variable `ODIN_PROJECT` resueltas por la CLI en F4).

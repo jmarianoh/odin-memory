@@ -1,19 +1,16 @@
 import { processOverride } from '../../project/detect.js';
 import { resolve } from '../../project/resolution.js';
-import { detectProject, listProjectsWithStats, stats, suggestTopicKey } from '../../store/index.js';
+import { listProjectsWithStats, stats, suggestTopicKey } from '../../store/index.js';
 import { goTrim } from '../../store/text.js';
 import { strArg } from '../args.js';
 import { readProjectErrorResult, respondWithProject } from '../envelope.js';
 import { errorResult, jsonMarshal, textResult } from '../json.js';
-import { resolveReadProject } from '../projects.js';
-
-/** Detector de proyecto para capturas: con historial y exigiendo proyecto explícito en HOME. */
-export const captureProjectDetector = (store) => (dir) => detectProject(store, dir, { requireExplicitHomeProject: true });
+import { captureProjectDetector, resolveReadProject, workingDirectory } from '../projects.js';
 
 export function currentProject(ctx) {
   return (args) => {
     const { store, config } = ctx;
-    let cwd = process.cwd();
+    let cwd = workingDirectory(ctx);
     const directory = goTrim(strArg(args, 'directory'));
     const alias = goTrim(strArg(args, 'cwd'));
     if (directory !== '') cwd = directory;
