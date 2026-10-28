@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -48,7 +48,7 @@
       "tests": [
         "test/unit/store/db.test.js"
       ],
-      "sha256": "6705dc1a8a7c7c919e7e26ff937beceb805c2b6c266270aab5762a293754f4d2",
+      "sha256": "599b863f2fe84b749e18feac70a002ae27ffe02bea1bc18b5b825ab0638649da",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -58,7 +58,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "31537f75352d9b5a08e670446168557310a13fe71f8db27bbfb5102812046ee7",
+      "sha256": "c385c145d7b6d021bfc334036adaabf365e53a14e50648a78d9bf64943856651",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -78,7 +78,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "c562a63aac77bd52adce6af4c45a406ecaa2c831595b2e5567d049d05300fd6a",
+      "sha256": "4b630a23b221d860c2b7ab82957e08b4f33fb1005578f0bc434236593fa29b32",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -131,6 +131,26 @@
       ],
       "sha256": "1d4a6b5ee4d811919f1555934b5b6c2b13c03ccc55aa4be9021c1be99ddefbf6",
       "docSha256": "df726db1c55a9d7e086d3291f1533d3a2f3e0228996f2951a6e0ddc7eda2d4f0"
+    },
+    {
+      "path": "src/store/relation-udf.js",
+      "doc": "10-store/04-relaciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/relations.test.js"
+      ],
+      "sha256": "205f2ce397e2e1245b264f8dff3661252132d1cf4fef0b23ec120851e2889689",
+      "docSha256": "1629bc259a2fc5daaa0fa3e9e31c29ae9fd78b1e2745b2879d717c6491666c41"
+    },
+    {
+      "path": "src/store/relations.js",
+      "doc": "10-store/04-relaciones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/relations.test.js"
+      ],
+      "sha256": "f64ec0b5c23e2f87ecd8096c30a426bb83fd2e5c7f1b4823a01e4041d6df1bc2",
+      "docSha256": "1629bc259a2fc5daaa0fa3e9e31c29ae9fd78b1e2745b2879d717c6491666c41"
     },
     {
       "path": "src/store/schema.js",

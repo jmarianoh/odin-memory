@@ -65,7 +65,12 @@ const MESSAGES = {
   pulled_prompt_identity_invalid: 'pulled prompt identity is invalid',
   invalid_match_mode: 'invalid match_mode',
   search_failed: 'search',
+  cross_project_relation: 'relation rejected: source and target observations are in different projects',
   invalid_project_name: 'invalid project name',
+  relation_not_found: 'relation not found',
+  invalid_relation_verb: 'invalid relation verb',
+  invalid_confidence: 'invalid confidence',
+  relation_endpoint_required: 'relation endpoint is required',
   sync_journal_unavailable: 'sync journal is not available for enrolled projects yet',
 };
 

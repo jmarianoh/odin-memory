@@ -58,9 +58,22 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F1.4 y F1.5
+### F1.4 — Relaciones y juicios (spec 0.5.0)
 
-Relaciones, proyectos y contexto (F1.4); sesiones de runtime (F1.5). Se detallan en `10-store/04-…` y `05-…` al completarse.
+1. Copiar de `fuentes/` el test nuevo (`test/unit/store/relations.test.js`).
+2. Crear, según `10-store/04-relaciones.md`: ampliar `errors.js`; crear `relation-udf.js` y `relations.js`; registrar la función SQL desde `openDatabase` (`db.js`); exportarlos desde `src/store/index.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/store/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F1.5 y F1.6
+
+Proyectos, contexto, captura pasiva y consolidación (F1.5); sesiones de runtime (F1.6). Se detallan en `10-store/05-…` y `06-…` al completarse.
 
 ## F2 — Proyecto · F3 — MCP · F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 

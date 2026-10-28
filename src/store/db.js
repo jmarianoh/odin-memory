@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { sleepSync } from '../timeutil/index.js';
+import { registerSqlFunctions } from './relation-udf.js';
 
 /** Códigos primarios de SQLite que indican contención y admiten reintento. */
 const SQLITE_BUSY = 5;
@@ -178,6 +179,7 @@ export function openDatabase(dbPath, generation) {
       raw.exec('PRAGMA synchronous = NORMAL');
       raw.exec('PRAGMA foreign_keys = ON');
     });
+    registerSqlFunctions(raw);
   } catch (err) {
     raw.close();
     throw err;

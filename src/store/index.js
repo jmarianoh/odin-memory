@@ -8,6 +8,8 @@ export {
 } from './errors.js';
 export * from './observations.js';
 export * from './prompts.js';
+export * from './relation-udf.js';
+export * from './relations.js';
 export { SCHEMA_VERSION } from './schema.js';
 export * from './search.js';
 export * from './sessions.js';
