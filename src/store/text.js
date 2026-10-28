@@ -54,7 +54,7 @@ export function truncateContent(content, max) {
 }
 
 /** Corta una cadena a `max` bytes UTF-8 sin partir un carácter. */
-function cutBytes(s, max) {
+export function cutBytes(s, max) {
   if (byteLength(s) <= max) return s;
   const buf = Buffer.from(s, 'utf8');
   let end = max;

@@ -71,9 +71,22 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F1.5 y F1.6
+### F1.5 — Proyectos, captura pasiva y consolidación (spec 0.6.0)
 
-Proyectos, contexto, captura pasiva y consolidación (F1.5); sesiones de runtime (F1.6). Se detallan en `10-store/05-…` y `06-…` al completarse.
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/store/{projects,passive,consolidate}.test.js`).
+2. Crear, según `10-store/05-proyectos-captura.md`: ampliar `errors.js`; exportar `cutBytes` en `text.js` y `getObservationRow`/`journalObservation` en `observations.js`; crear `projects.js`, `passive.js` y `consolidate.js`; exportarlos desde `src/store/index.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/store/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F1.6 a F1.8
+
+Contexto de sesión (F1.6); fusión, migración, borrado y poda de proyectos (F1.7); sesiones de runtime (F1.8). Se detallan en `10-store/06-…`, `07-…` y `08-…` al completarse.
 
 ## F2 — Proyecto · F3 — MCP · F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 

@@ -1,3 +1,4 @@
+export * from './consolidate.js';
 export { Database, RETRY_BACKOFFS_MS, isRetryableLockError, withLockRetry } from './db.js';
 export {
   DatabaseGenerationChangedError,
@@ -7,6 +8,8 @@ export {
   storeError,
 } from './errors.js';
 export * from './observations.js';
+export * from './passive.js';
+export * from './projects.js';
 export * from './prompts.js';
 export * from './relation-udf.js';
 export * from './relations.js';

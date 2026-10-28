@@ -8,8 +8,10 @@ El store es la capa de persistencia: una base SQLite con búsqueda de texto comp
 | 2 | `02-observaciones-sesiones.md` | Observaciones (guardado idempotente, `topic_key`, deduplicación, versiones, actualización, borrado, fijado, revisión) y sesiones básicas |
 | 3 | `03-busqueda-prompts.md` | Búsqueda FTS y LIKE, línea de tiempo y prompts |
 | 4 | `04-relaciones.md` | Candidatos de conflicto, relaciones y juicios |
-| 5 | `05-proyectos-contexto.md` (pendiente) | Alias y fusión de proyectos, estadísticas, contexto, captura pasiva, consolidación |
-| 6 | `06-sesiones-de-runtime.md` (pendiente) | Registro de sesiones de runtime, continuación, concesiones y sesiones aisladas |
+| 5 | `05-proyectos-captura.md` | Estadísticas, listado y alias de proyectos, captura pasiva, consolidación |
+| 6 | `06-contexto.md` (pendiente) | Contexto de sesión (`mem_context`) |
+| 7 | `07-mantenimiento-proyectos.md` (pendiente) | Fusión, migración, borrado y poda de proyectos |
+| 8 | `08-sesiones-de-runtime.md` (pendiente) | Registro de sesiones de runtime, continuación, concesiones y sesiones aisladas |
 
 ## Reglas generales del store
 

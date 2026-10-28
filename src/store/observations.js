@@ -108,7 +108,8 @@ function saveFingerprint(p, title, content, project, scope, topicKey) {
   return `v1:${h.digest('hex')}`;
 }
 
-function getObservationRow(db, id, includeDeleted = false) {
+/** Observación por id leída desde una conexión (útil dentro de una transacción). */
+export function getObservationRow(db, id, includeDeleted = false) {
   return toObservation(
     db.get(`SELECT ${SELECT_COLUMNS} FROM observations WHERE id = ?${includeDeleted ? '' : ' AND deleted_at IS NULL'}`, id),
   );
@@ -123,7 +124,8 @@ function captureVersion(db, obs) {
   );
 }
 
-function journalObservation(db, obs, op = SYNC_OP_UPSERT) {
+/** Anota una observación en el diario de sincronización (dentro de su transacción). */
+export function journalObservation(db, obs, op = SYNC_OP_UPSERT) {
   journalMutation(db, {
     entity: SYNC_ENTITY.observation,
     entityKey: obs.sync_id,

@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -32,6 +32,16 @@
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
+      "path": "src/store/consolidate.js",
+      "doc": "10-store/05-proyectos-captura.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/consolidate.test.js"
+      ],
+      "sha256": "56206097025ea9007b5dcb3a67414caf31c1ef4435e8181f2327634efc4b707f",
+      "docSha256": "54604398154fcd66417252daf66215ac3d23c8ae7285acd7a7894de6d85a0424"
+    },
+    {
       "path": "src/store/data-dir.js",
       "doc": "10-store/01-conexion-y-migraciones.md",
       "phase": "F1",
@@ -58,7 +68,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "c385c145d7b6d021bfc334036adaabf365e53a14e50648a78d9bf64943856651",
+      "sha256": "9743d0308adde46351e6eaa6bd4b431eff894b86745f9338f8ceac67ac5f1ec7",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -78,7 +88,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "4b630a23b221d860c2b7ab82957e08b4f33fb1005578f0bc434236593fa29b32",
+      "sha256": "4055ce4f0ad3f543217d84b8264f137f7b4841c4dbe61f4600a9496828c855df",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -119,8 +129,28 @@
       "tests": [
         "test/unit/store/observations.test.js"
       ],
-      "sha256": "57f1e26452ce259061a891741c7647193bf55dc8aa2c1c902a64b3e98c89aaff",
+      "sha256": "1e9d51a5059338600841e711bb2f37e7a83fc8f19a9ae2300d7c6bf706b5dd7e",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
+    },
+    {
+      "path": "src/store/passive.js",
+      "doc": "10-store/05-proyectos-captura.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/passive.test.js"
+      ],
+      "sha256": "2829a32a115b3fff27f28ce4a3560c5dfdc178f5ec7437ebadf81caf09d37a1c",
+      "docSha256": "54604398154fcd66417252daf66215ac3d23c8ae7285acd7a7894de6d85a0424"
+    },
+    {
+      "path": "src/store/projects.js",
+      "doc": "10-store/05-proyectos-captura.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/projects.test.js"
+      ],
+      "sha256": "8b5e3578f7075fd8770608d7feec1632044297d076295885787a4003b5d29a33",
+      "docSha256": "54604398154fcd66417252daf66215ac3d23c8ae7285acd7a7894de6d85a0424"
     },
     {
       "path": "src/store/prompts.js",
@@ -199,7 +229,7 @@
       "tests": [
         "test/unit/store/text.test.js"
       ],
-      "sha256": "d77291ab03f0fce9586f0f2a8c04cb9e6f6d160b3af165eb1a373abd04d0d69c",
+      "sha256": "6dc3baca15c193515690efe45bcf4b85206694c8d39442172a90a51b97f7b086",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {
