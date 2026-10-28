@@ -14,7 +14,19 @@ export const DB_FILE_NAME = 'odin.db';
  * @typedef {object} StoreConfig
  * @property {string} dataDir ruta absoluta del directorio de datos
  * @property {(message: string) => void} [log] destino de avisos; por defecto stderr
+ * @property {number} [maxObservationLength] bytes máximos de contenido (por defecto 50000)
+ * @property {number} [maxContextResults] resultados por defecto en contexto y listados (20)
+ * @property {number} [maxSearchResults] resultados máximos de búsqueda (20)
+ * @property {number} [dedupeWindowMs] ventana de deduplicación en ms (900000 = 15 min)
  */
+
+/** Valores por defecto de los límites configurables. */
+export const DEFAULT_SETTINGS = Object.freeze({
+  maxObservationLength: 50_000,
+  maxContextResults: 20,
+  maxSearchResults: 20,
+  dedupeWindowMs: 15 * 60 * 1000,
+});
 
 /** Almacén de memoria: base SQLite con FTS5 e identidad de instalación. */
 export class Store {
@@ -26,6 +38,13 @@ export class Store {
    */
   constructor(config, db, generation, instanceId) {
     this.config = config;
+    /** Límites efectivos: los de `config` sobre los valores por defecto. */
+    this.settings = {
+      maxObservationLength: config.maxObservationLength ?? DEFAULT_SETTINGS.maxObservationLength,
+      maxContextResults: config.maxContextResults ?? DEFAULT_SETTINGS.maxContextResults,
+      maxSearchResults: config.maxSearchResults ?? DEFAULT_SETTINGS.maxSearchResults,
+      dedupeWindowMs: config.dedupeWindowMs ?? DEFAULT_SETTINGS.dedupeWindowMs,
+    };
     this.db = db;
     this.generation = generation;
     this.instanceId = instanceId;

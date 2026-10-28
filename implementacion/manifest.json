@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -10,6 +10,16 @@
       ],
       "sha256": "1697fafc900717ec9e04cf35f110cafa0090eaa2d53913b12e7e0eebfe8535d6",
       "docSha256": "9e4cf7e46f87f7c2d258fd6dc419f3eda907d9e20989adcb46f2a05dcd213451"
+    },
+    {
+      "path": "src/project/canonical.js",
+      "doc": "10-store/02-observaciones-sesiones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/project-canonical.test.js"
+      ],
+      "sha256": "9014b4fb5562cd2b7643cf8873502da09739a6a5e99f9426fc68bc80d92d8966",
+      "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {
       "path": "src/runtime/warnings.js",
@@ -48,7 +58,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "01ca99385fe3ef023cf1df380ef8f5dd1a5024b1b327419bfcc73b4adaa7ec15",
+      "sha256": "b6a6540042f9a3ca54b15ace3c26c30f3e7a237fe3e27b7c11eef16c8a9596df",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -68,7 +78,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "bf9cdb97e85439d1a36cc0bf191bebdbba74d29488a4fe50f3323259dd97ca3f",
+      "sha256": "9cefddf94908f31d37f37c572497d8f97eb1db46d4eb4aa8740d7365fbc40026",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
@@ -82,6 +92,16 @@
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
+      "path": "src/store/journal.js",
+      "doc": "10-store/02-observaciones-sesiones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/observations.test.js"
+      ],
+      "sha256": "e5512fd21e0a4842d0de0e1e65f358af01dfbc649b43cd33a08cb348dbccfd8f",
+      "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
+    },
+    {
       "path": "src/store/migrate.js",
       "doc": "10-store/01-conexion-y-migraciones.md",
       "phase": "F1",
@@ -91,6 +111,16 @@
       ],
       "sha256": "62af8d4a2e53ed630610cb7e6e30dbe52ee992ccbd8d2baf6befc9ed72c6de8e",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/observations.js",
+      "doc": "10-store/02-observaciones-sesiones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/observations.test.js"
+      ],
+      "sha256": "57f1e26452ce259061a891741c7647193bf55dc8aa2c1c902a64b3e98c89aaff",
+      "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {
       "path": "src/store/schema.js",
@@ -103,14 +133,34 @@
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
     },
     {
+      "path": "src/store/sessions.js",
+      "doc": "10-store/02-observaciones-sesiones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/sessions.test.js"
+      ],
+      "sha256": "ed37beefde637df297878e4f711640deb57fd5a5b9e4153d5fd594453b24bd1c",
+      "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
+    },
+    {
       "path": "src/store/store.js",
       "doc": "10-store/01-conexion-y-migraciones.md",
       "phase": "F1",
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "3d5fcfc3bbd6ae987c413a27141a9a9fa46f6eb65e2bcafdd854f60d7c2f677f",
+      "sha256": "6b2aa8d336d43972e8f4aa11975677708fb79d7978515aec8b98c7aafc32c6da",
       "docSha256": "be2d9e8ea74af3120f480ce39d9d3ce3a8ae343c007f86fe5dbe4b50c4c32417"
+    },
+    {
+      "path": "src/store/text.js",
+      "doc": "10-store/02-observaciones-sesiones.md",
+      "phase": "F1",
+      "tests": [
+        "test/unit/store/text.test.js"
+      ],
+      "sha256": "d3c24a116924022f61e42af14b0bd6421ef8ce0b4524d205470ddcc70df3cd2a",
+      "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
     },
     {
       "path": "src/timeutil/index.js",

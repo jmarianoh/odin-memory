@@ -1,4 +1,13 @@
 export { Database, RETRY_BACKOFFS_MS, isRetryableLockError, withLockRetry } from './db.js';
-export { NetworkFilesystemError, DatabaseGenerationChangedError, StoreError } from './errors.js';
+export {
+  DatabaseGenerationChangedError,
+  NetworkFilesystemError,
+  SessionProjectConflictError,
+  StoreError,
+  storeError,
+} from './errors.js';
+export * from './observations.js';
 export { SCHEMA_VERSION } from './schema.js';
-export { DB_FILE_NAME, Store } from './store.js';
+export * from './sessions.js';
+export { DB_FILE_NAME, DEFAULT_SETTINGS, Store } from './store.js';
+export * from './text.js';

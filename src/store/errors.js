@@ -36,3 +36,62 @@ export class StoreError extends Error {
     this.code = code;
   }
 }
+
+/** Mensajes base de los errores de uso del store, indexados por `code`. */
+const MESSAGES = {
+  session_not_found: 'session not found',
+  session_id_required: 'session id is required',
+  session_already_ended: 'session has already ended',
+  observation_not_found: 'observation not found',
+  prompt_not_found: 'prompt not found',
+  project_required: 'project identity is required',
+  invalid_session_ownership_mode: 'invalid session ownership mode',
+  session_ownership_mismatch: 'session ownership does not match write project',
+  project_ownership_ambiguous: 'session project ownership is ambiguous',
+  expected_project_required: 'expected_project must be a valid non-empty project name',
+  observation_project_mismatch: 'expected_project does not match observation owner',
+  observation_project_immutable: 'observation project cannot be reassigned',
+  observation_title_required: 'observation title is required',
+  observation_content_required: 'observation content is required',
+  observation_operation_conflict: 'observation operation id conflicts with a different payload',
+  observation_operation_expired: 'observation operation id is outside the replay horizon',
+  observation_find_replace_pair_required: 'find and replace must be provided together',
+  observation_find_replace_content_conflict: 'find and replace cannot be combined with content',
+  observation_find_replace_input_too_large: 'find and replace inputs exceed maximum observation length',
+  observation_find_replace_result_too_large: 'replacement result exceeds maximum observation length',
+  observation_find_replace_legacy_content_large: 'cannot partially replace oversized legacy observation',
+  prompt_content_required: 'prompt content is required',
+  invalid_project_name: 'invalid project name',
+  sync_journal_unavailable: 'sync journal is not available for enrolled projects yet',
+};
+
+/**
+ * Crea un StoreError con el mensaje base del código y, opcionalmente, un detalle
+ * (`<mensaje base>: <detalle>`).
+ * @param {keyof typeof MESSAGES} code
+ * @param {string} [detail]
+ * @returns {StoreError}
+ */
+export function storeError(code, detail) {
+  const base = MESSAGES[code];
+  return new StoreError(code, detail ? `${base}: ${detail}` : base);
+}
+
+/** La sesión pertenece a otro proyecto y no admite la escritura solicitada. */
+export class SessionProjectConflictError extends StoreError {
+  /**
+   * @param {string} sessionId
+   * @param {string} ownerProject
+   * @param {string} requestedProject
+   */
+  constructor(sessionId, ownerProject, requestedProject) {
+    super(
+      'session_ownership_mismatch',
+      `${MESSAGES.session_ownership_mismatch}: session ${JSON.stringify(sessionId)} belongs to ${JSON.stringify(ownerProject)}, not ${JSON.stringify(requestedProject)}`,
+    );
+    this.name = 'SessionProjectConflictError';
+    this.sessionId = sessionId;
+    this.ownerProject = ownerProject;
+    this.requestedProject = requestedProject;
+  }
+}

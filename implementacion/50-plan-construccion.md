@@ -32,9 +32,22 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F1.2 y F1.3
+### F1.2 — Observaciones y sesiones (spec 0.3.0)
 
-Se detallan en `10-store/02-…` y `10-store/03-…` al completarse.
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/store/{text,sessions,observations}.test.js`, `test/unit/project-canonical.test.js`).
+2. Crear, según `10-store/02-observaciones-sesiones.md`: `src/project/canonical.js`, `src/store/text.js`, ampliar `errors.js` y `store.js`, y crear `journal.js`, `sessions.js`, `observations.js`; actualizar `src/store/index.js` para exportarlos.
+
+Aceptación:
+```bash
+node --test "test/unit/store/*.test.js" test/unit/project-canonical.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F1.3 a F1.5
+
+Búsqueda, línea de tiempo y prompts (F1.3); relaciones, proyectos y contexto (F1.4); sesiones de runtime (F1.5). Se detallan en `10-store/03-…`, `04-…` y `05-…` al completarse.
 
 ## F2 — Proyecto · F3 — MCP · F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 

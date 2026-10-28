@@ -34,7 +34,8 @@ Para cada módulo afectado del reporte:
 npm test
 npm run check:implementacion
 npm run check:clean-room
-node --test upstream/conformance/        # con ENGRAM_BIN apuntando al binario del destino
+# Conformidad diferencial: ENGRAM_BIN (binario del destino) o ENGRAM_SRC (checkout, se compila con go build)
+ENGRAM_SRC=../engram node --test "upstream/conformance/*.conformance.test.mjs"
 ```
 
 ## 5. Cerrar
