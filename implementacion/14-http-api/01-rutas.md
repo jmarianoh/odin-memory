@@ -8,6 +8,7 @@ Las rutas con **id** forman el *contrato de runtime* (`GET /runtime-contract`); 
 
 | Ruta | Respuesta |
 |---|---|
+| `GET /compatibility` (`auth`) | `activeCompatibility(store)` con `Cache-Control: no-store` |
 | `GET /health` | `200 {"status":"ok","service":"odin-memory","version":<VERSION>,"instance_id":<id del almacén>,"capabilities":{"isolated_session_registration":true,"root_session_resume":true,"runtime_session_resolution":true}}`. Si leer las estadísticas falla: `500 health check failed` |
 | `GET /runtime-contract` | El contrato (abajo) más `instance_id` |
 | `GET /sync/status` | Estado de sincronización del proyecto (ver `02-servidor-y-serve.md`). Con `all_projects` verdadero: `400 unsupported_project_scope` («all_projects is not supported for sync status») |
@@ -85,6 +86,9 @@ Las rutas con **id** forman el *contrato de runtime* (`GET /runtime-contract`); 
 | Ruta (id) | Detalle |
 |---|---|
 | `GET /conflicts` | `?status=`, `?since=` (RFC 3339; `400 invalid since parameter: must be RFC3339`), `?limit=` (50, máx. 500, no positivo = 50), `?offset=`. `{"total","limit","offset","relations"}` (solo accionables, sin `not_conflict`) |
+| `GET /conflicts/stats` | Estadísticas del proyecto: `{"project","by_relation","by_judgment_status","deferred","dead"}` (`getActionableRelationStats`) |
+| `GET /conflicts/deferred` | `?status=`, `?limit=` (50, máx. 500), `?offset=`. `{"total","limit","rows":[…filas diferidas…]}`; `total` cuenta todas las filas del estado, sin límite |
+| `POST /conflicts/scan` | Cuerpo: `project`, `all_projects`, `since` (RFC 3339), `apply`, `max_insert`, `limit` (1..100), `cursor` (≥ 0), `semantic`, `concurrency` (1..20, 5), `timeout_per_call_seconds` (1..600, 60), `max_semantic` (100). El proyecto se resuelve como en las lecturas (el explícito debe existir; `?cwd=`). Con `semantic` los parámetros se validan (`400 concurrency must be between 1 and 20; got N`, `400 timeout_per_call_seconds must be between 1 and 600; got N`) y el ejecutor sale de `HttpServer({ llm })` con el nombre de `ODIN_AGENT_CLI`: sin fábrica `500 ODIN_AGENT_CLI not set: server runnerFactory is not configured`; fallo de la fábrica `500 failed to resolve agent runner: <causa>`. Otros errores: `400 project and all_projects cannot be used together`, `400 limit must be between 1 and 100`, `400 cursor must be non-negative`, `400 invalid since: must be RFC3339`. `200 {"project","inspected","ranked_queries","candidates_found","already_related","inserted","capped","dry_run","semantic_judged","semantic_skipped","semantic_errors"[,"next_cursor"][,"warning"]}`; `warning` = `cap reached: this page has no continuation; rerun from the same cursor with a higher applicable cap` cuando `capped`. No avisa de escritura |
 | `GET /conflicts/{relation_id}` | `{"relation_id","sync_id","relation","judgment_status","source_id","source_snippet","target_id","target_snippet","created_at","updated_at"}`; `400 invalid relation_id: must be an integer`; `404` |
 | `POST /conflicts/judge` (`conflict-judge`) | Cuerpo: `judgment_id`, `relation` (obligatorios), `reason`, `evidence`, `confidence` (0–1), `session_id`. `200 {"relation":…}`; avisa de escritura |
 | `POST /conflicts/judge-many` (`conflict-judge-many`, `auth`) | Cuerpo de flujo `{"judgments":[1..32],"session_id"?}`. `200 {"outcomes":[{index,judgment_id,status:"success"\|"error",relation?,judgment_status?,error?}]}`. Los mensajes de error solo exponen rechazos conocidos (`relation "x" not found`, verbo inválido, relación entre proyectos); el resto es `judgment failed` |
@@ -92,4 +96,4 @@ Las rutas con **id** forman el *contrato de runtime* (`GET /runtime-contract`); 
 
 ## Fuera de esta entrega
 
-`GET /compatibility` (F4.3), `GET /conflicts/stats`, `GET /conflicts/deferred`, `POST /conflicts/scan`, `POST /conflicts/deferred/replay` (F4.3), `GET /doctor`, `POST /doctor/caller-binding` (F6), `POST /projects/rescue-ownership` y su alias `POST /projects/migrate` (F5; usarán `requireConfiguredAuth`).
+`POST /conflicts/deferred/replay` (F5), `GET /doctor`, `POST /doctor/caller-binding` (F6), `POST /projects/rescue-ownership` y su alias `POST /projects/migrate` (F5; usarán `requireConfiguredAuth`).

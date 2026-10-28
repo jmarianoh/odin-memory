@@ -23,6 +23,11 @@ Commands:
                        Example: odin mcp --tools=agent
                        --project NAME  Set process-level default project (overrides cwd detection).
                                        Also accepted as ODIN_PROJECT=NAME env var.
+  migrate-copy --data-dir <absolute-source> --output-dir <new-absolute-destination> --confirm-quiescent --json
+                     Copy a stopped store completely and migrate only the copy
+  compatibility --data-dir <absolute-directory> --json
+                     Read-only offline store observation (JSON). It never opens, migrates or repairs
+                     the store, and never authorizes automatic opening
   search <query>     Search memories [--type TYPE] [--project PROJECT|--all] [--scope SCOPE] [--limit N] [--match all|any]
   save <title> <msg> Save a memory  [--type TYPE] [--project PROJECT] [--scope SCOPE]
   delete <obs_id>    Delete an observation [--hard] (soft-delete by default; --hard removes permanently)
@@ -34,6 +39,15 @@ Commands:
                      Cascade-delete a project: soft-deletes observations (or hard if --hard),
                      removes prompts; with --hard also removes sessions
   timeline <obs_id>  Show chronological context around an observation [--before N] [--after N] [--project PROJECT|--all]
+  conflicts <sub>   Inspect and manage memory conflict relations
+                       list     [--project P|--all]  [--status S]  [--since RFC3339]  [--limit N]
+                       show     <relation_id>
+                       stats    [--project P|--all]
+                       scan     [--project P|--all]  [--since RFC3339]  [--limit N]  [--cursor ID]
+                                [--dry-run]  [--apply]  [--max-insert N]  [--semantic]  [--concurrency N]  [--timeout-per-call SECONDS]
+                                [--max-semantic N]  [--yes]
+                       deferred [--status S]  [--limit N]  [--inspect SYNC_ID]  [--replay]
+                       prune    [--max-age-days N]  [--max-per-scope N]  [--dry-run]  [--apply]
   context [project] [--project PROJECT|--all] [--scope SCOPE] [--older-history]
                      Show recent context from previous sessions
   stats [--project PROJECT|--all]
@@ -72,6 +86,7 @@ Environment:
                        POST /conflicts/judge-many, POST /sessions/{id}/finalize
                      Comparison is constant-time. Token is read per-request (no restart needed).
                      Other routes remain open when unset (zero-config default).
+  ODIN_AGENT_CLI     LLM runner for conflicts scan --semantic (copilot)
   ODIN_PROJECT       Process-level default project override, applied by every entry point
                      with one precedence rule: explicit request project (odin save --project,
                      an MCP tool project argument) > process override (odin mcp --project,

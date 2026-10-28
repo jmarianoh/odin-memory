@@ -7,8 +7,10 @@ import { addPromptRoute, deletePromptRoute, recentPromptsRoute, searchPromptsRou
 import {
   createSession, deleteSessionRoute, endSessionRoute, finalizeSessionRoute, getSessionRoute, recentSessionsRoute, runtimeSessionRoute,
 } from './sessions.js';
-import { compareRoute, consolidateRoute, getConflictRoute, judgeManyRoute, judgeRoute, listConflictsRoute } from './workflows.js';
-import { healthRoute, runtimeContractRoute, syncStatusRoute } from './system.js';
+import {
+  compareRoute, conflictStatsRoute, consolidateRoute, getConflictRoute, judgeManyRoute, judgeRoute, listConflictsRoute, listDeferredRoute, scanConflictsRoute,
+} from './workflows.js';
+import { compatibilityRoute, healthRoute, runtimeContractRoute, syncStatusRoute } from './system.js';
 
 /**
  * Tabla de rutas. `id` identifica las que forman el contrato de runtime; `auth`
@@ -48,6 +50,7 @@ export const ROUTES = [
   { id: 'conflict-judge', pattern: 'POST /conflicts/judge', handler: judgeRoute },
   { id: 'conflict-compare', pattern: 'POST /conflicts/compare', handler: compareRoute },
 
+  { pattern: 'GET /compatibility', handler: compatibilityRoute, auth: true },
   { pattern: 'GET /runtime-contract', handler: runtimeContractRoute },
   { pattern: 'GET /health', handler: healthRoute },
   { pattern: 'GET /sessions/recent', handler: recentSessionsRoute },
@@ -61,5 +64,8 @@ export const ROUTES = [
   { pattern: 'POST /import', handler: importRoute, auth: true },
   { pattern: 'GET /sync/status', handler: syncStatusRoute },
   { pattern: 'GET /conflicts', handler: listConflictsRoute },
+  { pattern: 'GET /conflicts/stats', handler: conflictStatsRoute },
+  { pattern: 'GET /conflicts/deferred', handler: listDeferredRoute },
+  { pattern: 'POST /conflicts/scan', handler: scanConflictsRoute },
   { pattern: 'GET /conflicts/{relation_id}', handler: getConflictRoute },
 ];

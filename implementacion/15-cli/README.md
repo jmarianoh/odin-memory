@@ -6,7 +6,8 @@
 |---|---|---|
 | F4.1 (spec 0.15.0) | `01-comandos-memoria.md`, `02-respaldo-e-init.md`, `03-proyectos.md`, `04-mcp-y-uso.md` | Despachador, contexto de ejecución y los comandos `version`, `help`, `mcp`, `init`, `search`, `save`, `delete`, `timeline`, `context`, `stats`, `export`, `import`, `projects` (`list`, `merge`, `consolidate`, `prune`, `alias`) |
 | F4.2 (spec 0.16.0) | `../14-http-api/` | `serve [puerto]`, `serve --socket`, `serve --session-owned` y la API HTTP local |
-| F4.3 y siguientes | — | `projects rescue-ownership` (llega con el diario de sincronización, F5), `conflicts`, `hook`, `migrate-copy`, `compatibility`, `instance-id`, `sync`, `cloud`, `doctor`, `test`, `setup`, `tui` |
+| F4.3 (spec 0.17.0) | `../17-conflictos-llm.md` | `conflicts` (`list`, `show`, `stats`, `scan`, `deferred`, `prune`), `instance-id`, `compatibility`, `migrate-copy` |
+| F5 y siguientes | — | `projects rescue-ownership` y `conflicts deferred --replay` (llegan con el diario de sincronización, F5), `sync`, `cloud`, `doctor`, `test`, `hook`, `setup`, `tui` |
 
 ## Decisiones de diseño
 
@@ -60,12 +61,13 @@ No se implementa la migración de bases "huérfanas" en ubicaciones erróneas: e
 Orden exacto de `dispatch(cli)`:
 
 1. Sin comando: imprime el uso **en la salida estándar** y sale con 1.
-2. `export` o `import` con `--help` en cualquier posición posterior: imprime su ayuda corta (`EXPORT_HELP`/`IMPORT_HELP`, ver `02-respaldo-e-init.md`) en la salida estándar y termina con 0, sin resolver configuración ni abrir el almacén.
-3. El comando se compara en minúsculas y sin espacios en los extremos **solo** para los que no usan el almacén: `version`/`--version`/`-v` imprime `odin <versión>`; `help`/`--help`/`-h` imprime el uso; `init` ejecuta `cmdInit`.
-4. Los demás comandos distinguen mayúsculas y se buscan en la tabla `STORE_COMMANDS` con `Object.hasOwn` (para que `toString` o `__proto__` no cuenten como comandos). Si no existe: `unknown command: <comando>\n\n` en el error estándar, luego el uso en la estándar y código 1.
-5. Resuelve la configuración y llama al manejador con `(cli, config)`.
+2. `migrate-copy` y `compatibility` (comparados tal cual, sensibles a mayúsculas) se ejecutan sin resolver configuración ni abrir el almacén y su código de retorno (0, 1 o 2) es el de la CLI (`CliExit`); ver `../17-conflictos-llm.md`.
+3. `export` o `import` con `--help` en cualquier posición posterior: imprime su ayuda corta (`EXPORT_HELP`/`IMPORT_HELP`, ver `02-respaldo-e-init.md`) en la salida estándar y termina con 0, sin resolver configuración ni abrir el almacén.
+4. El comando se compara en minúsculas y sin espacios en los extremos **solo** para los que no usan el almacén: `version`/`--version`/`-v` imprime `odin <versión>`; `help`/`--help`/`-h` imprime el uso; `init` ejecuta `cmdInit`.
+5. Los demás comandos distinguen mayúsculas y se buscan en la tabla `STORE_COMMANDS` con `Object.hasOwn` (para que `toString` o `__proto__` no cuenten como comandos). Si no existe: `unknown command: <comando>\n\n` en el error estándar, luego el uso en la estándar y código 1.
+6. Resuelve la configuración y llama al manejador con `(cli, config)`.
 
-Tabla `STORE_COMMANDS`: `serve` (ver `../14-http-api/`), `mcp`, `search`, `save`, `delete`, `timeline`, `context`, `stats`, `export`, `import`, `projects`.
+Tabla `STORE_COMMANDS`: `serve` (ver `../14-http-api/`), `conflicts` e `instance-id` (ver `../17-conflictos-llm.md`), `mcp`, `search`, `save`, `delete`, `timeline`, `context`, `stats`, `export`, `import`, `projects`.
 
 ## Resolución de proyecto de las lecturas (`src/cli/project.js`)
 

@@ -230,8 +230,24 @@ npm run check:clean-room
 
 Pruebas manuales: `ODIN_DATA_DIR=$(mktemp -d) node bin/odin.js serve 7438` y, en otra terminal, `curl localhost:7438/health`; con `ODIN_HTTP_TOKEN=secreto` las rutas `DELETE`, `/export` e `/import` piden `Authorization: Bearer secreto`.
 
-Las siguientes entregas de F4 (`conflicts`, `hook`, `migrate-copy`, `compatibility`, `instance-id` y las rutas de conflictos que faltan) se detallan en sus capítulos al completarse. `projects rescue-ownership` se entrega con el diario de sincronización (F5).
+### F4.3 — Conflictos, ejecutor semántico y herramientas de almacén (spec 0.17.0)
 
-## F4.3 y siguientes · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/store/{conflicts,compatibility,migrate-copy}.test.js`, `test/unit/llm/llm.test.js`, `test/unit/cli/conflicts.test.js`, `test/unit/server/conflicts.test.js`), `test/unit/cli/helpers.js` (acepta `overrides`) y `src/cli/usage.js`.
+2. Crear, según `10-store/11-conflictos-compatibilidad.md` y `17-conflictos-llm.md`: `src/runtime/fs-error.js` (mover `fsErrorText` desde `src/cli/runtime.js`, que lo reexporta); `src/store/{conflicts,compatibility,migrate-copy}.js`; `src/llm/{prompt,cost,runner,factory,index}.js`; `src/cli/commands/{conflicts,admin}.js`.
+3. Modificar: `src/store/store.js` (campo `closed`), `src/store/index.js` (reexporta los tres módulos nuevos), `src/cli/index.js` (`conflicts`, `instance-id`, y `migrate-copy`/`compatibility` antes de resolver la configuración), `src/cli/commands/serve.js` (opción `llm`), `src/server/server.js` (opción `llm`), `src/server/routes/{workflows,system,table}.js` (rutas nuevas).
+
+Aceptación:
+```bash
+node --test "test/unit/store/*.test.js" "test/unit/llm/*.test.js" "test/unit/cli/*.test.js" "test/unit/server/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Pruebas manuales: `node bin/odin.js save "Usar Redis para la caché" "..." --project demo` (varias parecidas), `node bin/odin.js conflicts scan --project demo --apply`, `conflicts list --project demo`, `conflicts stats --all`, `instance-id`, y `compatibility --data-dir <ruta absoluta> --json` sobre un directorio de datos.
+
+`projects rescue-ownership` y `conflicts deferred --replay` se entregan con el diario de sincronización (F5); `hook resolve-hook-project` con los hooks de Copilot (F7).
+
+## F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

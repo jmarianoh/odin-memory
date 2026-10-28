@@ -1,11 +1,14 @@
 import {
-  consolidateObservations, getObservation, getRelationByIntId, judgeBySemantic, judgeRelation, listRelations, countRelations,
+  DEFAULT_SCAN_LIMIT, consolidateObservations, countRelations, getActionableRelationStats, getObservation, getRelationByIntId, judgeBySemantic,
+  judgeRelation, listDeferred, listRelations, scanAllProjects, scanProject,
 } from '../../store/index.js';
 import { goTrim } from '../../store/text.js';
 import { consolidationPlanJson, judgeParams, judgmentItemError, parseConsolidate } from '../../mcp/tools/curation.js';
 import { observationJson, relationJson } from '../../mcp/serialize.js';
 import { HttpError, queryInt, sendJson } from '../http.js';
-import { projectOrThrow } from '../project.js';
+import { projectOrThrow, projectResolutionError } from '../project.js';
+import { resolve as resolveProject } from '../../project/resolution.js';
+import { detectProject, projectExists } from '../../store/index.js';
 import { parseId, readFields } from './observations.js';
 import { decodeWorkflow } from './workflow-body.js';
 
@@ -192,4 +195,98 @@ export function getConflictRoute(ctx) {
     relation_id: item.id, sync_id: item.sync_id, relation: item.relation, judgment_status: item.judgment_status, source_id: item.source_id,
     source_snippet: item.source_title, target_id: item.target_id, target_snippet: item.target_title, created_at: item.created_at, updated_at: item.updated_at,
   });
+}
+
+export function conflictStatsRoute(ctx) {
+  const res = projectOrThrow(ctx);
+  let stats;
+  try {
+    stats = getActionableRelationStats(ctx.store, res.project ?? '');
+  } catch (err) {
+    throw new HttpError(500, err.message);
+  }
+  sendJson(ctx.res, 200, {
+    project: stats.project, by_relation: stats.by_relation, by_judgment_status: stats.by_judgment_status, deferred: stats.deferred, dead: stats.dead,
+  });
+}
+
+export function listDeferredRoute(ctx) {
+  const status = ctx.query.get('status') ?? '';
+  const limit = clampConflictsLimit(queryInt(ctx.query, 'limit', CONFLICTS_DEFAULT_LIMIT), CONFLICTS_DEFAULT_LIMIT);
+  const offset = queryInt(ctx.query, 'offset', 0);
+  let rows;
+  let total;
+  try {
+    rows = listDeferred(ctx.store, { status, limit, offset });
+    total = listDeferred(ctx.store, { status }).length;
+  } catch (err) {
+    throw new HttpError(500, err.message);
+  }
+  sendJson(ctx.res, 200, { total, limit, rows });
+}
+
+const SCAN_BODY = {
+  project: 'string', all_projects: 'bool', since: 'string', apply: 'bool', max_insert: 'int', limit: 'int', cursor: 'int', semantic: 'bool',
+  concurrency: 'int', timeout_per_call_seconds: 'int', max_semantic: 'int',
+};
+
+export async function scanConflictsRoute(ctx) {
+  const body = await readFields(ctx, SCAN_BODY);
+  if (body.all_projects && goTrim(body.project ?? '') !== '') throw new HttpError(400, 'project and all_projects cannot be used together');
+  let resolved;
+  try {
+    resolved = resolveProject({
+      mode: body.all_projects ? 'all' : 'current', explicit: body.project ?? '', directory: ctx.query.get('cwd') ?? '',
+      projectExists: (name) => projectExists(ctx.store, name), detect: (dir) => detectProject(ctx.store, dir),
+      requireKnownExplicit: true, requireKnownProcess: true, env: ctx.env,
+    });
+  } catch (err) {
+    throw projectResolutionError(ctx, err.result ?? {}, err);
+  }
+  if (body.limit !== undefined && (body.limit < 1 || body.limit > DEFAULT_SCAN_LIMIT)) throw new HttpError(400, `limit must be between 1 and ${DEFAULT_SCAN_LIMIT}`);
+  if (body.cursor !== undefined && body.cursor < 0) throw new HttpError(400, 'cursor must be non-negative');
+  let concurrency = 5;
+  let timeoutSeconds = 60;
+  let maxSemantic = 100;
+  if (body.semantic) {
+    concurrency = body.concurrency ?? concurrency;
+    timeoutSeconds = body.timeout_per_call_seconds ?? timeoutSeconds;
+    maxSemantic = body.max_semantic ?? maxSemantic;
+    if (concurrency < 1 || concurrency > 20) throw new HttpError(400, `concurrency must be between 1 and 20; got ${concurrency}`);
+    if (timeoutSeconds < 1 || timeoutSeconds > 600) throw new HttpError(400, `timeout_per_call_seconds must be between 1 and 600; got ${timeoutSeconds}`);
+  }
+  const opts = { project: resolved.project ?? '', apply: body.apply === true, max_insert: body.max_insert ?? 0 };
+  if (body.limit !== undefined) opts.limit = body.limit;
+  if (body.cursor !== undefined) opts.cursor = body.cursor;
+  if (body.since) {
+    const since = parseRfc3339(body.since);
+    if (!since) throw new HttpError(400, 'invalid since: must be RFC3339');
+    opts.since = since;
+  }
+  if (body.semantic) {
+    if (!ctx.llm?.runnerFactory) throw new HttpError(500, 'ODIN_AGENT_CLI not set: server runnerFactory is not configured');
+    let runner;
+    try {
+      runner = ctx.llm.runnerFactory(ctx.env.ODIN_AGENT_CLI ?? '');
+    } catch (err) {
+      throw new HttpError(500, `failed to resolve agent runner: ${err.message}`);
+    }
+    Object.assign(opts, {
+      semantic: true, concurrency, timeout_per_call_ms: timeoutSeconds * 1000, max_semantic: maxSemantic, runner, build_prompt: ctx.llm.buildPrompt ?? (() => ''),
+    });
+  }
+  let result;
+  try {
+    result = await (body.all_projects ? scanAllProjects : scanProject)(ctx.store, opts);
+  } catch (err) {
+    throw new HttpError(500, err.message);
+  }
+  const out = {
+    project: result.project, inspected: result.inspected, ranked_queries: result.ranked_queries, candidates_found: result.candidates_found,
+    already_related: result.already_related, inserted: result.inserted, capped: result.capped, dry_run: result.dry_run,
+    semantic_judged: result.semantic_judged, semantic_skipped: result.semantic_skipped, semantic_errors: result.semantic_errors,
+  };
+  if (result.next_cursor !== undefined) out.next_cursor = result.next_cursor;
+  if (result.capped) out.warning = 'cap reached: this page has no continuation; rerun from the same cursor with a higher applicable cap';
+  sendJson(ctx.res, 200, out);
 }

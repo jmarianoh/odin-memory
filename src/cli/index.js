@@ -1,6 +1,8 @@
 import { homedir } from 'node:os';
 import { Store } from '../store/store.js';
 import { VERSION } from '../version/index.js';
+import { cmdInstanceId, runCompatibility, runMigrateCopy } from './commands/admin.js';
+import { cmdConflicts } from './commands/conflicts.js';
 import { cmdContext } from './commands/context.js';
 import { cmdDelete } from './commands/delete.js';
 import { EXPORT_HELP, IMPORT_HELP, cmdExport, cmdImport } from './commands/backup.js';
@@ -19,6 +21,8 @@ import { usageText } from './usage.js';
 /** Comandos que usan el almacén: reciben la configuración ya resuelta. */
 const STORE_COMMANDS = {
   serve: cmdServe,
+  conflicts: cmdConflicts,
+  'instance-id': cmdInstanceId,
   mcp: cmdMcp,
   search: cmdSearch,
   save: cmdSave,
@@ -74,6 +78,10 @@ async function dispatch(cli) {
     cli.out(usageText());
     throw new CliExit(1);
   }
+
+  // Estos dos no resuelven configuración ni abren el almacén y devuelven su propio código.
+  if (command === 'migrate-copy') throw new CliExit(runMigrateCopy(cli));
+  if (command === 'compatibility') throw new CliExit(runCompatibility(cli));
 
   // La ayuda de exportar e importar no resuelve configuración ni abre el almacén.
   if ((command === 'export' || command === 'import') && cli.args.slice(1).includes('--help')) {

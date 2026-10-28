@@ -1,4 +1,6 @@
 export * from './backup.js';
+export * from './compatibility.js';
+export * from './conflicts.js';
 export * from './consolidate.js';
 export * from './context.js';
 export { Database, RETRY_BACKOFFS_MS, isRetryableLockError, withLockRetry } from './db.js';
@@ -9,6 +11,7 @@ export {
   StoreError,
   storeError,
 } from './errors.js';
+export * from './migrate-copy.js';
 export * from './observations.js';
 export * from './passive.js';
 export * from './project-maintenance.js';

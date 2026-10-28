@@ -25,7 +25,7 @@ export function cliWorld(t, { repo = 'mi-repo', env = {} } = {}) {
    * @param {string[]} args
    * @param {{ input?: string, cwd?: string, env?: NodeJS.ProcessEnv }} [options]
    */
-  async function odin(args, { input, cwd = repoDir, env: extra } = {}) {
+  async function odin(args, { input, cwd = repoDir, env: extra, overrides = {} } = {}) {
     let out = '';
     let err = '';
     const lines = input === undefined ? [] : input.split('\n');
@@ -38,6 +38,7 @@ export function cliWorld(t, { repo = 'mi-repo', env = {} } = {}) {
       readLine: () => (lines.length > 0 ? lines.shift() : null),
       openStore: (config) => Store.open({ ...config, log: () => {} }),
       home: () => root,
+      ...overrides,
     });
     return { code, out, err };
   }

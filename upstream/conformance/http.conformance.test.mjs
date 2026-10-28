@@ -637,3 +637,71 @@ test('serve --session-owned rechaza configuraciones inválidas igual que la refe
     assert.equal(mask(odin.stderr), mask(ref.stderr), args.join(' '));
   }
 });
+
+test('conflictos: estadísticas, escaneo, diferidos y compatibilidad', { skip }, async () => {
+  const w = await newWorld('conflictos');
+  try {
+    await w.same('POST', '/sessions', { id: 's1', project: 'demo', directory: w.repo });
+    for (const [title, content] of [
+      ['Usar Redis para la caché', 'decidimos Redis como caché distribuida'],
+      ['Redis como caché distribuida', 'la caché distribuida vive en Redis'],
+      ['Caché local en memoria', 'una caché local en memoria del proceso'],
+      ['Tokens de acceso', 'el acceso con tokens se renueva con refresh'],
+    ]) await w.same('POST', '/observations', { session_id: 's1', type: 'decision', title, content, project: 'demo' });
+    await w.same('GET', '/conflicts/stats?project=demo');
+    await w.same('POST', '/conflicts/scan?cwd=' + encodeURIComponent(w.repo), { project: 'demo' });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', apply: true });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', apply: true });
+    await w.same('POST', '/conflicts/scan', { all_projects: true });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', limit: 2 });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', limit: 2, cursor: 2, apply: true, max_insert: 1 });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', limit: 0 });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', limit: 101 });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', cursor: -1 });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', since: 'ayer' });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', since: '2030-01-01T00:00:00Z' });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', all_projects: true });
+    await w.same('POST', '/conflicts/scan', { project: 'nada' });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', semantic: true, concurrency: 0 });
+    await w.same('POST', '/conflicts/scan', { project: 'demo', semantic: true, timeout_per_call_seconds: 601 });
+    await w.same('POST', '/conflicts/scan', 'no json');
+    await w.same('GET', '/conflicts/stats?project=demo');
+    await w.same('GET', '/conflicts/stats');
+    await w.same('GET', '/conflicts/stats?project=nada');
+    // El escaneo semántico sin ejecutor configurado falla igual en estado; el texto nombra herramientas propias.
+    const semantic = await Promise.all(Object.values(w.ports).map((port) => fetch(`http://127.0.0.1:${port}/conflicts/scan`, { method: 'POST', body: JSON.stringify({ project: 'demo', semantic: true }) }).then((r) => r.status)));
+    assert.deepStrictEqual(semantic, [500, 500]);
+
+    for (const path of [join(w.refDir, 'engram.db'), join(w.odinDir, 'odin.db')]) {
+      const { DatabaseSync } = await import('node:sqlite');
+      const db = new DatabaseSync(path, { timeout: 5000 });
+      const insert = db.prepare(`INSERT INTO sync_apply_deferred (sync_id, entity, payload, target_key, remote_seq, entity_key, op, reason_code, project, scope_class, apply_status, retry_count, last_error, first_seen_at)
+        VALUES (?, ?, ?, 'cloud:demo', ?, ?, ?, ?, 'demo', 'scoped', ?, ?, ?, ?)`);
+      insert.run('def-1', 'relation', '{"sync_id":"rel-1","kind":"x"}', 1, 'rel-1', 'upsert', 'fk_missing', 'deferred', 2, 'espera', '2026-03-01 10:00:01');
+      insert.run('def-2', 'observation', 'no es json', 2, 'obs-1', 'upsert', 'bad', 'dead', 5, 'roto', '2025-01-01 00:00:00');
+      insert.run('def-3', 'session', 'null', 4, 'ses-1', 'upsert', '', 'dead', 1, null, '2026-03-02 00:00:00');
+      db.close();
+    }
+    await w.same('GET', '/conflicts/deferred');
+    await w.same('GET', '/conflicts/deferred?status=dead');
+    await w.same('GET', '/conflicts/deferred?limit=1&offset=1');
+    await w.same('GET', '/conflicts/deferred?limit=9999');
+    await w.same('GET', '/conflicts/stats?project=demo');
+
+    const compatibility = await w.same('GET', '/compatibility', undefined, { ignore: ['runtime_id', 'instance_id'] });
+    assert.equal(compatibility.odin.json.status, 'ready');
+    assert.equal(compatibility.odin.response.headers.get('cache-control'), 'no-store');
+  } finally {
+    w.close();
+  }
+});
+
+test('compatibilidad con ODIN_HTTP_TOKEN', { skip }, async () => {
+  const w = await newWorld('compat-auth', { refEnv: { ENGRAM_HTTP_TOKEN: 's' }, odinEnv: { ODIN_HTTP_TOKEN: 's' } });
+  try {
+    await w.same('GET', '/compatibility');
+    await w.same('GET', '/compatibility', undefined, { headers: { Authorization: 'Bearer s' }, ignore: ['runtime_id', 'instance_id'] });
+  } finally {
+    w.close();
+  }
+});

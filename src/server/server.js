@@ -36,6 +36,7 @@ export function cleanPath(path) {
  * @property {(limit?: number) => Promise<string>} body
  * @property {() => void} notifyWrite avisa de una escritura local (sincronización)
  * @property {((project: string) => object)|undefined} syncStatus
+ * @property {{ runnerFactory?: Function, buildPrompt?: Function }|undefined} llm
  */
 
 /**
@@ -53,6 +54,7 @@ export class HttpServer {
    * @param {string} [options.socketPath] escucha en un socket Unix en lugar de TCP
    * @param {string} [options.sessionOwnedToken] autentica todas las rutas (también `/health`)
    * @param {() => void} [options.onWrite] se llama tras cada escritura local
+   * @param {{ runnerFactory?: (name: string) => object, buildPrompt?: (a: object, b: object) => string }} [options.llm] ejecutor semántico del escaneo de conflictos
    * @param {(project: string) => object} [options.syncStatus] por defecto, el estado local del almacén
    * @param {string} [options.defaultProject] proyecto del estado de sincronización cuando la petición no trae ninguno
    * @param {(address: import('node:net').AddressInfo | string) => void} [options.onReady] tras enlazar, antes de atender
@@ -67,6 +69,7 @@ export class HttpServer {
     this.socketPath = (options.socketPath ?? '').trim();
     this.sessionOwnedToken = options.sessionOwnedToken ?? '';
     this.onWrite = options.onWrite;
+    this.llm = options.llm;
     this.syncStatus = options.syncStatus ?? storeSyncStatus(store, { defaultProject: options.defaultProject ?? '' });
     this.onReady = options.onReady;
     this.log = options.log ?? ((m) => process.stderr.write(`${m}\n`));
@@ -130,7 +133,7 @@ export class HttpServer {
     /** @type {RequestContext} */
     const ctx = {
       req, res, path: url.pathname, query: url.searchParams, params: found.params, store: this.store, env: this.env, version: this.version,
-      sessionOwned: this.sessionOwnedToken !== '', cwd: this.cwd, syncStatus: this.syncStatus,
+      sessionOwned: this.sessionOwnedToken !== '', cwd: this.cwd, syncStatus: this.syncStatus, llm: this.llm,
       body: (limit) => {
         bodyPromise ??= readBody(req, limit);
         return bodyPromise;

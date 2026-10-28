@@ -32,7 +32,9 @@ after(() => {
 const MASKS = [
   [/\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?Z?/g, '<T>'],
   [/(obs|rel|prompt|ses)-[0-9a-f]{16}/g, '$1-X'],
+  [/\b[0-9a-f]{32}\b/g, '<ID>'],
   [/engram-export\.json/g, 'odin-export.json'],
+  [/'claude' or 'opencode'/g, "'copilot'"],
   [/\.engram/g, '.odin-memory'],
   [/ENGRAM_/g, 'ODIN_'],
   [/engram\.db/g, 'odin.db'],
@@ -47,6 +49,7 @@ const RESCUE_USAGE = /^ {7}engram projects rescue-ownership .*\n/m;
 function mask(text, world) {
   let out = String(text ?? '').replace(RESCUE_USAGE, '');
   for (const dir of [world.refDir, world.odinDir]) out = out.split(dir).join('<DATA>');
+  for (const dir of [join(world.dir, 'out-ref'), join(world.dir, 'out-odin')]) out = out.split(dir).join('<OUT>');
   out = out.split(world.repo).join('<REPO>');
   for (const [pattern, replacement] of MASKS) out = out.replace(pattern, replacement);
   return out;
@@ -77,7 +80,7 @@ function newWorld(name) {
   /** Ejecuta en ambos y exige la misma salida, error y código. */
   world.same = (args, options = {}) => {
     const { ref, odin } = world.run(args, options);
-    const label = `odin ${args.join(' ')}`;
+    const label = `odin ${(Array.isArray(args) ? args : args.odin).join(' ')}`;
     assert.equal(odin.status, ref.status, `${label}: código\n--- ref stderr\n${ref.stderr}\n--- odin stderr\n${odin.stderr}`);
     assert.equal(mask(odin.stdout, world), mask(ref.stdout, world), `${label}: stdout`);
     assert.equal(mask(odin.stderr, world), mask(ref.stderr, world), `${label}: stderr`);
@@ -369,4 +372,167 @@ test('mcp: arranca por stdio con --tools y --project', { skip }, async () => {
     assert.equal(r.odin.status, r.ref.status, bad.join(' '));
     assert.equal(mask(r.odin.stderr, w), mask(r.ref.stderr, w), bad.join(' '));
   }
+});
+
+/** Siembra relaciones pendientes: guardados con títulos parecidos en la misma sesión. */
+async function seedConflicts(world) {
+  const ref = startMcpCommand(binary.bin, ['mcp', '--tools=all'], { cwd: world.repo, dataDir: world.refDir, env: { ENGRAM_DATA_DIR: world.refDir, ENGRAM_NO_UPDATE_CHECK: '1' } });
+  const odin = startMcpCommand(process.execPath, ['--no-warnings', ODIN_BIN, 'mcp', '--tools=all'], { cwd: world.repo, dataDir: world.odinDir, env: { ODIN_DATA_DIR: world.odinDir } });
+  closers.push(() => ref.close(), () => odin.close());
+  await Promise.all([ref.initialize(), odin.initialize()]);
+  const both = async (tool, args) => {
+    const [a, b] = await Promise.all([ref.call(tool, args), odin.call(tool, args)]);
+    assert.equal(b.isError, a.isError, `${tool}: ${a.text} / ${b.text}`);
+    return [a, b];
+  };
+  await both('mem_session_start', { id: 'sesion-1' });
+  for (const [title, content] of [
+    ['Usar Redis para la caché', 'decidimos Redis como caché distribuida'],
+    ['Redis como caché distribuida', 'la caché distribuida vive en Redis'],
+    ['Caché local en memoria', 'una caché local en memoria del proceso'],
+    ['Autenticación con tokens', 'los tokens de acceso expiran en una hora'],
+    ['Tokens de acceso', 'el acceso con tokens se renueva con refresh'],
+  ]) await both('mem_save', { title, content, type: 'decision', session_id: 'sesion-1' });
+  ref.close();
+  odin.close();
+  for (const path of [join(world.refDir, 'engram.db'), join(world.odinDir, 'odin.db')]) {
+    const db = new DatabaseSync(path, { timeout: 5000 });
+    db.exec("UPDATE memory_relations SET created_at = datetime('2026-03-01 10:00:00', '+' || id || ' minutes'), updated_at = created_at");
+    db.close();
+  }
+}
+
+test('conflicts: list, show, stats y uso', { skip }, async () => {
+  const w = newWorld('conflictos');
+  await seedConflicts(w);
+  w.same(['conflicts']);
+  w.same(['conflicts', 'nada']);
+  w.same(['conflicts', 'list']);
+  w.same(['conflicts', 'list', '--project', 'conflictos']);
+  w.same(['conflicts', 'list', '--all']);
+  w.same(['conflicts', 'list', '--status', 'pending', '--limit', '2']);
+  w.same(['conflicts', 'list', '--status', 'judged']);
+  w.same(['conflicts', 'list', '--since', '2026-03-01T10:00:02Z']);
+  w.same(['conflicts', 'list', '--since', 'ayer']);
+  w.same(['conflicts', 'list', '--since', '2026-03-01']);
+  w.same(['conflicts', 'list', '--since', '2026-13-01T00:00:00Z']);
+  w.same(['conflicts', 'list', '--since', '2026-03-01T10:00:00']);
+  w.same(['conflicts', 'list', '--limit', '501']);
+  w.same(['conflicts', 'list', '--limit', 'x']);
+  w.same(['conflicts', 'list', '--project', 'nada']);
+  w.same(['conflicts', 'show', '1']);
+  w.same(['conflicts', 'show', ' 2 ']);
+  w.same(['conflicts', 'show', '999']);
+  w.same(['conflicts', 'show', 'abc']);
+  w.same(['conflicts', 'show']);
+  w.same(['conflicts', 'stats']);
+  w.same(['conflicts', 'stats', '--all']);
+  w.same(['conflicts', 'stats', '--project', 'nada']);
+});
+
+test('conflicts: scan, deferred y prune', { skip }, async () => {
+  const w = newWorld('escaneo');
+  await seedConflicts(w);
+  w.same(['conflicts', 'scan']);
+  w.same(['conflicts', 'scan', '--apply']);
+  w.same(['conflicts', 'scan', '--apply']);
+  w.same(['conflicts', 'scan', '--all', '--dry-run']);
+  w.same(['conflicts', 'scan', '--limit', '2']);
+  w.same(['conflicts', 'scan', '--limit', '2', '--cursor', '2']);
+  w.same(['conflicts', 'scan', '--limit', '0']);
+  w.same(['conflicts', 'scan', '--limit', '101']);
+  w.same(['conflicts', 'scan', '--limit']);
+  w.same(['conflicts', 'scan', '--cursor', '-1']);
+  w.same(['conflicts', 'scan', '--cursor']);
+  w.same(['conflicts', 'scan', '--dry-run', '--apply']);
+  w.same(['conflicts', 'scan', '--concurrency', '0']);
+  w.same(['conflicts', 'scan', '--concurrency', '21']);
+  w.same(['conflicts', 'scan', '--since', 'ayer']);
+  w.same(['conflicts', 'scan', '--since', '2030-01-01T00:00:00Z']);
+  w.same(['conflicts', 'scan', '--apply', '--max-insert', '1']);
+  w.same(['conflicts', 'scan', '--semantic'], { env: { ENGRAM_AGENT_CLI: '' } });
+  w.same(['conflicts', 'scan', '--project', 'nada']);
+  w.same(['conflicts', 'stats']);
+
+  // Cola de diferidos sembrada en ambos almacenes.
+  for (const path of [join(w.refDir, 'engram.db'), join(w.odinDir, 'odin.db')]) {
+    const db = new DatabaseSync(path, { timeout: 5000 });
+    const insert = db.prepare(`INSERT INTO sync_apply_deferred (sync_id, entity, payload, target_key, remote_seq, entity_key, op, reason_code, project, scope_class, apply_status, retry_count, last_error, first_seen_at)
+      VALUES (?, ?, ?, 'cloud:escaneo', ?, ?, ?, ?, 'escaneo', 'scoped', ?, ?, ?, ?)`);
+    insert.run('def-1', 'relation', '{"sync_id":"rel-1","kind":"x"}', 1, 'rel-1', 'upsert', 'fk_missing', 'deferred', 2, 'espera', '2026-03-01 10:00:01');
+    insert.run('def-2', 'observation', 'no es json', 2, 'obs-1', 'upsert', 'bad', 'dead', 5, 'roto', '2025-01-01 00:00:00');
+    insert.run('def-3', 'observation', '[1,2]', 3, 'obs-2', 'delete', 'bad', 'dead', 5, 'roto', '2025-01-02 00:00:00');
+    insert.run('def-4', 'session', 'null', 4, 'ses-1', 'upsert', '', 'dead', 1, null, '2026-03-02 00:00:00');
+    insert.run('def-5', 'relation', '{}', 5, 'rel-5', 'upsert', 'x', 'deferred', 0, null, '2026-03-03 00:00:00');
+    db.close();
+  }
+  w.same(['conflicts', 'deferred']);
+  w.same(['conflicts', 'deferred', '--status', 'dead']);
+  w.same(['conflicts', 'deferred', '--limit', '2']);
+  w.same(['conflicts', 'deferred', '--inspect', 'def-1']);
+  w.same(['conflicts', 'deferred', '--inspect', 'def-2']);
+  w.same(['conflicts', 'deferred', '--inspect', 'def-3']);
+  w.same(['conflicts', 'deferred', '--inspect', 'def-4']);
+  w.same(['conflicts', 'deferred', '--inspect', 'def-5']);
+  w.same(['conflicts', 'deferred', '--inspect', 'nada']);
+  w.same(['conflicts', 'deferred', '--inspect', 'def-1', '--replay']);
+  w.same(['conflicts', 'stats']);
+  w.same(['conflicts', 'prune']);
+  w.same(['conflicts', 'prune', '--max-age-days', '3000', '--max-per-scope', '1']);
+  w.same(['conflicts', 'prune', '--max-age-days', '0']);
+  w.same(['conflicts', 'prune', '--max-per-scope', 'x']);
+  w.same(['conflicts', 'prune', '--max-age-days']);
+  w.same(['conflicts', 'prune', '--bogus']);
+  w.same(['conflicts', 'prune', '--dry-run', '--apply']);
+  w.same(['conflicts', 'prune', '--apply']);
+  w.same(['conflicts', 'deferred']);
+});
+
+test('instance-id, compatibility y migrate-copy', { skip }, async () => {
+  const w = newWorld('admin');
+  await seed(w);
+  const ids = w.run(['instance-id']);
+  assert.equal(ids.ref.status, 0);
+  assert.equal(ids.odin.status, 0);
+  assert.match(ids.ref.stdout, /^[0-9a-f]{32}\n$/);
+  assert.match(ids.odin.stdout, /^[0-9a-f]{32}\n$/);
+  assert.equal(w.run(['instance-id']).odin.stdout, ids.odin.stdout, 'es estable');
+
+  const both = (build, options) => w.same({ ref: build(w.refDir, 'out-ref'), odin: build(w.odinDir, 'out-odin') }, options);
+  both((dir) => ['compatibility', '--data-dir', dir, '--json']);
+  both((dir) => ['compatibility', '--data-dir', dir]);
+  both(() => ['compatibility', '--json']);
+  both((dir) => ['compatibility', '--data-dir', dir, '--json', '--json']);
+  both((dir) => ['compatibility', '--data-dir', dir, '--data-dir', dir, '--json']);
+  both((dir) => ['compatibility', '--data-dir', `${dir}/`, '--json']);
+  both((dir) => ['compatibility', '--data-dir', `${dir}/nada`, '--json']);
+  both(() => ['compatibility', '--data-dir', 'relativa', '--json']);
+  const fresh = join(w.dir, 'vacio');
+  mkdirSync(fresh);
+  w.same(['compatibility', '--data-dir', fresh, '--json']);
+  writeFileSync(join(fresh, 'x'), 'x');
+  w.same(['compatibility', '--data-dir', fresh, '--json']);
+
+  const migrate = (dir, out, ...extra) => ['migrate-copy', '--data-dir', dir, '--output-dir', join(w.dir, out), '--confirm-quiescent', '--json', ...extra];
+  both((dir, out) => migrate(dir, out));
+  both((dir, out) => migrate(dir, out));
+  both((dir) => ['migrate-copy', '--data-dir', dir]);
+  both((dir, out) => migrate(dir, out, '--json'));
+  both((dir, out) => migrate(dir, out, '--bogus'));
+  both((dir) => ['migrate-copy', '--data-dir', dir, '--output-dir', '--json', '--confirm-quiescent']);
+  both((dir) => ['migrate-copy', '--data-dir', 'relativa', '--output-dir', join(w.dir, 'x'), '--confirm-quiescent', '--json']);
+  both((dir) => ['migrate-copy', '--data-dir', dir, '--output-dir', join(dir, 'dentro'), '--confirm-quiescent', '--json']);
+  both((dir, out) => ['migrate-copy', '--data-dir', join(w.dir, 'no-existe'), '--output-dir', join(w.dir, out, 'x'), '--confirm-quiescent', '--json']);
+  w.same(['migrate-copy', '--help']);
+  w.same(['migrate-copy']);
+  // Lo copiado es un almacén utilizable con los mismos datos.
+  const copied = [join(w.dir, 'out-ref', 'engram.db'), join(w.dir, 'out-odin', 'odin.db')].map((path) => {
+    const db = new DatabaseSync(path, { readOnly: true });
+    try {
+      return db.prepare('SELECT count(*) AS n FROM observations').get().n;
+    } finally {
+      db.close();
+    }
+  });
+  assert.equal(copied[0], copied[1]);
 });

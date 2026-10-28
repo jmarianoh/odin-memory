@@ -1,4 +1,7 @@
 import { readSync } from 'node:fs';
+import { fsErrorText } from '../runtime/fs-error.js';
+
+export { fsErrorText };
 
 /** Fin del programa con un código de salida; lo lanzan `fatal` y `exit` y lo captura `run`. */
 export class CliExit extends Error {
@@ -47,6 +50,7 @@ export function readLineSync(fd = 0) {
  * @property {() => string|null} readLine lee una línea de la entrada (`null` en EOF)
  * @property {(config: { dataDir: string }) => import('../store/store.js').Store} openStore
  * @property {object} [mcp] sobrescrituras del servidor MCP (pruebas): `input`, `output`, `graceMs`, `processRef`
+ * @property {{ resolveRunner?: Function, buildPrompt?: Function }} [llm] ejecutor semántico del escaneo (pruebas)
  * @property {object} [serve] sobrescrituras de `odin serve` (pruebas): `input`, `processRef`, `signal`, `graceMs`, `log`, `ready`
  */
 
@@ -128,27 +132,4 @@ export function parseInt64(text) {
 export function scanLeadingInt(text) {
   const match = /^\s*([+-]?\d+)/.exec(text);
   return match === null ? null : parseInt64(match[1]);
-}
-
-const ERRNO_TEXT = {
-  ENOENT: 'no such file or directory',
-  EACCES: 'permission denied',
-  EPERM: 'operation not permitted',
-  EISDIR: 'is a directory',
-  ENOTDIR: 'not a directory',
-  EEXIST: 'file exists',
-  ENOSPC: 'no space left on device',
-  EROFS: 'read-only file system',
-};
-
-/**
- * Texto de un error de archivo al estilo `<operación> <ruta>: <causa>`
- * (`open /x: no such file or directory`), igual en todas las plataformas.
- * @param {NodeJS.ErrnoException} err
- * @param {string} path
- * @returns {string}
- */
-export function fsErrorText(err, path) {
-  const reason = ERRNO_TEXT[err.code];
-  return reason === undefined ? err.message : `${err.syscall ?? 'open'} ${path}: ${reason}`;
 }

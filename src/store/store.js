@@ -52,6 +52,8 @@ export class Store {
     this.instanceId = instanceId;
     /** Identificador del proceso en ejecución; cambia en cada apertura. */
     this.runtimeId = randomBytes(16).toString('hex');
+    /** El almacén ya se cerró. */
+    this.closed = false;
   }
 
   /**
@@ -90,6 +92,7 @@ export class Store {
   }
 
   close() {
+    this.closed = true;
     this.db.close();
   }
 }

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { stats } from '../../store/index.js';
+import { activeCompatibility, stats } from '../../store/index.js';
 import { jsonMarshal } from '../../mcp/json.js';
 import { HttpError, sendJson } from '../http.js';
 import { projectOrThrow } from '../project.js';
@@ -60,6 +60,10 @@ export function runtimeContractProjection() {
   };
   const digest = createHash('sha256').update(jsonMarshal(contract)).digest('hex');
   return { ...contract, digest };
+}
+
+export function compatibilityRoute(ctx) {
+  sendJson(ctx.res, 200, activeCompatibility(ctx.store), { 'Cache-Control': 'no-store' });
 }
 
 export function runtimeContractRoute(ctx) {

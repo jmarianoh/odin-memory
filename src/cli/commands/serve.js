@@ -1,3 +1,4 @@
+import { buildStorePrompt, newRunner } from '../../llm/index.js';
 import { HttpServer } from '../../server/index.js';
 import { DatabaseGenerationChangedError } from '../../store/errors.js';
 import { goTrim } from '../../store/text.js';
@@ -115,6 +116,7 @@ export async function cmdServe(cli, config) {
     env: cli.env,
     cwd: cli.cwd,
     socketPath: options.socketPath,
+    llm: cli.llm ? { runnerFactory: cli.llm.resolveRunner, buildPrompt: cli.llm.buildPrompt } : { runnerFactory: (name) => newRunner(name, { env: cli.env }), buildPrompt: buildStorePrompt },
     sessionOwnedToken: options.sessionOwned ? cli.env.ODIN_TOKEN : '',
     log,
     onReady: options.sessionOwned
