@@ -1,15 +1,186 @@
 {
-  "version": "0.14.0",
+  "version": "0.15.0",
   "files": [
     {
       "path": "bin/odin.js",
-      "doc": "02-convenciones.md",
+      "doc": "15-cli/README.md",
       "phase": "F0",
       "tests": [
-        "test/unit/version.test.js"
+        "test/unit/version.test.js",
+        "test/unit/cli/dispatch.test.js"
       ],
-      "sha256": "1697fafc900717ec9e04cf35f110cafa0090eaa2d53913b12e7e0eebfe8535d6",
-      "docSha256": "9e4cf7e46f87f7c2d258fd6dc419f3eda907d9e20989adcb46f2a05dcd213451"
+      "sha256": "dd878277029875ddf169e45e60eb27bd66778991524332a485cc270b49f270c2",
+      "docSha256": "e8335ca4add849ff03689e22f40b9a625927b2ea0cdeeaaa726f158e6900a64c"
+    },
+    {
+      "path": "src/cli/commands/backup.js",
+      "doc": "15-cli/02-respaldo-e-init.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/backup.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "bd4aa53007f79b0ccdf5b55b45bff1ed98f9eefc725b06293b7778190ce61ef3",
+      "docSha256": "e0bbc96cbaf9e4260cbe8cbdecce864b90cea93ee4c3c0856b945a0b2545abf4"
+    },
+    {
+      "path": "src/cli/commands/context.js",
+      "doc": "15-cli/01-comandos-memoria.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/read.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "675ba812a0a59188e275271aba67e0a74ac37caf551d149951e26543ce8d1937",
+      "docSha256": "b72d34af7d96131db4d696720e4a9a96337bbd917bd42dd7dd85b2bf03fa4c8f"
+    },
+    {
+      "path": "src/cli/commands/delete.js",
+      "doc": "15-cli/01-comandos-memoria.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/write.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "e10b7fc95b5fc37c5111024f478053ae1b69b36cc049a3ed28dc003b37d1c692",
+      "docSha256": "b72d34af7d96131db4d696720e4a9a96337bbd917bd42dd7dd85b2bf03fa4c8f"
+    },
+    {
+      "path": "src/cli/commands/init.js",
+      "doc": "15-cli/02-respaldo-e-init.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/init.test.js"
+      ],
+      "sha256": "5dc1c4dc87f127c8ff2bbed6614de7d437d42099abf306597169db68e2c30bbf",
+      "docSha256": "e0bbc96cbaf9e4260cbe8cbdecce864b90cea93ee4c3c0856b945a0b2545abf4"
+    },
+    {
+      "path": "src/cli/commands/mcp.js",
+      "doc": "15-cli/04-mcp-y-uso.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/dispatch.test.js"
+      ],
+      "sha256": "4dd36ecbca7a6111a16f547b958c66da1e07cde39d469c0646c7600c09249f5d",
+      "docSha256": "3f60b6f7d7e73ead12c29afebc626fcafd6a6388bc80e2012e06e80a48ab1c41"
+    },
+    {
+      "path": "src/cli/commands/projects.js",
+      "doc": "15-cli/03-proyectos.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/projects.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "4ae9981a5808afcc6819429d7e6d9c48887ccc18c1af393d322ea198d49f780a",
+      "docSha256": "fb902b16443bab4257544ba806742282b236ed26e7d45aa9b159c1c4a1126683"
+    },
+    {
+      "path": "src/cli/commands/save.js",
+      "doc": "15-cli/01-comandos-memoria.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/write.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "e274d3457524ec26799cabcf6878b94bdab61e628739fc630dd3c3cbefcee1b0",
+      "docSha256": "b72d34af7d96131db4d696720e4a9a96337bbd917bd42dd7dd85b2bf03fa4c8f"
+    },
+    {
+      "path": "src/cli/commands/search.js",
+      "doc": "15-cli/01-comandos-memoria.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/read.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "69f7215fc57d9c3729fd6ce122bad2d5f6904f05f58bbabc1d0a4001436b3c62",
+      "docSha256": "b72d34af7d96131db4d696720e4a9a96337bbd917bd42dd7dd85b2bf03fa4c8f"
+    },
+    {
+      "path": "src/cli/commands/stats.js",
+      "doc": "15-cli/01-comandos-memoria.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/read.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "bfeadbb51201fb7d47cc74f8dc33f2a20dec2e5d6c956c2e7ac3b5953f4963ac",
+      "docSha256": "b72d34af7d96131db4d696720e4a9a96337bbd917bd42dd7dd85b2bf03fa4c8f"
+    },
+    {
+      "path": "src/cli/commands/timeline.js",
+      "doc": "15-cli/01-comandos-memoria.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/read.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "cc0029528343751ff8616455e6cc325421aa6b70205dda578b81b77532b6e40f",
+      "docSha256": "b72d34af7d96131db4d696720e4a9a96337bbd917bd42dd7dd85b2bf03fa4c8f"
+    },
+    {
+      "path": "src/cli/config.js",
+      "doc": "15-cli/README.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/dispatch.test.js"
+      ],
+      "sha256": "a85710a93c05b3bcadcb430c286911f2014eea32d357400a309aa11db6f364a9",
+      "docSha256": "e8335ca4add849ff03689e22f40b9a625927b2ea0cdeeaaa726f158e6900a64c"
+    },
+    {
+      "path": "src/cli/index.js",
+      "doc": "15-cli/README.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/dispatch.test.js"
+      ],
+      "sha256": "b0d1644a912c9483dfbaf425783a8f97eaeff15a474e894d5a33c3344bac4457",
+      "docSha256": "e8335ca4add849ff03689e22f40b9a625927b2ea0cdeeaaa726f158e6900a64c"
+    },
+    {
+      "path": "src/cli/init-config.js",
+      "doc": "15-cli/02-respaldo-e-init.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/init.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "5551aac465c191036ca206ad8eef4bac9bf0b1f3cdb56ab6e8af7bfb3c010efd",
+      "docSha256": "e0bbc96cbaf9e4260cbe8cbdecce864b90cea93ee4c3c0856b945a0b2545abf4"
+    },
+    {
+      "path": "src/cli/project.js",
+      "doc": "15-cli/README.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/read.test.js",
+        "test/unit/cli/details.test.js"
+      ],
+      "sha256": "332ff09db5697513cd88c5f3fd481cfc8d95a57935036dc9246dcd776135b67e",
+      "docSha256": "e8335ca4add849ff03689e22f40b9a625927b2ea0cdeeaaa726f158e6900a64c"
+    },
+    {
+      "path": "src/cli/runtime.js",
+      "doc": "15-cli/README.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/dispatch.test.js"
+      ],
+      "sha256": "cf18d5de2d78656f5ad05d6104923613b931310083749886a058b6c4fb2059ab",
+      "docSha256": "e8335ca4add849ff03689e22f40b9a625927b2ea0cdeeaaa726f158e6900a64c"
+    },
+    {
+      "path": "src/cli/usage.js",
+      "doc": "15-cli/04-mcp-y-uso.md",
+      "phase": "F4",
+      "tests": [
+        "test/unit/cli/dispatch.test.js"
+      ],
+      "sha256": "7b69b0e678783a289db6c71199fd906ffd745f8c91fab3b5b9f314d1b05fc9f0",
+      "docSha256": "3f60b6f7d7e73ead12c29afebc626fcafd6a6388bc80e2012e06e80a48ab1c41"
     },
     {
       "path": "src/hostbind/index.js",

@@ -199,8 +199,23 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-Las siguientes entregas de F4 (CLI y servidor HTTP) se detallan en sus capítulos al completarse.
+### F4.1 — CLI base (spec 0.15.0)
 
-## F4 (resto) · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/cli/{helpers,dispatch,read,write,backup,init,projects}.test.js`), la versión actualizada de `test/unit/version.test.js` y `src/cli/usage.js`.
+2. Crear, según `15-cli/`: `src/cli/runtime.js`, `config.js`, `project.js`, `init-config.js`, `index.js` y `src/cli/commands/{search,save,delete,timeline,context,stats,backup,init,mcp,projects}.js`; reemplazar `bin/odin.js` por el lanzador de `fuentes/bin/odin.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/cli/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Pruebas manuales: `ODIN_DATA_DIR=$(mktemp -d) node bin/odin.js save "Título" "Contenido" --project demo`, luego `search Contenido --project demo`, `stats --all`, `projects` y `context --all`.
+
+Las siguientes entregas de F4 (servidor HTTP, `conflicts`, `hook`, `migrate-copy`, `compatibility`, `instance-id`) se detallan en sus capítulos al completarse. `projects rescue-ownership` se entrega con el diario de sincronización (F5).
+
+## F4.2 y siguientes · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

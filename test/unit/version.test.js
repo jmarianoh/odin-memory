@@ -12,7 +12,7 @@ test('nodeIsSupported exige Node >= 24', () => {
 
 test('odin version imprime la versión del paquete', () => {
   const out = execFileSync(process.execPath, ['bin/odin.js', 'version'], { encoding: 'utf8' });
-  assert.equal(out.trim(), `odin-memory ${VERSION}`);
+  assert.equal(out.trim(), `odin ${VERSION}`);
 });
 
 test('odin con comando desconocido falla', () => {

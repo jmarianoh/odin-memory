@@ -1,0 +1,112 @@
+import { homedir } from 'node:os';
+import { Store } from '../store/store.js';
+import { VERSION } from '../version/index.js';
+import { cmdContext } from './commands/context.js';
+import { cmdDelete } from './commands/delete.js';
+import { EXPORT_HELP, IMPORT_HELP, cmdExport, cmdImport } from './commands/backup.js';
+import { cmdInit } from './commands/init.js';
+import { cmdMcp } from './commands/mcp.js';
+import { cmdProjects } from './commands/projects.js';
+import { cmdSave } from './commands/save.js';
+import { cmdSearch } from './commands/search.js';
+import { cmdStats } from './commands/stats.js';
+import { cmdTimeline } from './commands/timeline.js';
+import { resolveConfig } from './config.js';
+import { CliExit, fatal, println, readLineSync } from './runtime.js';
+import { usageText } from './usage.js';
+
+/** Comandos que usan el almacén: reciben la configuración ya resuelta. */
+const STORE_COMMANDS = {
+  mcp: cmdMcp,
+  search: cmdSearch,
+  save: cmdSave,
+  delete: cmdDelete,
+  timeline: cmdTimeline,
+  context: cmdContext,
+  stats: cmdStats,
+  export: cmdExport,
+  import: cmdImport,
+  projects: cmdProjects,
+};
+
+/**
+ * Contexto real del proceso, con sobrescrituras para pruebas.
+ * @param {string[]} args
+ * @param {Partial<import('./runtime.js').Cli>} [overrides]
+ * @returns {import('./runtime.js').Cli}
+ */
+export function createCli(args, overrides = {}) {
+  return {
+    args,
+    env: process.env,
+    cwd: () => process.cwd(),
+    out: (text) => process.stdout.write(text),
+    err: (text) => process.stderr.write(text),
+    readLine: () => readLineSync(),
+    openStore: (config) => Store.open(config),
+    home: homedir,
+    ...overrides,
+  };
+}
+
+/**
+ * Despacha un comando. Devuelve el código de salida; no llama a `process.exit`.
+ * @param {string[]} args argumentos tras el nombre del programa
+ * @param {Partial<import('./runtime.js').Cli>} [overrides] E/S y entorno (pruebas)
+ * @returns {Promise<number>}
+ */
+export async function run(args, overrides = {}) {
+  const cli = createCli(args, overrides);
+  try {
+    await dispatch(cli);
+    return 0;
+  } catch (err) {
+    if (err instanceof CliExit) return err.code;
+    throw err;
+  }
+}
+
+async function dispatch(cli) {
+  const [command] = cli.args;
+  if (command === undefined) {
+    cli.out(usageText());
+    throw new CliExit(1);
+  }
+
+  // La ayuda de exportar e importar no resuelve configuración ni abre el almacén.
+  if ((command === 'export' || command === 'import') && cli.args.slice(1).includes('--help')) {
+    println(cli, command === 'export' ? EXPORT_HELP : IMPORT_HELP);
+    return;
+  }
+
+  switch (command.toLowerCase().trim()) {
+    case 'version':
+    case '--version':
+    case '-v':
+      println(cli, `odin ${VERSION}`);
+      return;
+    case 'help':
+    case '--help':
+    case '-h':
+      cli.out(usageText());
+      return;
+    case 'init':
+      cmdInit(cli);
+      return;
+    default:
+  }
+
+  const handler = STORE_COMMANDS[command];
+  if (handler === undefined || !Object.hasOwn(STORE_COMMANDS, command)) {
+    cli.err(`unknown command: ${command}\n\n`);
+    cli.out(usageText());
+    throw new CliExit(1);
+  }
+  let config;
+  try {
+    config = resolveConfig(cli.env, cli.home);
+  } catch (err) {
+    return fatal(cli, err);
+  }
+  await handler(cli, config);
+}
