@@ -125,6 +125,19 @@ npm run check:clean-room
 
 Con F1.8 queda completo el store (capítulos `10-store/01` a `08`).
 
-## F2 — Proyecto · F3 — MCP · F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+## F2 — Proyecto (spec 0.10.0)
+
+1. Copiar de `fuentes/` los tests nuevos (`test/unit/project/{helpers,detect,resolution,inspect}.test.js`; `helpers.js` no es un test).
+2. Crear, según `11-proyecto.md`: `src/project/{errors,identity,detect,resolution,inspect,similar,routing-candidate,index}.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/project/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+## F3 — MCP · F4 — CLI y HTTP · F5 — Git Sync · F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

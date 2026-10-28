@@ -1,5 +1,5 @@
 {
-  "version": "0.9.0",
+  "version": "0.10.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -20,6 +20,86 @@
       ],
       "sha256": "9014b4fb5562cd2b7643cf8873502da09739a6a5e99f9426fc68bc80d92d8966",
       "docSha256": "0d6e3c84caf8aefad1376fc40e95ce22eb1631192052fd397c48c5a7a18ce6d5"
+    },
+    {
+      "path": "src/project/detect.js",
+      "doc": "11-proyecto.md",
+      "phase": "F2",
+      "tests": [
+        "test/unit/project/detect.test.js"
+      ],
+      "sha256": "680bc262faceaa5236f3da7119d82fe51c2ab1280aab2b74822bc20f0bcc0856",
+      "docSha256": "d1929d82dadfd5ceba8a68cae30bfb9bb500bcff64836220e81cbcca68ba9904"
+    },
+    {
+      "path": "src/project/errors.js",
+      "doc": "11-proyecto.md",
+      "phase": "F2",
+      "tests": [
+        "test/unit/project/detect.test.js"
+      ],
+      "sha256": "9fef37ac7d5edeaf531ba8515cf0ce881dfc22d69794703c0db05ef8ed36ef0b",
+      "docSha256": "d1929d82dadfd5ceba8a68cae30bfb9bb500bcff64836220e81cbcca68ba9904"
+    },
+    {
+      "path": "src/project/identity.js",
+      "doc": "11-proyecto.md",
+      "phase": "F2",
+      "tests": [
+        "test/unit/project/detect.test.js"
+      ],
+      "sha256": "7ca0f831d52948770f00fb883953b6380bf60ecaa3337bb3ec5e549bb32d5a14",
+      "docSha256": "d1929d82dadfd5ceba8a68cae30bfb9bb500bcff64836220e81cbcca68ba9904"
+    },
+    {
+      "path": "src/project/index.js",
+      "doc": "11-proyecto.md",
+      "phase": "F2",
+      "tests": [
+        "test/unit/project/detect.test.js"
+      ],
+      "sha256": "0f80bb2e9738f72ac42e1e6a819bcada0179ed75b4f8e9b3822033a735afce6a",
+      "docSha256": "d1929d82dadfd5ceba8a68cae30bfb9bb500bcff64836220e81cbcca68ba9904"
+    },
+    {
+      "path": "src/project/inspect.js",
+      "doc": "11-proyecto.md",
+      "phase": "F2",
+      "tests": [
+        "test/unit/project/inspect.test.js"
+      ],
+      "sha256": "15cbe61b966b5fbbe2f2ddd771e5ad06b565a407511ba138f6a319c220bbe7ac",
+      "docSha256": "d1929d82dadfd5ceba8a68cae30bfb9bb500bcff64836220e81cbcca68ba9904"
+    },
+    {
+      "path": "src/project/resolution.js",
+      "doc": "11-proyecto.md",
+      "phase": "F2",
+      "tests": [
+        "test/unit/project/resolution.test.js"
+      ],
+      "sha256": "025bc89b5c3c80c4f8fac9e1df59bb6a1e009a805dc86175833e42ce9ee4e76d",
+      "docSha256": "d1929d82dadfd5ceba8a68cae30bfb9bb500bcff64836220e81cbcca68ba9904"
+    },
+    {
+      "path": "src/project/routing-candidate.js",
+      "doc": "11-proyecto.md",
+      "phase": "F2",
+      "tests": [
+        "test/unit/project/resolution.test.js"
+      ],
+      "sha256": "81be8fb81b1ca4df5d16f99e5be235b5988d380358869a1901a8e5897be08413",
+      "docSha256": "d1929d82dadfd5ceba8a68cae30bfb9bb500bcff64836220e81cbcca68ba9904"
+    },
+    {
+      "path": "src/project/similar.js",
+      "doc": "11-proyecto.md",
+      "phase": "F2",
+      "tests": [
+        "test/unit/project/resolution.test.js"
+      ],
+      "sha256": "bdbe87bd70b8489eca46d8af1e31e0b935c84aa57e50684f42decb4b94aa7494",
+      "docSha256": "d1929d82dadfd5ceba8a68cae30bfb9bb500bcff64836220e81cbcca68ba9904"
     },
     {
       "path": "src/project/worktree.js",
