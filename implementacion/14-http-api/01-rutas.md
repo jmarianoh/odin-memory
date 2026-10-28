@@ -21,7 +21,7 @@ Las rutas con **id** forman el *contrato de runtime* (`GET /runtime-contract`); 
 * `supporting_routes`: `runtime-session-resolve`, `runtime-session-end`, `prompt-capture-decision`, `compaction-context`.
 * `digest`: SHA-256 (hex) del JSON compacto del contrato **sin** `digest` (claves en orden alfabético, escapes HTML), serializado con `jsonMarshal`.
 * `configured_auth` se emite (`true`) para las rutas con `auth`; se omite en las demás.
-* Las operaciones cuyos enlaces apuntan a rutas aún no registradas (`mem_doctor`) conservan solo los enlaces existentes.
+* Las operaciones cuyos enlaces apuntan a rutas no registradas conservan solo los enlaces existentes. `mem_doctor` enlaza `doctor` y `caller-binding`.
 
 ## Sesiones
 
@@ -101,6 +101,13 @@ Las rutas con **id** forman el *contrato de runtime* (`GET /runtime-contract`); 
 | `POST /conflicts/deferred/replay` | Reintenta las relaciones diferidas. `200 {"retried","succeeded","failed","dead"}`. Detalle en `../16-git-sync.md` |
 | `POST /projects/rescue-ownership` (`configured`) y su alias `POST /projects/migrate` | Asigna un proyecto a registros sin dueño. Exige token configurado (`503 server authorization is not configured` si no hay). Cuerpo ≤ 8 KiB: `{"target_project","confirmed":true,"session_ids"?,"observation_ids"?,"prompt_ids"?}`. Errores `400`: `invalid JSON`, `target_project is required`, `confirmed must be true`, `invalid ownership rescue request: provide a target project and at least one positive record ID or non-blank session ID`. `200 {"status":"rescued"\|"partially_rescued","complete","blocked","target_project","rescued_observations","rescued_sessions","rescued_prompts","conflicting_records","skipped_records","journaled_local","reconciliation_status"}`; avisa de escritura solo si algo cambió |
 
+## Diagnóstico (F6.1)
+
+| Ruta (id) | Detalle |
+|---|---|
+| `GET /doctor` (`doctor`) | `?project=` (el proyecto se resuelve sin crear el vínculo del repositorio y debe existir si es explícito), `?all_projects=`, `?cwd=`, `?check=CODE`. Siempre `200` con el informe; un `check` desconocido o un fallo interno devuelven el informe de error (`status: "error"`, `check_id: "invalid_check"` o `"diagnostic_error"`). Detalle en `../18-doctor.md` |
+| `POST /doctor/caller-binding` (`caller-binding`) | Lectura por POST para que las identidades no viajen en la URL. Cuerpo ≤ 16 KiB: exactamente un objeto `{"project","runtime_session_id","effective_session_id","host_context":{"append_entry_available","branch_available"}}`; claves sin distinguir mayúsculas, campos desconocidos y tipos erróneos (también `null` o un arreglo como cuerpo) son `400 {"error":"invalid caller-binding request"}`. `200` con la evaluación |
+
 ## Fuera de esta entrega
 
-`GET /doctor` y `POST /doctor/caller-binding` (F6).
+Ninguna ruta pendiente en esta versión.

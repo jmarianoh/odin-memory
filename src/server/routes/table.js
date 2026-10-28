@@ -10,6 +10,7 @@ import {
 import {
   compareRoute, conflictStatsRoute, consolidateRoute, getConflictRoute, judgeManyRoute, judgeRoute, listConflictsRoute, listDeferredRoute, scanConflictsRoute,
 } from './workflows.js';
+import { callerBindingRoute, doctorRoute } from './doctor.js';
 import { replayDeferredRoute, rescueOwnershipRoute } from './maintenance.js';
 import { compatibilityRoute, healthRoute, runtimeContractRoute, syncStatusRoute } from './system.js';
 
@@ -47,6 +48,8 @@ export const ROUTES = [
   { id: 'compaction-context', pattern: 'GET /context/compaction', handler: compactionContextRoute },
   { id: 'stats', pattern: 'GET /stats', handler: statsRoute },
   { id: 'projects', pattern: 'GET /projects', handler: listProjectsRoute },
+  { id: 'doctor', pattern: 'GET /doctor', handler: doctorRoute },
+  { id: 'caller-binding', pattern: 'POST /doctor/caller-binding', handler: callerBindingRoute },
   { id: 'current-project', pattern: 'GET /project/current', handler: currentProjectRoute },
   { id: 'conflict-judge', pattern: 'POST /conflicts/judge', handler: judgeRoute },
   { id: 'conflict-compare', pattern: 'POST /conflicts/compare', handler: compareRoute },

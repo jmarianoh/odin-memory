@@ -4,6 +4,7 @@ import { McpServer } from './protocol.js';
 import { buildServerInstructions, shouldRegister } from './profiles.js';
 import { TOOL_DEFINITIONS } from './tool-definitions.js';
 import { contextTool } from './tools/context.js';
+import { doctorTool } from './tools/doctor.js';
 import { currentProject, listProjects, statsTool, suggestTopicKeyTool } from './tools/projects.js';
 import { getObservationTool, searchPromptsTool, searchTool, timelineTool } from './tools/search.js';
 import { compareTool, consolidateTool, judgeManyTool, judgeTool, mergeProjectsTool, sessionFinalizeTool } from './tools/curation.js';
@@ -35,6 +36,7 @@ export function buildHandlers(ctx) {
     mem_list_projects: listProjects(ctx),
     mem_suggest_topic_key: suggestTopicKeyTool(),
     mem_stats: statsTool(ctx),
+    mem_doctor: doctorTool(ctx),
     mem_context: contextTool(ctx),
     mem_search: searchTool(ctx),
     mem_search_prompts: searchPromptsTool(ctx),

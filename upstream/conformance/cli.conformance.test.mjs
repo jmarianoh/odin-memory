@@ -43,8 +43,18 @@ const MASKS = [
 ];
 
 /** Enmascara lo que difiere por construcción: identidad, rutas, fechas e identificadores. */
+/** La referencia ordena los proyectos con el mismo número de observaciones en un orden arbitrario (recorre un mapa). */
+function sortProjectListing(text) {
+  const match = /^(Projects \(\d+\):\n)((?:  .*\n)+)$/.exec(text);
+  if (!match) return text;
+  const lines = match[2].split('\n').filter(Boolean);
+  const count = (line) => Number(/(\d+) obs/.exec(line)?.[1] ?? 0);
+  lines.sort((a, b) => count(b) - count(a) || (a < b ? -1 : a > b ? 1 : 0));
+  return `${match[1]}${lines.join('\n')}\n`;
+}
+
 function mask(text, world) {
-  let out = String(text ?? '');
+  let out = sortProjectListing(String(text ?? ''));
   for (const dir of [world.refDir, world.odinDir]) out = out.split(dir).join('<DATA>');
   for (const dir of [join(world.dir, 'out-ref'), join(world.dir, 'out-odin')]) out = out.split(dir).join('<OUT>');
   out = out.split(world.repo).join('<REPO>');
@@ -357,7 +367,7 @@ test('mcp: arranca por stdio con --tools y --project', { skip }, async () => {
   const odin = startMcpCommand(process.execPath, ['--no-warnings', ODIN_BIN, 'mcp', '--tools=agent', '--project', 'fijo'], { cwd: w.repo, dataDir: w.odinDir, env: { ODIN_DATA_DIR: w.odinDir } });
   closers.push(() => ref.close(), () => odin.close());
   const [refTools, odinTools] = await Promise.all([ref.listTools(), odin.listTools()]);
-  assert.deepEqual(odinTools.map((t) => t.name), refTools.map((t) => t.name).filter((name) => name !== 'mem_doctor')); // mem_doctor llega con el diagnóstico
+  assert.deepEqual(odinTools.map((t) => t.name), refTools.map((t) => t.name));
   const [a, b] = await Promise.all([ref.call('mem_current_project', {}), odin.call('mem_current_project', {})]);
   assert.equal(b.isError, a.isError);
   assert.equal(b.json.project, a.json.project);

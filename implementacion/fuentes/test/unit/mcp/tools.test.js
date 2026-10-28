@@ -29,7 +29,7 @@ function setup(t, { allowlist = null, config = {} } = {}) {
   return { store, server, run };
 }
 
-test('el servidor se presenta con su nombre, versión y las herramientas registradas (todas menos mem_doctor)', async (t) => {
+test('el servidor se presenta con su nombre, versión y las herramientas registradas', async (t) => {
   const { server } = setup(t);
   const init = await server.handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } });
   assert.equal(init.result.serverInfo.name, SERVER_NAME);
@@ -41,10 +41,24 @@ test('el servidor se presenta con su nombre, versión y las herramientas registr
     // escritura
     'mem_capture_passive', 'mem_delete', 'mem_pin', 'mem_review', 'mem_save', 'mem_save_prompt', 'mem_session_end', 'mem_session_start', 'mem_session_summary', 'mem_unpin',
     'mem_update',
-    // curación (mem_doctor se registra con el diagnóstico)
-    'mem_compare', 'mem_consolidate', 'mem_judge', 'mem_judge_many', 'mem_merge_projects', 'mem_session_finalize',
+    // curación y diagnóstico
+    'mem_compare', 'mem_consolidate', 'mem_doctor', 'mem_judge', 'mem_judge_many', 'mem_merge_projects', 'mem_session_finalize',
   ].sort());
   assert.ok(list.result.tools.filter((x) => x.defer_loading).length > 0);
+});
+
+test('mem_doctor devuelve el informe y marca el error del diagnóstico', async (t) => {
+  const { run } = setup(t);
+  const ok = await run('mem_doctor');
+  assert.equal(ok.isError, false);
+  assert.deepEqual([ok.json.status, ok.json.project, ok.json.summary.total], ['ok', 'alfa', 10]);
+  const one = await run('mem_doctor', { check: 'unowned_session_project' });
+  assert.deepEqual(one.json.checks.map((c) => c.check_id), ['unowned_session_project']);
+  const invalid = await run('mem_doctor', { check: 'nada' });
+  assert.equal(invalid.isError, true);
+  assert.equal(invalid.json.checks[0].check_id, 'invalid_check');
+  const unknown = await run('mem_doctor', { project: 'no-existe' });
+  assert.equal(unknown.isError, true);
 });
 
 test('la lista permitida limita las herramientas expuestas', async (t) => {

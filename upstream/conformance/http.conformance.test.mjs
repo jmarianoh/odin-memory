@@ -751,3 +751,37 @@ test('rescate de propiedad y reintento de diferidos por HTTP', { skip }, async (
     w.close();
   }
 });
+
+test('doctor y vínculo del llamador por HTTP', { skip }, async () => {
+  const w = await newWorld('doctor-http');
+  try {
+    await seed(w);
+    const wal = (value) => JSON.parse(JSON.stringify(value).replace(/"checkpoint_(log|busy)":\d+/g, '"checkpoint_$1":0').replace(/"checkpointed_frames":\d+/g, '"checkpointed_frames":0'));
+    await w.same('GET', '/doctor', undefined, { normalize: wal });
+    await w.same('GET', '/doctor?project=demo', undefined, { normalize: wal });
+    await w.same('GET', '/doctor?project=nada');
+    await w.same('GET', '/doctor?project=%20');
+    await w.same('GET', '/doctor?check=unowned_session_project');
+    await w.same('GET', '/doctor?check=nada');
+    await w.same('GET', '/doctor?all_projects=true&check=unowned_session_project');
+    await w.same('POST', '/doctor');
+    const ok = { project: 'demo', runtime_session_id: 's1', effective_session_id: 's1', host_context: { append_entry_available: true, branch_available: true } };
+    await w.same('POST', '/doctor/caller-binding', ok);
+    await w.same('POST', '/doctor/caller-binding', { ...ok, runtime_session_id: 'nada', effective_session_id: 'nada' });
+    await w.same('POST', '/doctor/caller-binding', { ...ok, effective_session_id: 's1:resume:2' });
+    await w.same('POST', '/doctor/caller-binding', { ...ok, effective_session_id: 's1:resume:1' });
+    await w.same('POST', '/doctor/caller-binding', { ...ok, project: 'otro' });
+    await w.same('POST', '/doctor/caller-binding', { ...ok, host_context: { append_entry_available: true, branch_available: null } });
+    await w.same('POST', '/doctor/caller-binding', { ...ok, host_context: undefined });
+    await w.same('POST', '/doctor/caller-binding', { project: 'demo' });
+    await w.same('POST', '/doctor/caller-binding', {});
+    for (const bad of ['', 'no json', 'null', '[]', '{"extra":1}', '{"project":1}', '{"host_context":{"x":1}}', '{"host_context":5}', '{}{}', '{} x', '{"Project":"demo","RUNTIME_SESSION_ID":"s1","effective_session_id":"s1"}']) {
+      await w.same('POST', '/doctor/caller-binding', bad);
+    }
+    await w.same('GET', '/doctor/caller-binding');
+    const { ref, odin } = await w.same('GET', '/runtime-contract', undefined, { ignore: ['instance_id', 'contract_id', 'status', 'digest'] });
+    assert.deepEqual(odin.json.operations.mem_doctor, ref.json.operations.mem_doctor);
+  } finally {
+    w.close();
+  }
+});

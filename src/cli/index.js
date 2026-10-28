@@ -5,6 +5,7 @@ import { cmdInstanceId, runCompatibility, runMigrateCopy } from './commands/admi
 import { cmdConflicts } from './commands/conflicts.js';
 import { cmdContext } from './commands/context.js';
 import { cmdDelete } from './commands/delete.js';
+import { cmdDoctor } from './commands/doctor.js';
 import { EXPORT_HELP, IMPORT_HELP, cmdExport, cmdImport } from './commands/backup.js';
 import { cmdInit } from './commands/init.js';
 import { cmdMcp } from './commands/mcp.js';
@@ -35,6 +36,7 @@ const STORE_COMMANDS = {
   import: cmdImport,
   projects: cmdProjects,
   sync: cmdSync,
+  doctor: cmdDoctor,
 };
 
 /**

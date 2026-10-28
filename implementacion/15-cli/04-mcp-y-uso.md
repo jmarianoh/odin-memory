@@ -17,7 +17,7 @@ odin mcp [--tools=PROFILE] [--project NAME]
 
 `cmdMcp`: un fallo de análisis es `fatal` **antes de abrir el almacén**. Abre el almacén y construye el servidor con `createServer(store, { defaultProject, version: VERSION }, resolveTools(toolsFilter), { env, cwd })`; `await runMcp(server, cli.mcp ?? {})` (ciclo de vida en `12-mcp/05-herramientas-curacion.md`: EOF con gracia, SIGINT/SIGTERM). Un error es `fatal`; el almacén se cierra siempre. La salida estándar queda reservada al protocolo: el comando no escribe nada en ella.
 
-Mientras no se registre `mem_doctor` (F6), `tools/list` devuelve 22 herramientas aunque los perfiles declaren 23 `agent` y 27 `all`.
+`tools/list` devuelve 23 herramientas con `--tools=agent` (con `mem_doctor`) y 27 con `--tools=all`.
 
 ## `version`
 

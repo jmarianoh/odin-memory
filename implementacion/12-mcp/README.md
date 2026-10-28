@@ -6,7 +6,7 @@ El servidor MCP expone la memoria al agente como herramientas `mem_*` sobre el p
 |---|---|---|
 | F3.1 (spec 0.11.0) | `01-protocolo-y-servidor.md`, `02-herramientas-lectura.md` | Protocolo, perfiles, instrucciones, actividad de sesión, envelope de proyecto y errores; herramientas de lectura |
 | F3.2 (spec 0.12.0) | `03-herramientas-escritura.md`, `04-vinculo-anfitrion.md` | Herramientas de escritura, resolución del proyecto de escritura, cola serializada y vínculo con el anfitrión |
-| F3.3 (spec 0.13.0) | `05-herramientas-curacion.md` | Juicios, comparación, fusión de proyectos, consolidación, finalización de sesión y ciclo de vida del proceso (`mem_doctor` llega con el diagnóstico, F6) |
+| F3.3 (spec 0.13.0) | `05-herramientas-curacion.md` | Juicios, comparación, fusión de proyectos, consolidación, finalización de sesión y ciclo de vida del proceso (`mem_doctor` llega con el diagnóstico, F6.1, spec 0.19.0) |
 
 ## Decisión de diseño: protocolo propio, sin SDK
 

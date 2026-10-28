@@ -4,7 +4,7 @@ import { goTrim } from './text.js';
 /** Destino de sincronización por defecto (el servidor remoto). */
 export const DEFAULT_SYNC_TARGET_KEY = 'cloud';
 /** Destino reservado de la bandeja de entrada de prompts. */
-export const SYNC_INBOX_TARGET_KEY = 'cloud-inbox';
+export const SYNC_INBOX_TARGET_KEY = 'cloud:inbox';
 
 export const SYNC_LIFECYCLE = Object.freeze({ idle: 'idle', pending: 'pending', running: 'running', healthy: 'healthy', degraded: 'degraded', inbox: 'inbox' });
 

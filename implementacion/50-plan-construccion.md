@@ -264,6 +264,22 @@ npm run check:clean-room
 
 Pruebas manuales: en un repositorio con memorias, `node bin/odin.js sync`, `git add .odin-memory`, y en otro almacén (otro `ODIN_DATA_DIR`) `node bin/odin.js sync --import` y `sync --status`.
 
-## F6 — Doctor, self-tests, LLM · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
+### F6.1 — Diagnóstico de solo lectura (spec 0.19.0)
+
+1. Copiar de `fuentes/` los tests nuevos y modificados (`test/unit/store/{diagnostic,ownership-backfill}.test.js`, `test/unit/diagnostic/*.test.js`, `test/unit/cli/{doctor,dispatch}.test.js`, `test/unit/server/doctor.test.js`, `test/unit/mcp/tools.test.js`) y `src/cli/usage.js`.
+2. Crear, según `18-doctor.md`: `src/store/diagnostic.js`; `src/diagnostic/{core,registry,evidence,checks,caller-binding,repair-codes,index}.js`; `src/cli/commands/doctor.js`; `src/server/routes/doctor.js`; `src/mcp/tools/doctor.js`.
+3. Modificar: `src/store/migrate.js` (relleno de modos de propiedad), `src/store/sync-state.js` (`cloud:inbox`), `src/cli/index.js`, `src/server/routes/table.js`, `src/mcp/server.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/diagnostic/*.test.js" "test/unit/store/*.test.js" "test/unit/cli/*.test.js" "test/unit/server/*.test.js" "test/unit/mcp/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Pruebas manuales: `node bin/odin.js doctor`, `doctor --json --project demo`, `doctor --check unowned_session_project`, `doctor --help`; con `serve`, `curl localhost:7438/doctor`.
+
+## F6.2 y siguientes — reparación, self-tests, versión · F7 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

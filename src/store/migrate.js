@@ -1,3 +1,4 @@
+import { normalizeProject } from '../project/canonical.js';
 import {
   DEFAULT_SYNC_TARGET_KEY,
   OBSERVATIONS_FTS_COLUMNS,
@@ -143,6 +144,7 @@ export function migrate(db) {
   for (const { table, column, definition } of COLUMN_MIGRATIONS) {
     addColumnIfNotExists(db, table, column, definition);
   }
+  backfillLegacySessionOwnershipModes(db);
   migrateFts(db);
   db.run(
     "INSERT OR IGNORE INTO sync_state (target_key, lifecycle, updated_at) VALUES (?, ?, datetime('now'))",
@@ -164,6 +166,33 @@ export function migrate(db) {
     SYNC_INBOX_TARGET_KEY,
     SYNC_LIFECYCLE_INBOX,
   );
+}
+
+const MANUAL_SESSION_ID_PREFIX = 'manual-save-';
+
+/** ¿El ID `manual-save-<x>` nombra al proyecto? Ambos lados se canonicalizan. */
+export function manualSaveOwnerProject(id, project) {
+  if (!id.startsWith(MANUAL_SESSION_ID_PREFIX)) return false;
+  const canonicalProject = normalizeProject(project).normalized;
+  if (canonicalProject === '') return false;
+  return normalizeProject(id.slice(MANUAL_SESSION_ID_PREFIX.length)).normalized === canonicalProject;
+}
+
+/**
+ * Clasifica las filas anteriores a la columna de propiedad. Solo una identidad persistida que
+ * demuestre un dueño de guardado manual determinista queda como `project_owned`; nunca se
+ * infiere la propiedad solo por el ID. Ambas fases son idempotentes (dependen de un modo NULL).
+ * @param {import('./db.js').Database} db
+ */
+export function backfillLegacySessionOwnershipModes(db) {
+  db.run(
+    `UPDATE sessions SET ownership_mode = 'shared'
+     WHERE ownership_mode IS NULL AND id NOT LIKE 'manual-save-%' AND ifnull(trim(project), '') <> ''`,
+  );
+  const rows = db.all("SELECT id, ifnull(project, '') AS project FROM sessions WHERE ownership_mode IS NULL AND ifnull(trim(project), '') <> ''");
+  for (const row of rows) {
+    if (manualSaveOwnerProject(row.id, row.project)) db.run("UPDATE sessions SET ownership_mode = 'project_owned' WHERE id = ? AND ownership_mode IS NULL", row.id);
+  }
 }
 
 /** @param {import('./db.js').Database} db */

@@ -125,7 +125,7 @@ test('mcp atiende el protocolo por stdio con el perfil y el proyecto indicados',
   assert.equal(byId.get(1).result.serverInfo.name, 'odin-memory');
   assert.equal(byId.get(1).result.serverInfo.version, VERSION);
   const names = byId.get(2).result.tools.map((tool) => tool.name);
-  assert.equal(names.length, 22); // el perfil declara 23; mem_doctor se registra con el diagnóstico
+  assert.equal(names.length, 23);
   assert.ok(names.includes('mem_save') && !names.includes('mem_delete'));
   assert.equal(JSON.parse(byId.get(3).result.content[0].text).project, 'fijo');
   assert.equal(out, '');

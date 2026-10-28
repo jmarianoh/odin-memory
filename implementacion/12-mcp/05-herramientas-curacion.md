@@ -2,7 +2,7 @@
 
 Módulos: `src/mcp/tools/curation.js`, `src/mcp/run.js`, ampliación de `src/mcp/protocol.js` (`serve` con `signal`) y `src/mcp/serialize.js` (`observationJson`).
 
-Herramientas: `mem_judge`, `mem_judge_many`, `mem_compare`, `mem_merge_projects`, `mem_consolidate`, `mem_session_finalize`. Con ellas están registradas **todas** las herramientas del catálogo salvo `mem_doctor`, que se registra cuando exista el diagnóstico (F6); mientras tanto `createServer` la omite aunque la lista permitida la nombre.
+Herramientas: `mem_judge`, `mem_judge_many`, `mem_compare`, `mem_merge_projects`, `mem_consolidate`, `mem_session_finalize`. Con ellas, y con `mem_doctor` (`../18-doctor.md`, entrega F6.1), están registradas **todas** las herramientas del catálogo.
 
 Pasan por la cola de escritura: `mem_judge`, `mem_judge_many`, `mem_merge_projects`, `mem_consolidate`, `mem_session_finalize`. **No** pasa `mem_compare`.
 

@@ -83,10 +83,12 @@ Módulos: `src/store/{errors,schema,data-dir,instance-id,generation,db,migrate,s
 - `migrate(db)` (dentro de una transacción), en este orden:
   1. `db.exec(TABLES_AND_INDEXES)`.
   2. `COLUMN_MIGRATIONS`.
-  3. `migrateFts(db)`.
-  4. `INSERT OR IGNORE INTO sync_state (target_key, lifecycle, updated_at) VALUES ('cloud', 'idle', datetime('now'))`.
-  5. Lo mismo para `('cloud:inbox', 'inbox')`.
-  6. `UPDATE sync_state SET lifecycle='inbox', last_enqueued_seq=0, last_acked_seq=0, last_pulled_seq=0 WHERE target_key='cloud:inbox' AND (lifecycle <> 'inbox' OR last_enqueued_seq <> 0 OR last_acked_seq <> 0 OR last_pulled_seq <> 0)`.
+  3. `backfillLegacySessionOwnershipModes(db)` (abajo).
+  4. `migrateFts(db)`.
+  5. `INSERT OR IGNORE INTO sync_state (target_key, lifecycle, updated_at) VALUES ('cloud', 'idle', datetime('now'))`.
+  6. Lo mismo para `('cloud:inbox', 'inbox')`.
+  7. `UPDATE sync_state SET lifecycle='inbox', last_enqueued_seq=0, last_acked_seq=0, last_pulled_seq=0 WHERE target_key='cloud:inbox' AND (lifecycle <> 'inbox' OR last_enqueued_seq <> 0 OR last_acked_seq <> 0 OR last_pulled_seq <> 0)`.
+- `backfillLegacySessionOwnershipModes(db)`: clasifica las sesiones que tienen `ownership_mode` NULL. Primero, en una sola sentencia, `UPDATE sessions SET ownership_mode = 'shared' WHERE ownership_mode IS NULL AND id NOT LIKE 'manual-save-%' AND ifnull(trim(project), '') <> ''` (el `LIKE` de SQLite no distingue mayúsculas: `MANUAL-SAVE-x` cuenta como guardado manual). Después recorre las que siguen en NULL con proyecto y marca `project_owned` solo las que cumplen `manualSaveOwnerProject(id, project)`: el ID empieza exactamente por `manual-save-` y su sufijo, normalizado, es el proyecto normalizado (`manual-save-Mi--Proyecto` pertenece a `mi-proyecto`). El resto queda en NULL: **nunca se infiere la propiedad solo por el ID**. Es idempotente.
 - `migrateFts(db)`: para cada tabla FTS decide si hay que reconstruir.
   - Tabla correcta (`ftsTableMatches`): existe en `sqlite_master`; sus columnas visibles (`SELECT name FROM pragma_table_xinfo(?) WHERE hidden = 0 ORDER BY cid`) son exactamente las esperadas en orden; y su DDL, sin espacios y en minúsculas, contiene `createvirtualtable<tabla>usingfts5(`, `tokenize='trigram'`, `content='<tabla de contenido>'` y `content_rowid='id'`.
   - Triggers correctos (`ftsTriggersMatch`): cada trigger existe y su DDL normalizado contiene los fragmentos indicados en el código de referencia de `migrate.js`:
