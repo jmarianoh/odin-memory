@@ -1,0 +1,19 @@
+{
+  "name": "odin-memory",
+  "version": "0.1.0",
+  "description": "Memoria persistente para GitHub Copilot: SQLite + FTS5, MCP, CLI y API HTTP local.",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "bin": {
+    "odin": "bin/odin.js"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "check:implementacion": "node scripts/check-implementacion.mjs",
+    "check:clean-room": "node scripts/check-clean-room.mjs"
+  }
+}

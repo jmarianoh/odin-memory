@@ -1,0 +1,5 @@
+# Una expresión regular (sin distinguir mayúsculas) por línea.
+# La zona Producto no puede contener ninguna coincidencia.
+engram
+gentleman
+buscaglia

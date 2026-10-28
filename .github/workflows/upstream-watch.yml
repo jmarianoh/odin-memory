@@ -1,0 +1,42 @@
+name: upstream-watch
+
+on:
+  schedule:
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Gentleman-Programming/engram
+          path: engram-src
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: engram-src/go.mod
+      - name: Guardia de sala limpia (zona Producto)
+        run: npm run check:clean-room
+      - name: Comparar con la versión fijada
+        id: check
+        run: |
+          set +e
+          node upstream/scripts/upstream-check.mjs --engram engram-src --to origin/main
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+      - name: Abrir issue con el reporte
+        if: steps.check.outputs.code == '3'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          report=$(ls -t upstream/reports/*.md | head -1)
+          gh issue create --title "Upstream: cambios por portar ($(date +%F))" --body-file "$report"

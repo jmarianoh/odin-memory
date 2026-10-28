@@ -1,0 +1,25 @@
+{
+  "version": "0.1.0",
+  "files": [
+    {
+      "path": "bin/odin.js",
+      "doc": "02-convenciones.md",
+      "phase": "F0",
+      "tests": [
+        "test/unit/version.test.js"
+      ],
+      "sha256": "4f36b1a2cd0c1916c7b963d7f5b115e8f6a1db24ebaff4b63f2fc1753d077b14",
+      "docSha256": "64467449bedc119f04b48858a575ae27a353be53bb224bb445130a74e13b22c4"
+    },
+    {
+      "path": "src/version/index.js",
+      "doc": "03-entorno-dependencias.md",
+      "phase": "F0",
+      "tests": [
+        "test/unit/version.test.js"
+      ],
+      "sha256": "7d16145c07bcf0c294d8ebcb6ba7feb4539473bd673bd50c1fd565f9373c7960",
+      "docSha256": "2a471ba1de8ed23290a5b33eebf4b0e0a28aa2d022c5e8e3a70d8099d78ef572"
+    }
+  ]
+}
