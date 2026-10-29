@@ -433,6 +433,19 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
+### F9.4a — Reparaciones del diario (spec 0.30.0)
+
+1. Copiar de `fuentes/` los tests nuevos y modificados (`test/unit/store/{journal-repair,project-rescue}.test.js`, `test/unit/cli/{doctor,doctor-repair}.test.js`).
+2. Según `30-cloud/08-reparaciones-del-diario.md`: crear `src/store/{journal-repair,session-identity-repair,prompt-discard}.js` y `src/cli/commands/doctor-discard.js`; exportar `refreshSyncLifecycle` y `refreshProjectSyncLifecycle` de `src/store/sync-queue.js`; exportar `evaluateMutationForRepair` de `cloud-upgrade.js`; cablear `doctor repair` (`sync_mutation_required_fields`, `sync_target_closed_space`, `--replacement-id`) y `doctor discard-empty-prompt`; anotar en el diario lo rescatado en `src/store/project-rescue.js`; añadir `target_actions` al planificador de `src/diagnostic/repair.js`.
+
+Aceptación:
+```bash
+node --test test/unit/store/journal-repair.test.js test/unit/store/project-rescue.test.js "test/unit/cli/doctor*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
 ### F9.4
 
 Se detallan en `30-cloud/` al completarse cada porción. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

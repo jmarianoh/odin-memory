@@ -43,3 +43,7 @@ Las versiones exactas se fijan al incorporar cada paquete y se anotan aquí:
 node --version                      # v24.x
 node -e "const {DatabaseSync}=require('node:sqlite');const d=new DatabaseSync(':memory:');d.exec(\"create virtual table t using fts5(a, tokenize='trigram')\");console.log('fts5 ok')"
 ```
+
+## Versión del producto
+
+`src/version/index.js` exporta `VERSION` (la `version` de `package.json`, leída al cargar), `MIN_NODE_MAJOR` (24) y `nodeIsSupported(versión = process.versions.node)` (el mayor es ≥ 24).

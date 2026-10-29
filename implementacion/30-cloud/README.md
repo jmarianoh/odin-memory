@@ -11,10 +11,11 @@ Cloud replica la memoria de proyectos concretos en un servidor compartido con Po
 | F9.2b | 0.26.0 | Cliente de mutaciones: transporte, cola de salida con acuses y arriendo, relleno del diario al inscribir, autosync en `serve` y `mcp` | hecha |
 | F9.2c-1 | 0.27.0 | Identidades gestionadas (personas, tokens con pimienta, permisos por proyecto), API `/admin/*`, auditoría de autenticación, procedencia de prompts (autoridad de sesión, reclamos, atestación) y su comprobación previa en el autosync, `odin cloud bootstrap` | hecha |
 | F9.2c-2 | 0.29.0 | Exportación de la nube respaldada por el diario, `cloud upgrade doctor|repair|bootstrap|remirror|status|rollback`, `cloud attest-prompt-source`, Docker del servidor | hecha |
+| F9.4a | 0.30.0 | Reparaciones del diario de `doctor` (campos requeridos con cuarentena, destinos ajenos, sustitución de identidad), `doctor discard-empty-prompt`, rescate de propiedad sobre proyectos inscritos | hecha |
 | F9.3 | 0.28.0 | Panel web (HTML en servidor + htmx + Pico): acceso con token y sesión firmada, navegador de memoria, proyectos, contribuidores, administración, controles de sincronización, usuarios gestionados y registro de rechazos | hecha |
 | F9.4 | — | Pantallas de la TUI, reparaciones del diario, `rescue-ownership` sobre proyectos inscritos, Docker | pendiente |
 
-Pendiente tras 0.29.0: la cuarentena de mutaciones irreparables (con las reparaciones del diario de `doctor`).
+Pendiente tras 0.30.0: las pantallas de nube de la TUI.
 
 ## Documentos
 
@@ -27,6 +28,7 @@ Pendiente tras 0.29.0: la cuarentena de mutaciones irreparables (con las reparac
 | [`05-identidad-y-procedencia.md`](05-identidad-y-procedencia.md) | Tokens gestionados, almacén de identidades, auditoría de autenticación, API de administración, procedencia de prompts, `odin cloud bootstrap` |
 | [`06-panel-web.md`](06-panel-web.md) | Modelo de lectura, sesión firmada, rutas `/dashboard/*`, paginación y formato, marcado que fijan las pruebas |
 | [`07-actualizacion-y-atestacion.md`](07-actualizacion-y-atestacion.md) | Modo nube del `Syncer`, `odin cloud upgrade …`, `odin cloud attest-prompt-source`, Docker |
+| [`08-reparaciones-del-diario.md`](08-reparaciones-del-diario.md) | Reparaciones del diario de `doctor`, descarte de prompt vacío, rescate de propiedad sobre inscritos |
 
 ## Módulos
 
@@ -41,6 +43,7 @@ Pendiente tras 0.29.0: la cuarentena de mutaciones irreparables (con las reparac
 | `src/cloud/autosync.js`, `src/cli/autosync.js`, `src/store/sync-queue.js` | 04 |
 | `src/cloud/server/{tokens,identity,admin,provenance,respond}.js`, `src/cli/commands/cloud-bootstrap.js` | 05 |
 | `src/cloud/server/{dashboard-model,dashboard-store}.js`, `src/cloud/dashboard/{html,format,views,session,routes}.js`, `static/styles.css` | 06 |
+| `src/store/{journal-repair,session-identity-repair,prompt-discard}.js`, `src/cli/commands/doctor-discard.js`, `src/store/project-rescue.js` (diario) | 08 |
 | `src/store/{cloud-upgrade,prompt-source}.js`, `src/cli/commands/{cloud-upgrade,cloud-attest}.js`, `src/sync/syncer.js` (modo nube), `docker/cloud/Dockerfile`, `docker-compose.cloud.yml` | 07 |
 
 ## Dependencias nuevas

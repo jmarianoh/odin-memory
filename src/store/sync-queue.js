@@ -71,7 +71,7 @@ function refreshProjectSyncState(db, project) {
   const targetKey = cloudTargetKeyForProject(name);
   if (isInbox(targetKey)) return;
   const state = stateForRefresh(db, targetKey);
-  if (!state) throw new Error(`sync state for ${targetKey} is unavailable`);
+  if (!state) return;
   const acked = Number(db.get('SELECT ifnull(MAX(seq), 0) AS n FROM sync_mutations WHERE target_key = ? AND project = ? AND acked_at IS NOT NULL', DEFAULT_SYNC_TARGET_KEY, name).n);
   const enqueued = Number(db.get('SELECT ifnull(MAX(seq), 0) AS n FROM sync_mutations WHERE target_key = ? AND project = ?', DEFAULT_SYNC_TARGET_KEY, name).n);
   const pending = Number(db.get("SELECT COUNT(*) AS n FROM sync_mutations WHERE target_key = ? AND project = ? AND acked_at IS NULL AND disposition = 'pending'", DEFAULT_SYNC_TARGET_KEY, name).n);
@@ -90,6 +90,29 @@ function refreshProjectSyncState(db, project) {
     );
   }
 }
+
+/** Recalcula el ciclo de vida de un destino a partir de sus filas pendientes (dentro de una transacción). */
+export function refreshSyncLifecycle(db, targetKey) {
+  const key = normalizeSyncTargetKey(targetKey);
+  if (isInbox(key)) return;
+  const state = stateForRefresh(db, key);
+  if (!state) return;
+  const pending = Number(db.get("SELECT COUNT(*) AS n FROM sync_mutations WHERE target_key = ? AND acked_at IS NULL AND disposition = 'pending'", key).n);
+  let lifecycle = pending === 0 ? SYNC_LIFECYCLE.healthy : SYNC_LIFECYCLE.pending;
+  const degraded = isActivelyDegradedState(state);
+  if (degraded) lifecycle = SYNC_LIFECYCLE.degraded;
+  if (degraded) {
+    db.run("UPDATE sync_state SET lifecycle = ?, updated_at = datetime('now') WHERE target_key = ?", lifecycle, key);
+  } else {
+    db.run(
+      `UPDATE sync_state SET lifecycle = ?, consecutive_failures = 0, backoff_until = NULL, reason_code = NULL, reason_message = NULL, last_error = NULL,
+         updated_at = datetime('now') WHERE target_key = ?`,
+      lifecycle, key,
+    );
+  }
+}
+
+export { refreshProjectSyncState as refreshProjectSyncLifecycle };
 
 /**
  * Acusa recibo de mutaciones concretas (no tienen por qué ser contiguas) y recalcula el estado del destino y,

@@ -74,9 +74,9 @@ test('doctor valida sus argumentos', async (t) => {
   assert.equal(json.code, 1);
   assert.equal(JSON.parse(json.out).checks[0].check_id, 'invalid_check');
   assert.equal(json.err, '');
-  const discard = await w.odin(['doctor', 'discard-empty-prompt']);
+  const discard = await w.odin(['doctor', 'discard-empty-prompt', '--json']);
   assert.equal(discard.code, 1);
-  assert.match(discard.err, /doctor discard-empty-prompt is not available in this build/);
+  assert.equal(JSON.parse(discard.out).blocker.detail, 'explicit project and positive int64 --seq required');
 });
 
 test('doctor --help lista los chequeos y los que no tienen reparación', async (t) => {

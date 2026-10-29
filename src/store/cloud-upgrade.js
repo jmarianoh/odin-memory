@@ -279,6 +279,9 @@ function evaluateMutation(db, mutation) {
   return changed ? repairable('relation payload is missing required fields for canonical bootstrap', 'repair fills missing relation fields from local memory_relations table and mutation project', body) : { hasIssue: false };
 }
 
+/** Evaluación de una mutación pendiente (la misma que usa el diagnóstico). */
+export const evaluateMutationForRepair = evaluateMutation;
+
 /** @returns {{ project: string, repairable_count: number, blocked_count: number, findings: object[] }} */
 export function diagnoseLegacyMutations(store, project) {
   const name = canonical(project);

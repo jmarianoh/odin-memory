@@ -111,3 +111,8 @@ Las rutas con **id** forman el *contrato de runtime* (`GET /runtime-contract`); 
 ## Fuera de esta entrega
 
 Ninguna ruta pendiente en esta versión.
+
+## Módulos de las rutas de flujos
+
+- `src/server/routes/workflow-body.js` (`decodeWorkflow(ctx)`, `WORKFLOW_BODY_LIMIT = 1 MiB`): lee el cuerpo de los flujos compuestos. Más de 1 MiB → `413` `body exceeds 1048576-byte limit` (código `request_too_large`); no es un único valor JSON legible o no es un objeto → `400` `body must be a JSON object` (`invalid_arguments`); texto tras el objeto que no sea espacio en blanco → `400` `body must contain exactly one JSON object`.
+- `src/server/routes/workflows.js`: las rutas de curación — `consolidateRoute`, `judgeRoute`, `judgeManyRoute`, `compareRoute`, `listConflictsRoute` (`clampConflictsLimit`: límite por defecto 50, máximo 500, no positivo = por defecto), `getConflictRoute`, `conflictStatsRoute`, `listDeferredRoute`, `scanConflictsRoute` y `parseRfc3339` — cuyo contrato es el de las tablas anteriores (`/observations/consolidate`, `/conflicts*`, `/observations/compare`).

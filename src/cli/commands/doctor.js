@@ -6,9 +6,11 @@ import { toGoJson } from '../../store/backup.js';
 import { goTrim } from '../../store/text.js';
 import { resolveCliProject } from '../project.js';
 import { exit, fatal, println, withStore } from '../runtime.js';
+import { cmdDoctorDiscardEmptyPrompt, DISCARD_PROMPT_USAGE } from './doctor-discard.js';
 import { cmdDoctorRepair } from './doctor-repair.js';
 
-export const DISCARD_PROMPT_USAGE = 'usage: odin doctor discard-empty-prompt --project PROJECT --seq SEQ [--dry-run|--apply --backup PATH] [--json]';
+export { DISCARD_PROMPT_USAGE };
+
 
 /** Chequeos registrados que no tienen reparación. */
 export const diagnosticOnlyCheckCodes = () => registeredCodes().filter((code) => !REPAIRABLE_CODES.includes(code));
@@ -96,7 +98,7 @@ export const doctorJson = (value) => toGoJson(value, 2);
 export function cmdDoctor(cli, config) {
   const args = cli.args.slice(1);
   if (args[0] === 'repair') return cmdDoctorRepair(cli, config);
-  if (args[0] === 'discard-empty-prompt') return fatal(cli, new Error('doctor discard-empty-prompt is not available in this build'));
+  if (args[0] === 'discard-empty-prompt') return cmdDoctorDiscardEmptyPrompt(cli, config);
   let jsonOut = false;
   let project = '';
   let check = '';

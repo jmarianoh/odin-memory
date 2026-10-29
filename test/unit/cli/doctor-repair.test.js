@@ -96,13 +96,14 @@ test('validación de argumentos: el error va a stderr, el uso a stdout y el cód
   assert.equal(help.err, '');
 });
 
-test('las reparaciones que reescriben el diario de la nube avisan de que no están disponibles', async (t) => {
+test('las reparaciones del diario responden sobre un almacén sano', async (t) => {
   const w = cliWorld(t);
-  for (const args of [['--check', 'sync_mutation_required_fields'], ['--project', 'demo', '--check', 'sync_target_closed_space', '--plan'], ['--project', 'demo', '--check', 'invalid_session_identity', '--plan', '--replacement-id', 'nueva']]) {
-    const r = await repair(w, ...args);
-    assert.equal(r.code, 1, args.join(' '));
-    assert.match(r.err, /^odin doctor repair failed: \w+ repair rewrites the cloud sync journal, which is not available in this build\n$/);
-  }
+  const required = json(await repair(w, '--check', 'sync_mutation_required_fields'));
+  assert.deepEqual([required.applied, required.actions, required.repairs, required.superseded, required.source_repairs, required.source_unrepairable], [false, [], [], [], [], []]);
+  const closed = json(await repair(w, '--project', 'demo', '--check', 'sync_target_closed_space', '--plan'));
+  assert.equal(closed.status, 'noop');
+  const blocked = json(await repair(w, '--project', 'demo', '--check', 'invalid_session_identity', '--plan', '--replacement-id', 'nueva'));
+  assert.deepEqual([blocked.status, blocked.blockers[0].reason_code], ['blocked', 'ambiguous_or_missing_source']);
   const plan = json(await repair(w, '--project', 'demo', '--check', 'invalid_session_identity', '--plan'));
   assert.equal(plan.status, 'noop', 'sin ID de reemplazo es solo un plan');
 });

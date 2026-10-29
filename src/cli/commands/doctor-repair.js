@@ -7,6 +7,8 @@ import { toGoJson } from '../../store/backup.js';
 import {
   applySessionProjectReclassification, estimateSessionProjectReclassification, reclassifyOrphanedPendingRelations, restoreOrphanedObservationSessions,
 } from '../../store/repair.js';
+import { applySessionIdentityRepair, planSessionIdentityReplacement } from '../../store/session-identity-repair.js';
+import { cleanupForeignSyncTargets, repairSyncMutationRequiredFields } from '../../store/journal-repair.js';
 import { goTrim } from '../../store/text.js';
 import { exit, withStore } from '../runtime.js';
 import { printDoctorRepairUsage } from './doctor.js';
@@ -35,14 +37,21 @@ export function cmdDoctorRepair(cli, config) {
   let modeCount = 0;
   let replacementSelected = false;
   let sourceSelected = false;
+  let replacementId = '';
+  let sourceId = '';
   let identityFlags = false;
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--replacement-id': case '--source-id':
         if (i + 1 >= args.length) return fail(cli, `${args[i]} requires a value`);
         identityFlags = true;
-        if (args[i] === '--replacement-id') replacementSelected = true;
-        else sourceSelected = true;
+        if (args[i] === '--replacement-id') {
+          replacementSelected = true;
+          replacementId = args[i + 1];
+        } else {
+          sourceSelected = true;
+          sourceId = args[i + 1];
+        }
         i++;
         break;
       case '--project':
@@ -74,11 +83,23 @@ export function cmdDoctorRepair(cli, config) {
     if (registeredCodes().includes(check)) return fail(cli, `${check} is a diagnostic-only check with no repair; run odin doctor --check ${check}`);
     return fail(cli, `unsupported repair check ${check}`);
   }
-  if (CLOUD_JOURNAL_REPAIRS.includes(check) && (check !== CHECK.invalidSessionIdentity || replacementSelected)) {
+  if (CLOUD_JOURNAL_REPAIRS.includes(check) && check !== CHECK.syncMutationRequiredFields && check !== CHECK.syncTargetClosedSpace && check !== CHECK.invalidSessionIdentity) {
     return fail(cli, `${check} repair rewrites the cloud sync journal, which is not available in this build`);
   }
 
   return withStore(cli, config, (store) => {
+    if (check === CHECK.syncMutationRequiredFields) {
+      let result;
+      try {
+        result = repairSyncMutationRequiredFields(store, project, mode);
+      } catch (err) {
+        return fail(cli, err.message);
+      }
+      return print(cli, {
+        ...result.quarantine, directory_repairs: result.directory_repairs, repairs: result.repairs, superseded: result.superseded, source_repairs: result.source_repairs,
+        ...(result.source_repair_backup_path ? { source_repair_backup_path: result.source_repair_backup_path } : {}), source_unrepairable: result.source_unrepairable,
+      });
+    }
     let report;
     try {
       report = new Runner().runOne({ store, project }, check);
@@ -92,6 +113,26 @@ export function cmdDoctorRepair(cli, config) {
       return fail(cli, err.message);
     }
     const apply = mode === REPAIR_MODE.apply;
+    if (check === CHECK.invalidSessionIdentity && replacementSelected) {
+      plan = planSessionIdentityReplacement(store, report, plan, sourceId, sourceSelected, replacementId);
+      if (plan.status === 'blocked') return print(cli, planJson(plan));
+      try {
+        if (apply) {
+          const result = applySessionIdentityRepair(store, plan.identity_repair);
+          plan.status = plan.skipped.length > 0 ? 'partial' : 'applied';
+          plan.backup_path = result.backup_path;
+          plan.counts.sessions_applied = 1;
+          plan.counts.observations_applied = plan.identity_repair.observations;
+          plan.counts.prompts_applied = plan.identity_repair.prompts;
+          plan.counts.corrected_mutations_applied = result.published_mutations;
+        } else {
+          plan.status = mode === REPAIR_MODE.plan ? 'planned' : 'dry_run';
+        }
+      } catch (err) {
+        return fail(cli, err.message);
+      }
+      return print(cli, planJson(plan));
+    }
     try {
       if (check === CHECK.orphanedObservationSession) {
         plan.counts.sessions_planned = plan.placeholder_sessions.length;
@@ -111,6 +152,13 @@ export function cmdDoctorRepair(cli, config) {
           plan.status = result.reclassified > 0 ? 'applied' : 'noop';
           plan.counts.relations_applied = result.reclassified;
           plan.backup_path = result.backup_path;
+        }
+      } else if (check === CHECK.syncTargetClosedSpace) {
+        const cleanup = cleanupForeignSyncTargets(store, apply);
+        plan.target_actions = cleanup.actions;
+        if (apply && cleanup.actions.length > 0) plan.status = 'applied';
+        for (const action of cleanup.actions) {
+          if (action.retained_mutations > 0 && apply) plan.status = cleanup.applied ? 'partial' : 'blocked';
         }
       } else if (check !== CHECK.invalidSessionIdentity) {
         const moves = plan.actions.map((a) => ({ session_id: a.session_id, from_project: a.from_project, to_project: a.to_project }));

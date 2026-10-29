@@ -190,3 +190,5 @@ Las dos acciones de traslado de proyecto pasan por un **veto de alias** que vuel
 node --test "test/unit/diagnostic/*.test.js" test/unit/store/diagnostic.test.js test/unit/store/ownership-backfill.test.js test/unit/cli/doctor.test.js test/unit/server/doctor.test.js test/unit/mcp/tools.test.js
 npm test
 ```
+
+`src/cli/commands/doctor-repair.js` (`cmdDoctorRepair`) implementa `odin doctor repair`: interpreta `--project`, `--check`, `--plan|--dry-run|--apply`, `--replacement-id` y `--source-id`, ejecuta la comprobación, construye el plan (`buildRepairPlan`) y, con `--apply`, escribe tras una copia de la base. Las reparaciones del diario de la nube (`sync_mutation_required_fields`, `sync_target_closed_space` y la sustitución de identidad de `invalid_session_identity`) y `odin doctor discard-empty-prompt` están especificadas en `30-cloud/08-reparaciones-del-diario.md`.

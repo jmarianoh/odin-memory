@@ -133,6 +133,37 @@ Los errores de lectura se traducen así (fragmento `empty-state` con `role="aler
 - Insignia por tipo: `decision`/`architecture` → éxito; `bugfix` → peligro; `discovery`/`learning` → aviso; otro → atenuado.
 - Escapes: `pathEscape` deja sin escapar `-_.~` y `$&+=:@`; `queryEscape` escapa todo salvo `-_.~` y el espacio va como `+`; las consultas se emiten ordenadas por clave.
 
+## Firmas exportadas de los módulos puros
+
+`src/cloud/dashboard/html.js`
+- `raw(texto)` → fragmento ya seguro (no se escapa). `html` es una etiqueta de plantilla: cada valor interpolado se escapa salvo los `raw`; `null`, `undefined` y `false` se omiten; un arreglo se concatena aplicando la misma regla a cada elemento; cualquier otro valor (incluidos `true` y `0`) se convierte con `String` y se escapa. Devuelve un fragmento. `toText(fragmento)` → su texto (una cadena que no sea fragmento se escapa). `escapeHtml(valor)` → `String(valor)` con `& < > " '` convertidos en `&amp; &lt; &gt; &#34; &#39;`.
+
+`src/cloud/dashboard/format.js`
+- `pathEscape(texto)`, `queryEscape(texto)`: escapan byte a byte en UTF-8 como `%XX` mayúsculas; sin escapar `A-Za-z0-9-_.~` (y `$&+=:@` en `pathEscape`); `queryEscape` escribe el espacio como `+`, `pathEscape` como `%20`.
+- `encodeQuery(pares)` (objeto o lista de pares; los valores pueden ser listas) → `clave=valor&…` con las claves ordenadas y todo pasado por `queryEscape`. `preserveQuery(consultaCruda, clave, valor)` y `safeQuery(ruta, consultaCruda)` reescriben una consulta con esa regla (vacía → la ruta tal cual).
+- `class Pagination(page = 1, pageSize = 10, totalItems = 0, totalPages = 1)` con `offset`, `hasPrev`, `hasNext`, `show`, `start`, `end` (propiedades) y `numbers()`.
+- `parsePaginationRaw(URLSearchParams)` → `{ page, pageSize }`. `reclampPagination(page, pageSize, totalItems)` → `{ pg: Pagination, refetch: boolean }` (`refetch` es verdadero si la página pedida se salió y se ajustó).
+- `formatTimestamp(texto)`, `formatTimestampOrNever(texto)` (vacío → `Never`), `truncate(texto, n)`, `emptyDash(texto)` (vacío o en blanco → `-`), `typeBadgeVariant(tipo)`.
+- `renderStructuredContent(texto)` → HTML ya escapado; `inlinePreview(texto, max)` → texto plano.
+- `sanitizeNext(texto)`, `loginPathWithNext(destino)` (= `/dashboard/login` o `/dashboard/login?next=<destino saneado, con encodeQuery>`; el destino ya saneado se escapa de nuevo, de ahí `%2Fdashboard…`), `postLoginPath(destino)` (= destino saneado o `/dashboard/`).
+
+`src/cloud/dashboard/session.js`
+- Constantes `SESSION_COOKIE`, `SESSION_TTL_SECONDS` (28800). `class DashboardSessions(secreto = '')` con `mint(principal, ahoraMs = Date.now())` → cookie y `parse(cookie, ahoraMs = Date.now())` → principal o `null`. El principal de entrada/salida es `{ id, kind, displayName, role, enabled, source, tokenId }`; el JSON usa `principal_id`, `principal_source`, `kind`, `role`, `display_name`, `iat`, `exp` (segundos; `exp = iat + 28800`), `session_version`, `token_id` (solo si no está vacío). `parse` devuelve `enabled: true` y `tokenId: ''` si no había; caduca cuando `exp ≤ ahora` (en segundos, entero hacia abajo).
+- `readCookie(req, nombre)`, `isSecureRequest(req)`, `sessionCookie(req, valor, borrar = false)` → valor de `Set-Cookie` (atributos en este orden: `Path=/dashboard; HttpOnly; SameSite=Lax; Max-Age=…` y, si procede, `; Secure`). Pertenecen a `session.js`; construir el redireccionamiento 303 con ella es cosa de `routes.js`.
+
+### Contenido estructurado, con detalle
+
+`renderStructuredContent`: recorta; vacío → `<p class="muted">No content captured.</p>`. Si el texto contiene en cualquier posición un campo `**What**:`, `**Why**:`, `**Where**:` o `**Learned**:` (con espacios opcionales tras los dos puntos), se parte por esos campos; el texto anterior al primero se descarta; cada campo con valor no vacío da `<section class="structured-block"><h4>Etiqueta</h4>…párrafos…</section>`, todo dentro de `<div class="structured-content">…</div>`. Si no hay campos y hay líneas `## Título` (línea completa, sin `#` dentro del título), se hace lo mismo con cada encabezado como etiqueta y el texto hasta el siguiente encabezado como valor (el texto previo al primero se descarta). En otro caso son solo párrafos. **Párrafos**: se parte el texto recortado por `\n\n`, se descartan los vacíos y cada uno se emite como `<p>…</p>` con las líneas recortadas, las vacías descartadas y el resto unido por un espacio; sin párrafos → el aviso de contenido vacío.
+`inlinePreview`: vacío → `No content captured.`; con campos: `Etiqueta: valor` (valor con los espacios colapsados) unidos por ` • `; con encabezados: igual con los encabezados; en otro caso el texto; el resultado se colapsa (espacios en uno) y se trunca a `max`.
+
+### `sanitizeNext`, con detalle
+
+Entrada recortada; vacía, sin `/` inicial o que empieza por `//` → `""`. Se analiza como URL relativa a un origen ficticio; si el origen cambia (p. ej. `/\x`) → `""`. La ruta se decodifica (`%` inválido → `""`), se normaliza (`..`, `.` y barras repetidas; sin barra final salvo la raíz) y debe ser `/dashboard` o empezar por `/dashboard/`; el fragmento `#` se descarta; la ruta se reescribe segmento a segmento con `pathEscape` (un `%2F` pasa a ser `/`) y la consulta con `encodeQuery` (claves ordenadas, repetidas conservadas en orden, sin `?` si queda vacía).
+
+### `Pagination.numbers()`
+
+Con `totalPages ≤ 7`: `1…totalPages`. Si no: `[1]`; si `page > 3` un `-1`; las páginas `page−1, page, page+1` que estén estrictamente entre 1 y `totalPages`; si `page < totalPages − 2` un `-1`; y `totalPages`. Ejemplos con 10 páginas: página 1 → `[1, 2, -1, 10]`; 5 → `[1, -1, 4, 5, 6, -1, 10]`; 9 → `[1, -1, 8, 9, 10]`.
+
 ## Marcado que fijan las pruebas
 
 `<title>«título» — Odin Cloud</title>`; pie `ODIN CLOUD / SHARED MEMORY INDEX / LIVE SYNC READY · «versión»`; pestañas `role="tab"` con `aria-selected`; la pestaña **Admin** solo si `isAdmin`; tarjetas de proyecto con `<h3>` y tres `stat-value`; métricas `metric-value`/`metric-label`; insignias `badge badge-«variante»`; barra `pagination-bar`; listas `observation-list`, `prompt-list`, `project-grid`; tablas `data-table`; fragmentos vacíos `empty-state` con `<h3>` del título; token revelado en `<pre class="token-reveal">`; ids `browser-project`, `browser-search`, `browser-type`, `browser-content`, `browser-tabs`, `project-content`, `project-tabs`, `projects-content`, `contributors-content`, `managed-users-content`, `audit-log-content`, `audit-contributor`, `audit-project`, `audit-outcome`, `audit-from`, `audit-to`; enlaces de detalle `/dashboard/observations/<proyecto>/<sesión>/<sync_id>` (segmentos con `pathEscape`). El resto del marcado es libre mientras conserve esos puntos.

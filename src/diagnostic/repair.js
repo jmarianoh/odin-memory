@@ -1,3 +1,4 @@
+import { cleanupForeignSyncTargets } from '../store/journal-repair.js';
 import { listDiagnosticSessions, listOrphanedPendingRelationEvidence } from '../store/diagnostic.js';
 import { goTrim } from '../store/text.js';
 import { CHECK, REASON_QUARANTINED_PULLED_SESSION_IDENTITY } from './checks.js';
@@ -140,6 +141,7 @@ function dedupeAndSort(plan) {
   const seen = new Map();
   for (const a of plan.actions) seen.set(`${a.session_id}\u0000${a.from_project}\u0000${a.to_project}`, a);
   plan.actions = [...seen.values()].sort((a, b) => compare(a.session_id, b.session_id));
+  if (plan.target_actions) plan.target_actions = [...new Map(plan.target_actions.map((t) => [t.target_key, t])).values()].sort((a, b) => compare(a.target_key, b.target_key));
   plan.skipped.sort((a, b) => (a.session_id === b.session_id ? compare(a.reason_code, b.reason_code) : compare(a.session_id ?? '', b.session_id ?? '')));
 }
 
@@ -165,11 +167,12 @@ export function buildRepairPlan(scope, report, check, mode) {
     case CHECK.invalidSessionIdentity: planInvalidSessionIdentity(plan, report); break;
     case CHECK.orphanedObservationSession: planOrphanedObservationSession(plan, report); break;
     case CHECK.orphanedPendingRelations: planOrphanedPendingRelations(plan, scope); break;
+    case CHECK.syncTargetClosedSpace: plan.target_actions = cleanupForeignSyncTargets(scope.store, false).actions; break;
     default: throw new Error(`unsupported repair check ${JSON.stringify(check)}`);
   }
   if (check === CHECK.sessionProjectDirectoryMismatch || check === CHECK.manualSessionNameProjectMismatch) vetoProjectAliasMoves(plan, scope);
   dedupeAndSort(plan);
-  if (plan.actions.length === 0 && plan.placeholder_sessions.length === 0 && !plan.orphaned_pending_relations) plan.status = 'noop';
+  if (plan.actions.length === 0 && (plan.target_actions?.length ?? 0) === 0 && plan.placeholder_sessions.length === 0 && !plan.orphaned_pending_relations) plan.status = 'noop';
   return plan;
 }
 

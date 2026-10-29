@@ -123,7 +123,7 @@ export function backfillProjectSyncMutations(db, project, source = SYNC_SOURCE_L
      WHERE (${ownedBy}) AND o.deleted_at IS NULL AND ${notQueued('o.sync_id')} ORDER BY o.id ASC`,
     name, name, target, SYNC_ENTITY.observation, src,
   );
-  for (const row of live) enqueue(SYNC_ENTITY.observation, row.sync_id, SYNC_OP_UPSERT, withoutNulls(row, ['superseded_by_sync_id']), row.project ?? '', row.session_id);
+  for (const row of live) enqueue(SYNC_ENTITY.observation, row.sync_id, SYNC_OP_UPSERT, withoutNulls(row, OPTIONAL_OBSERVATION_FIELDS), row.project ?? '', row.session_id);
 
   const removed = db.all(
     `SELECT o.sync_id, o.session_id, o.project, o.deleted_at, o.superseded_by_sync_id
@@ -132,7 +132,7 @@ export function backfillProjectSyncMutations(db, project, source = SYNC_SOURCE_L
     name, name, target, SYNC_ENTITY.observation, src, SYNC_OP_DELETE,
   );
   for (const row of removed) {
-    enqueue(SYNC_ENTITY.observation, row.sync_id, SYNC_OP_DELETE, { ...withoutNulls(row, ['superseded_by_sync_id']), deleted: true, hard_delete: false }, row.project ?? '', row.session_id);
+    enqueue(SYNC_ENTITY.observation, row.sync_id, SYNC_OP_DELETE, { ...withoutNulls(row, OPTIONAL_OBSERVATION_FIELDS), deleted: true, hard_delete: false }, row.project ?? '', row.session_id);
   }
 
   const tombstones = db.all(
@@ -186,6 +186,8 @@ export function backfillProjectSyncMutations(db, project, source = SYNC_SOURCE_L
   );
   for (const row of relations) enqueue(SYNC_ENTITY.relation, row.sync_id, SYNC_OP_UPSERT, { ...row }, row.project, row.session_id ?? '');
 }
+
+const OPTIONAL_OBSERVATION_FIELDS = ['tool_name', 'project', 'topic_key', 'last_seen_at', 'review_after', 'superseded_by_sync_id'];
 
 /** Copia sin las claves indicadas cuando valen `null` (los opcionales ausentes no viajan). */
 function withoutNulls(row, keys) {

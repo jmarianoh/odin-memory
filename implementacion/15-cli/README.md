@@ -104,3 +104,5 @@ Tabla `STORE_COMMANDS`: `serve` (ver `../14-http-api/`), `conflicts` e `instance
 ```bash
 node --test "test/unit/cli/*.test.js"
 ```
+
+`src/runtime/fs-error.js` exporta `fsErrorText(err, ruta)`: el texto de un error de archivo al estilo `<operación> <ruta>: <causa>` (`open /x: no such file or directory`), igual en todas las plataformas. La causa sale de `ENOENT` (`no such file or directory`), `EACCES` (`permission denied`), `EPERM` (`operation not permitted`), `EISDIR` (`is a directory`), `ENOTDIR` (`not a directory`), `EEXIST` (`file exists`), `ENOSPC` (`no space left on device`) y `EROFS` (`read-only file system`); con otro código se usa el mensaje original. La operación es `err.syscall` (por defecto `open`).

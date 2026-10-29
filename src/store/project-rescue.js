@@ -1,7 +1,7 @@
 import { normalizeProject } from '../project/canonical.js';
 import { StoreError, storeError } from './errors.js';
 import { MANUAL_SESSION_ID_PREFIX, SESSION_OWNERSHIP_PROJECT_OWNED, SESSION_OWNERSHIP_SHARED, foreignRecordOwner, sessionOwnership } from './sessions.js';
-import { isProjectEnrolled } from './sync-state.js';
+import { journalMutation, isProjectEnrolled } from './journal.js';
 import { SQL_WHITESPACE_TRIM_SET, goTrim } from './text.js';
 
 export const RESCUE_BLOCKED_OWNED_BY_OTHER_PROJECT = 'owned_by_other_project';
@@ -30,6 +30,63 @@ function manualSaveOwnerProject(id, project) {
   const canonical = normalizeProject(project).normalized;
   if (canonical === '') return false;
   return normalizeProject(id.slice(MANUAL_SESSION_ID_PREFIX.length)).normalized === canonical;
+}
+
+const present = (object) => Object.fromEntries(Object.entries(object).filter(([, v]) => v !== null && v !== undefined && v !== ''));
+
+/**
+ * Anota en el diario lo rescatado de un proyecto inscrito: las sesiones indicadas (y las de las filas movidas), las observaciones y los prompts.
+ * Una mutación local ya vigente cuenta como anotada; si el proyecto no está inscrito no se anota nada.
+ * @returns {boolean} si algo quedó (o ya estaba) en el diario
+ */
+function journalRescued(db, target, sessionIds, stampMode, observationIds, promptIds) {
+  const enqueueMissing = (entity, key, op, payload, sessionId) => {
+    const project = normalizeProject(goTrim(payload.project ?? '')).normalized;
+    if (project === '') throw storeError('project_required');
+    const exists = Number(db.get(
+      `SELECT EXISTS(SELECT 1 FROM sync_mutations WHERE target_key = 'cloud' AND entity = ? AND entity_key = ? AND op = ? AND source = 'local' AND project = ? AND acked_at IS NULL
+         AND json_extract(payload, '$.project') = ?) AS n`,
+      entity, key, op, project, project,
+    ).n) === 1;
+    if (exists) return true;
+    if (!isProjectEnrolled(db, project)) return false;
+    journalMutation(db, { entity, entityKey: key, op, project, sessionId, payload });
+    return true;
+  };
+  let journaled = false;
+  for (const id of sessionIds) {
+    const row = db.get("SELECT id, ifnull(project, '') AS project, ifnull(ownership_mode, '') AS ownership_mode, directory, started_at, ended_at, summary FROM sessions WHERE id = ?", id);
+    if (!row) continue;
+    const project = normalizeProject(goTrim(row.project)).normalized;
+    if (project !== target) continue;
+    const payload = present({ id: row.id, project, ownership_mode: row.ownership_mode, directory: row.directory, started_at: row.started_at, ended_at: row.ended_at, summary: row.summary });
+    if (stampMode.has(id)) {
+      const res = db.run(
+        "UPDATE sync_mutations SET project = ?, payload = ? WHERE target_key = 'cloud' AND entity = 'session' AND entity_key = ? AND op = 'upsert' AND source = 'local' AND acked_at IS NULL",
+        project, JSON.stringify(payload), id,
+      );
+      journaled = journaled || Number(res.changes) > 0;
+    }
+    journaled = enqueueMissing('session', row.id, 'upsert', payload, '') || journaled;
+  }
+  for (const id of observationIds) {
+    const row = db.get(
+      `SELECT sync_id, session_id, type, title, content, tool_name, project, scope, topic_key, revision_count, duplicate_count, last_seen_at, created_at, updated_at, deleted_at
+       FROM observations WHERE id = ? AND project = ?`, id, target,
+    );
+    if (!row) continue;
+    const { revision_count: revisions, duplicate_count: duplicates, ...rest } = row;
+    const payload = { ...present(rest), revision_count: Number(revisions), duplicate_count: Number(duplicates) };
+    const deleted = row.deleted_at != null;
+    if (deleted) payload.deleted = true;
+    journaled = enqueueMissing('observation', row.sync_id, deleted ? 'delete' : 'upsert', payload, row.session_id) || journaled;
+  }
+  for (const id of promptIds) {
+    const row = db.get("SELECT sync_id, session_id, content, project, created_at, ifnull(source_inbox_id, '') AS source_inbox_id FROM user_prompts WHERE id = ? AND project = ?", id, target);
+    if (!row) continue;
+    journaled = enqueueMissing('prompt', row.sync_id, 'upsert', { ...present({ source_inbox_id: row.source_inbox_id }), sync_id: row.sync_id, session_id: row.session_id, content: row.content, ...present({ project: row.project, created_at: row.created_at }) }, row.session_id) || journaled;
+  }
+  return journaled;
 }
 
 function loadRecords(db, query, ids) {
@@ -176,11 +233,7 @@ export function rescueNullProjectOwnership(store, p) {
       result.rescued_prompts += 1;
     }
 
-    // El diario de sincronización solo existe para proyectos inscritos en la nube (F9):
-    // mover registros de uno de ellos sin anotarlo dejaría la réplica desalineada.
-    if (result.rescued_sessions + result.rescued_observations + result.rescued_prompts > 0 && isProjectEnrolled(store, target)) {
-      throw storeError('sync_journal_unavailable', `project ownership rescue for project ${JSON.stringify(target)}`);
-    }
+    result.journaled = journalRescued(db, target, scope.ordered, stampMode, observationIds, promptIds);
     result.complete = result.blocked.length === 0;
     return result;
   });

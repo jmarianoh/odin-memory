@@ -78,12 +78,22 @@ test('valida la petición', (t) => {
   assert.throws(() => run(store, { session_ids: ['  '] }), { message: 'project rescue request is invalid: session ids must not be blank' });
 });
 
-test('mover registros de un proyecto inscrito sin diario revierte el rescate', (t) => {
+test('mover registros de un proyecto inscrito los anota en el diario; sin inscribir no se anota nada', (t) => {
   const { store, o1 } = orphaned(t);
-  store.db.run("INSERT INTO sync_enrolled_projects (project) VALUES ('demo')");
-  assert.throws(() => run(store, { observation_ids: [o1] }), { code: 'sync_journal_unavailable' });
-  assert.equal(store.db.get('SELECT project FROM observations WHERE id = ?', o1).project, null);
-  assert.equal(getSession(store, 's1').project, '');
-  const nothing = run(store, { observation_ids: [999] });
-  assert.equal(nothing.rescued_observations, 0, 'si no se mueve nada no hace falta diario');
+  const none = run(store, { observation_ids: [o1] });
+  assert.deepEqual([none.rescued_observations, none.journaled], [1, false], 'sin inscribir no hay diario');
+  assert.equal(store.db.get('SELECT COUNT(*) AS n FROM sync_mutations').n, 0);
+
+  const second = orphaned(t);
+  second.store.db.run("INSERT INTO sync_enrolled_projects (project) VALUES ('demo')");
+  const result = run(second.store, { observation_ids: [second.o1], session_ids: ['s1'] });
+  assert.equal(result.journaled, true);
+  const queued = second.store.db.all('SELECT entity, op, project FROM sync_mutations ORDER BY seq').map((r) => ({ ...r }));
+  assert.deepEqual(queued.map((r) => r.entity).sort(), ['observation', 'session']);
+  assert.equal(queued.every((r) => r.project === 'demo' && r.op === 'upsert'), true);
+  const again = run(second.store, { observation_ids: [second.o1], session_ids: ['s1'] });
+  assert.equal(again.journaled, true, 'una mutación vigente cuenta como anotada');
+  assert.equal(second.store.db.get('SELECT COUNT(*) AS n FROM sync_mutations').n, 2, 'sin duplicados');
+  const nothing = run(second.store, { observation_ids: [999] });
+  assert.equal(nothing.rescued_observations, 0);
 });
