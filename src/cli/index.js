@@ -20,6 +20,7 @@ import { cmdServe } from './commands/serve.js';
 import { cmdStats } from './commands/stats.js';
 import { runTest } from './commands/selftest.js';
 import { cmdSync } from './commands/sync.js';
+import { cmdTui } from './commands/tui.js';
 import { cmdTimeline } from './commands/timeline.js';
 import { resolveConfig } from './config.js';
 import { CliExit, fatal, println, readLineSync } from './runtime.js';
@@ -42,6 +43,7 @@ const STORE_COMMANDS = {
   projects: cmdProjects,
   sync: cmdSync,
   doctor: cmdDoctor,
+  tui: cmdTui,
 };
 
 /**

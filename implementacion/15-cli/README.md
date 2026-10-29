@@ -12,7 +12,8 @@
 | F6.3 (spec 0.20.0) | `../20-selftest.md` | `test [suite] [--quick] [--json]` y la comprobación de versión |
 | F6.2 (spec 0.21.0) | `../18-doctor.md` | `doctor repair` (traslado de proyecto, sesiones y relaciones huérfanas) |
 | F7 (spec 0.22.0) | `../21-copilot-vscode.md`, `../22-copilot-cli.md`, `../23-hooks-copilot.md` | `setup vscode-copilot`, `setup copilot-cli`, `hook <acción>` y `hook resolve-hook-project` |
-| F8 y siguientes | — | `doctor discard-empty-prompt` y las reparaciones del diario (nube), `cloud`, `tui` |
+| F8 (spec 0.23.0) | `../19-tui.md` | `tui` |
+| F9 y siguientes | — | `doctor discard-empty-prompt` y las reparaciones del diario (nube), `cloud` |
 
 ## Decisiones de diseño
 

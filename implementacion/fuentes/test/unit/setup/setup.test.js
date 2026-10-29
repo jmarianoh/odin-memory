@@ -151,6 +151,12 @@ test('instalar en VS Code crea los tres archivos, conserva lo ajeno y es idempot
   assert.deepEqual(actions(setupClient('vscode-copilot', { ...c, invocation: { command: 'odin', args: [] } })), { mcp: 'updated', instructions: 'unchanged', hooks: 'updated' });
 });
 
+test('un destino desconocido se rechaza antes de escribir nada', (t) => {
+  const c = ctx(t);
+  assert.throws(() => setupClient('otro', c), { message: 'unknown setup target "otro"' });
+  assert.equal(existsSync(join(c._home, '.copilot')), false);
+});
+
 test('--no-hooks y --dry-run', (t) => {
   const c = ctx(t);
   const paths = targets('vscode-copilot', c);

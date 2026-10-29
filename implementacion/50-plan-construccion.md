@@ -328,6 +328,22 @@ npm run check:clean-room
 
 Pruebas manuales: `HOME=$(mktemp -d) node bin/odin.js setup vscode-copilot` y `setup copilot-cli`; el ciclo de hooks del capítulo 23; en VS Code y con el CLI real, comprobar que el agente lista las herramientas y que `sessionStart` inyecta el contexto.
 
-## F8 — Integración Copilot · F8 — TUI · F9 — Cloud
+### F8 — Interfaz de terminal (spec 0.23.0)
+
+1. Instalar las dependencias exactas de `03-entorno-dependencias.md` (`npm install --save-exact ink@8.0.0 react@19.3.1 htm@3.1.1`) y copiar de `fuentes/` los tests nuevos (`test/unit/tui/*.test.js`, `test/unit/cli/tui.test.js`), `src/cli/usage.js` y `package.json`.
+2. Crear, según `19-tui.md`: `src/tui/{palette,format,text-input,keys,model,commands,view,app}.js` y `src/cli/commands/tui.js`.
+3. Modificar: `src/cli/index.js` (`tui` entre los comandos con almacén) y `src/setup/install.js` (`setupClient` rechaza un destino desconocido).
+
+Aceptación:
+```bash
+node --test "test/unit/tui/*.test.js" test/unit/cli/tui.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Prueba manual en un terminal real: `node bin/odin.js tui`.
+
+## F9 — Integración Copilot · F8 — TUI · F9 — Cloud
 
 Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

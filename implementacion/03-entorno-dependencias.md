@@ -22,7 +22,15 @@ Todas con versión **exacta** (sin `^` ni `~`). Se incorporan por fases:
 
 El servidor MCP (F3) **no** usa ningún SDK: el protocolo se implementa a mano (`12-mcp/README.md`).
 
-Las versiones exactas se fijan al incorporar cada paquete y se anotan aquí. Hasta entonces `package.json` no declara dependencias.
+Las versiones exactas se fijan al incorporar cada paquete y se anotan aquí:
+
+| Paquete | Versión | Fase |
+|---|---|---|
+| `ink` | 8.0.0 | F8 |
+| `react` | 19.3.1 | F8 |
+| `htm` | 3.1.1 | F8 |
+
+`package-lock.json` se versiona. Hasta F9 no hay más dependencias.
 
 ## Verificación del entorno
 

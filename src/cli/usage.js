@@ -57,6 +57,7 @@ Commands:
   doctor             Run read-only operational diagnostics [--json] [--project P] [--check CODE]
                        repair --project P --check CODE (--plan|--dry-run|--apply)
                        repair mutates state: only --apply writes.
+  tui                Launch the interactive terminal UI
   test [suite] [--quick] [--json]
                      Run isolated local reliability and performance self-tests
                        suites: reliability, performance (default: both)

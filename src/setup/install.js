@@ -123,6 +123,7 @@ function removeHooks(path, { dryRun }) {
  * @returns {SetupChange[]}
  */
 export function setupClient(slug, options) {
+  if (!SLUGS.includes(slug)) throw new Error(`unknown setup target ${JSON.stringify(slug)}`);
   const paths = targets(slug, options);
   const invocation = options.invocation ?? odinInvocation(options.env);
   const flags = { dryRun: options.dryRun === true };
