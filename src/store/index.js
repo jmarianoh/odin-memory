@@ -1,6 +1,7 @@
 export * from './backup.js';
 export * from './compatibility.js';
 export * from './conflicts.js';
+export * from './enrollment.js';
 export * from './consolidate.js';
 export * from './context.js';
 export { Database, RETRY_BACKOFFS_MS, isRetryableLockError, withLockRetry } from './db.js';

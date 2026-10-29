@@ -5,6 +5,7 @@ import { VERSION } from '../version/index.js';
 import { checkLatest, CHECK_STATUS, shouldCheckForUpdates } from '../version/check.js';
 import { cmdInstanceId, runCompatibility, runMigrateCopy } from './commands/admin.js';
 import { cmdConflicts } from './commands/conflicts.js';
+import { cmdCloud } from './commands/cloud.js';
 import { cmdContext } from './commands/context.js';
 import { cmdDelete } from './commands/delete.js';
 import { cmdDoctor } from './commands/doctor.js';
@@ -42,6 +43,7 @@ const STORE_COMMANDS = {
   import: cmdImport,
   projects: cmdProjects,
   sync: cmdSync,
+  cloud: cmdCloud,
   doctor: cmdDoctor,
   tui: cmdTui,
 };
@@ -99,7 +101,7 @@ async function dispatch(cli) {
 
   // Los hooks no deben fallar nunca ni exigir configuración válida; `setup` solo edita archivos de configuración.
   if (command === 'hook') {
-    cmdHook(cli);
+    await cmdHook(cli);
     return;
   }
   if (command === 'setup') {

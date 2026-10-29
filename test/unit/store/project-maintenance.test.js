@@ -70,14 +70,14 @@ test('migrateProject reescribe el proyecto de las mutaciones pendientes', (t) =>
   assert.deepEqual([row('ajena').project, JSON.parse(row('ajena').payload).project], ['otro', 'otro']);
 });
 
-test('migrar un proyecto inscrito falla y se revierte entera mientras no exista el diario', (t) => {
+test('migrar un proyecto inscrito mueve también su inscripción', (t) => {
   const store = openTempStore(t);
   legacy(store, 'viejo', 2);
   store.db.run("INSERT INTO sync_enrolled_projects (project) VALUES ('viejo')");
-  assert.throws(() => migrateProject(store, 'viejo', 'nuevo'), code('sync_journal_unavailable'));
-  assert.deepEqual(counts(store, 'viejo'), { o: 2, s: 1, p: 1 });
-  assert.deepEqual(counts(store, 'nuevo'), { o: 0, s: 0, p: 0 });
-  assert.deepEqual(store.db.all('SELECT project FROM sync_enrolled_projects').map((r) => r.project), ['viejo']);
+  migrateProject(store, 'viejo', 'nuevo');
+  assert.deepEqual(counts(store, 'viejo'), { o: 0, s: 0, p: 0 });
+  assert.deepEqual(counts(store, 'nuevo'), { o: 2, s: 1, p: 1 });
+  assert.deepEqual(store.db.all('SELECT project FROM sync_enrolled_projects').map((r) => r.project), ['nuevo']);
 });
 
 test('mergeProjects fusiona variantes heredadas que normalizan al canónico', (t) => {
@@ -132,13 +132,15 @@ test('previewExplicitProjectMerge cuenta lo que cambiaría y valida', (t) => {
   assert.throws(() => previewExplicitProjectMerge(store, 'zzz', 'my-app'), /must be a distinct legacy case/);
 });
 
-test('fusionar hacia un proyecto inscrito falla y se revierte', (t) => {
+test('fusionar hacia un proyecto inscrito conserva su inscripción', (t) => {
   const store = openTempStore(t);
   legacy(store, 'my_app', 1);
   legacy(store, 'my-app', 1);
   store.db.run("INSERT INTO sync_enrolled_projects (project) VALUES ('my-app')");
-  assert.throws(() => mergeExplicitProjectVariants(store, ['my_app'], 'my-app'), code('sync_journal_unavailable'));
-  assert.deepEqual(counts(store, 'my_app'), { o: 1, s: 1, p: 1 });
+  mergeExplicitProjectVariants(store, ['my_app'], 'my-app');
+  assert.deepEqual(counts(store, 'my_app'), { o: 0, s: 0, p: 0 });
+  assert.deepEqual(counts(store, 'my-app'), { o: 2, s: 2, p: 2 });
+  assert.deepEqual(store.db.all('SELECT project FROM sync_enrolled_projects').map((r) => r.project), ['my-app']);
 });
 
 test('pruneProject borra prompts y sesiones vacías de un proyecto sin observaciones vivas', (t) => {

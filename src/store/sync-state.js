@@ -79,3 +79,98 @@ export function getCloudUpgradeState(store, project) {
   const stage = goTrim(row.stage).toLowerCase();
   return { ...row, stage: UPGRADE_STAGES.has(stage) ? stage : 'planned' };
 }
+
+// ─── Ciclo de vida del destino ───────────────────────────────────────────────
+
+const isInboxTarget = (targetKey) => normalizeSyncTargetKey(targetKey) === SYNC_INBOX_TARGET_KEY;
+
+/** Aplica `fn(db, targetKey)` con el estado del destino ya creado; el buzón de entrada nunca cambia. */
+function updateTargetState(store, targetKey, fn) {
+  const key = normalizeSyncTargetKey(targetKey);
+  if (isInboxTarget(key)) return;
+  store.db.writeTransaction((db) => {
+    db.run("INSERT OR IGNORE INTO sync_state (target_key, lifecycle, updated_at) VALUES (?, ?, datetime('now'))", key, SYNC_LIFECYCLE.idle);
+    fn(db, key);
+  });
+}
+
+/** El destino queda degradado y bloqueado, con su motivo; no reintenta por sí solo. */
+export function markSyncBlocked(store, targetKey, reasonCode, message) {
+  updateTargetState(store, targetKey, (db, key) => {
+    db.run(
+      `UPDATE sync_state SET lifecycle = ?, consecutive_failures = 0, backoff_until = NULL, reason_code = ?, reason_message = ?, last_error = ?, updated_at = datetime('now')
+       WHERE target_key = ?`,
+      SYNC_LIFECYCLE.degraded, reasonCode, message, message, key,
+    );
+  });
+}
+
+export const markSyncPaused = (store, targetKey, message) => markSyncBlocked(store, targetKey, 'paused', message);
+
+export const markSyncAuthRequired = (store, targetKey, message) => markSyncBlocked(store, targetKey, 'auth_required', message);
+
+/**
+ * El destino queda degradado con un fallo reintentable hasta `backoffUntil`.
+ * @param {Date} backoffUntil
+ */
+export function markSyncFailure(store, targetKey, message, backoffUntil, reasonCode = 'transport_failed') {
+  const reason = goTrim(reasonCode) === '' ? 'transport_failed' : goTrim(reasonCode);
+  const backoff = backoffUntil.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  updateTargetState(store, targetKey, (db, key) => {
+    const { consecutive_failures: failures } = db.get('SELECT consecutive_failures FROM sync_state WHERE target_key = ?', key);
+    db.run(
+      `UPDATE sync_state SET lifecycle = ?, consecutive_failures = ?, backoff_until = ?, reason_code = ?, reason_message = ?, last_error = ?, updated_at = datetime('now')
+       WHERE target_key = ?`,
+      SYNC_LIFECYCLE.degraded, Number(failures) + 1, backoff, reason, message, message, key,
+    );
+  });
+}
+
+/** El destino queda sano: sin fallos, sin motivo y con el éxito registrado. */
+export function markSyncHealthy(store, targetKey) {
+  updateTargetState(store, targetKey, (db, key) => {
+    db.run(
+      `UPDATE sync_state SET lifecycle = ?, consecutive_failures = 0, backoff_until = NULL, reason_code = NULL, reason_message = NULL, last_error = NULL,
+         last_success_at = datetime('now'), updated_at = datetime('now')
+       WHERE target_key = ?`,
+      SYNC_LIFECYCLE.healthy, key,
+    );
+  });
+}
+
+/** El destino queda pendiente de enviar o de importar, sin errores. */
+export function markSyncPending(store, targetKey) {
+  updateTargetState(store, targetKey, (db, key) => {
+    db.run(
+      `UPDATE sync_state SET lifecycle = ?, consecutive_failures = 0, backoff_until = NULL, reason_code = NULL, reason_message = NULL, last_error = NULL, updated_at = datetime('now')
+       WHERE target_key = ?`,
+      SYNC_LIFECYCLE.pending, key,
+    );
+  });
+}
+
+/**
+ * Resumen de los destinos por proyecto (`cloud:<proyecto>`), sin el global ni el buzón de entrada.
+ * @returns {{ last_success_at: string, last_error: string, reason_code: string, pending_mutations: number }}
+ */
+export function cloudSyncSummary(store) {
+  const inbox = SYNC_INBOX_TARGET_KEY;
+  const pattern = `${DEFAULT_SYNC_TARGET_KEY}:%`;
+  const row = store.db.get(
+    `WITH latest_error AS (
+       SELECT last_error, reason_code FROM sync_state
+       WHERE target_key LIKE ? AND target_key <> ? AND last_error IS NOT NULL
+       ORDER BY updated_at DESC, target_key ASC LIMIT 1
+     )
+     SELECT MAX(sync_state.last_success_at) AS last_success_at, latest_error.last_error AS last_error, latest_error.reason_code AS reason_code
+     FROM sync_state LEFT JOIN latest_error ON TRUE
+     WHERE sync_state.target_key LIKE ? AND sync_state.target_key <> ?`,
+    pattern, inbox, pattern, inbox,
+  );
+  const pending = store.db.get(
+    `SELECT COUNT(*) AS n FROM sync_mutations sm JOIN sync_enrolled_projects sep ON sm.project = sep.project
+     WHERE sm.target_key LIKE ? AND sm.target_key <> ? AND sm.acked_at IS NULL AND sm.disposition = 'pending'`,
+    pattern, inbox,
+  );
+  return { last_success_at: row?.last_success_at ?? '', last_error: row?.last_error ?? '', reason_code: row?.reason_code ?? '', pending_mutations: Number(pending.n) };
+}

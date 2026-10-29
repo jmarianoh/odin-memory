@@ -114,25 +114,17 @@ test('sync valida sus banderas', async (t) => {
   await fail(['sync', '--literal-project'], /--literal-project requires cloud sync with an explicit non-empty --project/);
   await fail(['sync', '--project'], /--project requires a value|requires/);
   await fail(['sync', '--project='], /--project requires a non-empty value/);
-  await fail(['sync', '--cloud', '--project', 'x'], /cloud sync is not available in this build/);
+  await fail(['sync', '--cloud', '--project', 'x'], /cloud sync cloud_config_error: cloud server is missing: configure server URL with `odin cloud config --server <url>`/);
+  await fail(['sync', '--cloud'], /cloud sync requires an explicit non-empty --project value/);
+  await fail(['sync', '--cloud', '--all'], /cloud sync requires a single explicit --project scope; --all is not supported/);
+  await fail(['sync', '--cloud', '--project', 'a%zz'], /cloud sync project: invalid cloud project URL encoding "a%zz": invalid URL escape "%zz"/);
   await fail(['sync', '--project', 'x', '--cloud', '--all'], /--all and --project cannot be used together/);
   const env = await w.odin(['sync', '--project', 'x'], { env: { ODIN_CLOUD_SYNC: 'true' } });
-  assert.match(env.err, /cloud sync is not available in this build/);
+  assert.match(env.err, /cloud sync cloud_config_error: cloud server is missing/);
   const help = await w.odin(['sync', '--help']);
   assert.equal(help.code, 0);
   assert.ok(help.out.startsWith('usage: odin sync [--import | --status] [--all] [--include-prompts] [--cloud --project PROJECT [--literal-project]]\n'));
   assert.ok(!existsSync(join(w.repoDir, '.odin-memory')), 'ni la ayuda ni los errores crean la carpeta');
-});
-
-test('sync delega en el proveedor de nube cuando existe', async (t) => {
-  const w = cliWorld(t);
-  const calls = [];
-  const cloud = { sync: (cli, config, options) => { calls.push(options); } };
-  await w.odin(['sync', '--cloud', '--project', 'Mi/Proj', '--import'], { overrides: { cloud } });
-  assert.deepEqual(calls, [{ doImport: true, doStatus: false, doAll: false, project: 'Mi/Proj', projectProvided: true, literalProject: false }]);
-  await w.odin(['sync', '--project=x', '--literal-project'], { overrides: { cloud }, env: { ODIN_CLOUD_SYNC: '1' } });
-  assert.equal(calls[1].literalProject, true);
-  assert.equal(calls[1].project, 'x');
 });
 
 test('projects rescue-ownership asigna registros sin dueño', async (t) => {

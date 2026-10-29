@@ -344,6 +344,26 @@ npm run check:clean-room
 
 Prueba manual en un terminal real: `node bin/odin.js tui`.
 
-## F9 — Integración Copilot · F8 — TUI · F9 — Cloud
+## F9 — Cloud
 
-Se detallan en sus capítulos al completarse cada fase. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.
+### F9.1 — Sincronización por chunks (spec 0.24.0)
+
+1. `npm install --save-exact pg@8.23.1` y `npm install --save-exact --save-dev embedded-postgres@18.4.0-beta.17`; si npm no ejecuta el `postinstall` de `@embedded-postgres/<plataforma>`, correr a mano `node scripts/hydrate-symlinks.js` dentro de ese paquete.
+2. Copiar de `fuentes/` los tests nuevos y modificados (`test/unit/cloud/*`, `test/unit/store/sync-lifecycle.test.js`, `test/unit/cli/sync.test.js`, `test/unit/sync/syncer.test.js`, `test/unit/hooks/handlers.test.js`, `test/unit/store/{observations,prompts,project-maintenance}.test.js`), `src/cli/usage.js` y `package.json`.
+3. Hacer asíncrono el `Syncer` (`src/sync/syncer.js`: `targetKey`, `await` del transporte), `cmdHook`, `sessionStart` y `autoImport`, según `30-cloud/01-cliente.md`.
+4. Implementar el diario real (`src/store/journal.js`), `src/store/enrollment.js` (exportado desde `src/store/index.js`) y el ciclo de vida del destino en `src/store/sync-state.js`.
+5. Crear, en este orden y según `30-cloud/`: `src/cloud/constants.js`, `config.js`, `codec.js`, `remote.js`, `guidance.js`, `client.js`; `src/cloud/server/{config,db,validate,store,server,index}.js`; `src/cli/commands/cloud.js`; la rama `--cloud` de `src/cli/commands/sync.js`; registrar `cloud` en `src/cli/index.js`.
+
+Aceptación:
+```bash
+node --test "test/unit/cloud/*.test.js" test/unit/store/sync-lifecycle.test.js test/unit/cli/sync.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+Las pruebas de la nube arrancan un Postgres embebido (unos segundos por archivo). Prueba manual: `ODIN_CLOUD_INSECURE_NO_AUTH=1 ODIN_CLOUD_ALLOWED_PROJECTS=demo ODIN_DATABASE_URL=… node bin/odin.js cloud serve` y, desde otro directorio de datos, `odin cloud config --server http://127.0.0.1:8080 && odin cloud enroll demo && odin sync --cloud --project demo`.
+
+### F9.2 a F9.4
+
+Se detallan en `30-cloud/` al completarse cada porción. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

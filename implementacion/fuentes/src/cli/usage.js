@@ -57,6 +57,12 @@ Commands:
   doctor             Run read-only operational diagnostics [--json] [--project P] [--check CODE]
                        repair --project P --check CODE (--plan|--dry-run|--apply)
                        repair mutates state: only --apply writes.
+  cloud <subcommand> Cloud integration commands (opt-in)
+                       status     Show cloud config status [--project P]
+                       enroll     Enroll a project for cloud sync
+                       unenroll   Stop future cloud sync for a project
+                       config     Set cloud server URL (--server <url> | --clear)
+                       serve      Run the cloud backend
   tui                Launch the interactive terminal UI
   test [suite] [--quick] [--json]
                      Run isolated local reliability and performance self-tests
@@ -114,6 +120,25 @@ Environment:
                      then ODIN_PROJECT) > cwd detection.
                      For "odin save": owns the observation when --project is omitted.
                      For "odin mcp": sets the default project, overriding cwd detection for all tools.
+  ODIN_CLOUD_SERVER  Cloud server URL used by odin sync --cloud (overrides cloud.json)
+  ODIN_CLOUD_TOKEN   Bearer token sent to the cloud server by odin sync --cloud; in
+                     authenticated cloud serve mode, the token clients must present
+  ODIN_DATABASE_URL  Postgres DSN for odin cloud serve
+  ODIN_CLOUD_HOST    Bind host for odin cloud serve (default: 127.0.0.1)
+  ODIN_CLOUD_MAX_PUSH_BYTES
+                     Max cloud push payload bytes (default: 8388608)
+  ODIN_CLOUD_INSECURE_NO_AUTH
+                     Set to 1 ONLY for local insecure cloud serve mode (no auth)
+                     Cannot be combined with ODIN_CLOUD_TOKEN
+                     Cannot be combined with ODIN_CLOUD_ADMIN
+  ODIN_CLOUD_ALLOWED_PROJECTS
+                     Comma-separated project allowlist enforced by the cloud server.
+                     Required for cloud serve in BOTH token auth and insecure no-auth mode.
+                     Use * to allow all projects (dev/internal deploys).
+  ODIN_JWT_SECRET    Required in authenticated cloud serve mode (ODIN_CLOUD_TOKEN set);
+                     must be explicitly set to a non-default value
+  ODIN_CLOUD_ADMIN   Optional admin-only token in authenticated mode
+                     Ignored/rejected in insecure mode (ODIN_CLOUD_INSECURE_NO_AUTH=1)
   ODIN_TIMEZONE      Timezone for timestamp display.
                      Accepts any IANA zone name (e.g. America/New_York, Europe/Berlin).
                      Falls back to system local time when unset or invalid.

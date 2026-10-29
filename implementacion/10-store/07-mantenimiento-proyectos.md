@@ -7,7 +7,7 @@ Operaciones para ordenar los nombres de proyecto: renombrar, fusionar variantes,
 ## Ampliaciones
 
 - **`errors.js`**, códigos nuevos: `project_not_found` («project not found»), `project_name_required` («project name must not be empty»), `project_prune_blocked` («project still has observations») e `invalid_project_merge` («invalid project merge»). Los errores de fusión y de poda llevan el mensaje completo indicado abajo.
-- **`journal.js`**: `backfillProjectSyncMutations(db, project)`. Tras renombrar o fusionar, el diario de sincronización debe reflejar el estado local del proyecto. Solo hace falta si el proyecto está inscrito; mientras el diario no esté implementado, un proyecto **inscrito** lanza `sync_journal_unavailable` (y la operación entera se revierte), y uno no inscrito no hace nada.
+- **`journal.js`**: `backfillProjectSyncMutations(db, project)`. Tras renombrar o fusionar, el diario de sincronización debe reflejar el estado local del proyecto. Desde F9.1 es un no-op documentado: la sincronización por chunks no necesita el diario materializado, y el relleno del diario al inscribir o fusionar llega con la sincronización por mutaciones (F9.2).
 - **`observations.js`**: `recordDeleteTombstone(db, entity, entityKey, sessionId, project, deletedAt)` pasa a exportarse (ya la usaba el borrado duro de observaciones).
 
 ## `project-maintenance.js`

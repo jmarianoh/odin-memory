@@ -37,7 +37,7 @@ Cada entrada lleva `type: "command"`, `bash`, `powershell`, `command` (igual que
 ### `copilot-session-start`
 1. Proyecto del directorio (`cwd`) con la misma detección que `GET /project/current` (`captureDetector(store, false)`, que fija el vínculo del repositorio). Sin proyecto (ambiguo, sin `cwd`…) no se registra nada.
 2. Registra la sesión `sessionId` con `registerSessionWithProvenance`: modo `project_owned`, `resume: true`, directorio normalizado con `runtimeWorktreeDirectory`. Una sesión raíz ya terminada y compartida se reanuda como compartida; la reanudación crea la continuación `<id>:resume:N`.
-3. Si existe `<cwd>/.odin-memory/manifest.json` y `ODIN_HOOK_AUTO_IMPORT` no es `0`, importa los chunks de Git (`Syncer.local(...).import()`); cualquier fallo se ignora. Ojo: si ya existen sesiones propias del proyecto, un manifiesto de versión 1 se rechaza (ver `16-git-sync.md`).
+3. Si existe `<cwd>/.odin-memory/manifest.json` y `ODIN_HOOK_AUTO_IMPORT` no es `0`, importa los chunks de Git (`await Syncer.local(...).import()`; desde F9.1 `Syncer` es asíncrono, así que `sessionStart` y `cmdHook` son `async`); cualquier fallo se ignora. Ojo: si ya existen sesiones propias del proyecto, un manifiesto de versión 1 se rechaza (ver `16-git-sync.md`).
 4. Contexto: `formatContext(proyecto, '', { compact: true, pinned: 20, max_bytes: 16384, observations: 0, prompts: 0, sessions: 0, older_history: false })`.
 5. Salida: `additionalContext` = `## Odin persistent memory — session context\n\nThe Odin memory tools are available. Follow the Odin memory protocol from your instructions.` y, si hay contexto, `\n\n<contexto>`. El protocolo completo no se repite: va en las instrucciones.
 

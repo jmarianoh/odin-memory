@@ -40,7 +40,7 @@ Módulos: `src/project/canonical.js`, `src/store/{text,journal,sessions,observat
 | `observation_find_replace_legacy_content_large` | cannot partially replace oversized legacy observation |
 | `prompt_content_required` | prompt content is required |
 | `invalid_project_name` | invalid project name |
-| `sync_journal_unavailable` | sync journal is not available for enrolled projects yet |
+| `sync_journal_unavailable` | sync journal is not available for enrolled projects yet (solo lo lanza `rescue-ownership` sobre un proyecto inscrito, hasta F9.4) |
 
 `SessionProjectConflictError(sessionId, ownerProject, requestedProject)` extiende `StoreError` con `code = 'session_ownership_mismatch'`, mensaje `session ownership does not match write project: session "<id>" belongs to "<dueño>", not "<pedido>"` (los valores entre comillas con `JSON.stringify`) y propiedades `sessionId`, `ownerProject`, `requestedProject`.
 
@@ -81,7 +81,7 @@ Módulos: `src/project/canonical.js`, `src/store/{text,journal,sessions,observat
 
 `journalMutation(db, { entity, entityKey, op, project, sessionId, payload })` es el único punto por el que las escrituras anotan su mutación para Cloud. Debe invocarse dentro de la transacción de la escritura.
 
-Estado actual: valida que una sesión tenga clave; calcula el proyecto (`project` normalizado o, si falta, el de `sessionId`); si el proyecto es vacío o **no está inscrito** (`sync_enrolled_projects`) no hace nada; si está inscrito lanza `storeError('sync_journal_unavailable', '<entidad> <op> for project "<p>"')`. El diario completo llegará con la sincronización. `payload` es una función para no construir la carga cuando no se usa.
+Desde F9.1 escribe el diario de verdad (`30-cloud/01-cliente.md`, «Diario local»): valida que una sesión tenga clave; calcula el proyecto dueño (`project` normalizado o, si falta, el de `sessionId`); una mutación local de un proyecto **no inscrito** (`sync_enrolled_projects`) no se registra, y las de proyecto vacío sí; en otro caso inserta la fila en `sync_mutations` (destino `cloud`, proyecto en su columna) y deja `pending` el estado de `cloud` y de `cloud:<proyecto>`. `payload` es un objeto o una función para no construir la carga cuando no se usa. Ya no lanza `sync_journal_unavailable`.
 
 Exporta `SYNC_ENTITY` (`session`, `observation`, `prompt`, `relation`, `project`), `SYNC_OP_UPSERT = 'upsert'`, `SYNC_OP_DELETE = 'delete'`, `isProjectEnrolled(db, project)` y `sessionProject(db, sessionId)` (proyecto canónico de la sesión o `''`).
 

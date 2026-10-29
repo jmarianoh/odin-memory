@@ -96,9 +96,15 @@ test('un prompt sin bandeja no guarda procedencia local en la lápida', (t) => {
   assert.deepEqual([tomb.local_creation_session_id, tomb.source_inbox_id], [null, null]);
 });
 
-test('una escritura de prompt sobre un proyecto inscrito falla y se revierte', (t) => {
+test('un prompt de un proyecto inscrito se anota en el diario y uno de un proyecto sin inscribir no', (t) => {
   const store = setup(t);
+  addPrompt(store, { session_id: 's1', content: 'sin inscribir' });
+  assert.equal(store.db.get("SELECT count(*) AS n FROM sync_mutations WHERE entity = 'prompt'").n, 0);
   store.db.run("INSERT INTO sync_enrolled_projects (project) VALUES ('proj')");
-  assert.throws(() => addPrompt(store, { session_id: 's1', content: 'x' }), code('sync_journal_unavailable'));
-  assert.equal(store.db.get('SELECT count(*) AS n FROM user_prompts').n, 0);
+  const { id } = addPrompt(store, { session_id: 's1', content: 'inscrito' });
+  const rows = store.db.all("SELECT target_key, entity, op, source, project, payload FROM sync_mutations WHERE entity = 'prompt'");
+  assert.equal(rows.length, 1);
+  assert.deepEqual([rows[0].target_key, rows[0].op, rows[0].source, rows[0].project], ['cloud', 'upsert', 'local', 'proj']);
+  assert.equal(JSON.parse(rows[0].payload).content, 'inscrito');
+  assert.equal(store.db.get('SELECT content FROM user_prompts WHERE id = ?', id).content, 'inscrito');
 });

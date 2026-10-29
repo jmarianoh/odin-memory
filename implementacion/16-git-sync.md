@@ -2,7 +2,7 @@
 
 ## Qué cubre este capítulo
 
-La entrega F5 (spec 0.18.0) permite compartir la memoria de un proyecto mediante archivos versionables en Git: `odin sync` exporta lo nuevo a una carpeta `.odin-memory/` del repositorio y `odin sync --import` aplica lo que otros han exportado. La nube (`--cloud`) queda para F9 y se enchufa por el gancho `Cli.cloud.sync`.
+La entrega F5 (spec 0.18.0) permite compartir la memoria de un proyecto mediante archivos versionables en Git: `odin sync` exporta lo nuevo a una carpeta `.odin-memory/` del repositorio y `odin sync --import` aplica lo que otros han exportado. La nube (`--cloud`) reutiliza este mismo `Syncer` con un transporte remoto (F9.1, `30-cloud/`); por eso sus métodos son asíncronos.
 
 | Pieza | Dónde |
 |---|---|
@@ -104,7 +104,7 @@ Con un manifiesto de versión < 2 se rechaza (`Error`) cuando:
 |---|---|
 | `getUsername(env)` | `USER`, si no `USERNAME`, si no el nombre del equipo, si no `unknown` |
 | `manifestSummary(manifest)` | `No chunks synced yet.` o `N chunks, M memories, S sessions — contributors: a (1 chunks), b (2 chunks)`, con los autores ordenados por nombre |
-| `FileTransport` | `readManifest`, `writeManifest`, `readChunk(id)` (lanza `ChunkNotFoundError` si falta), `writeChunk(id, json)` (gzip). Es un contrato: la nube aporta otro transporte con los mismos métodos |
+| `FileTransport` | `readManifest`, `writeManifest`, `readChunk(id)` (lanza `ChunkNotFoundError` si falta), `writeChunk(id, json)` (gzip). Es un contrato: los métodos pueden devolver promesas y la nube aporta otro transporte con los mismos métodos (`30-cloud/01-cliente.md`) |
 
 ## Comando `odin sync`
 
@@ -117,13 +117,14 @@ odin sync [--import | --status] [--all] [--include-prompts] [--cloud --project P
 - `--import` imprime `Imported N new chunk(s) from .odin-memory/` y los recuentos, o `No new chunks to import.` (con `(N chunks already imported)` si hubo omitidos), y siempre los tres contadores de relaciones.
 - `--status` imprime `Sync status:` con `Local chunks`, `Remote chunks` y `Pending import`.
 - Validaciones: `--all` y `--project` no se combinan; `--literal-project` solo vale con nube, proyecto explícito y sin `--all`; `--include-prompts` no se combina con `--import`, `--status`, `--cloud` ni `ODIN_CLOUD_SYNC` (`validateSyncPromptPrivacy`); la ayuda (`--help`, `-h`, `help`) no abre el almacén ni crea carpetas.
-- `--cloud` o `ODIN_CLOUD_SYNC` verdadero (`1`, `true`, `yes`, `on`) delegan en `Cli.cloud.sync(cli, config, { doImport, doStatus, doAll, project, projectProvided, literalProject })`; sin ese gancho, el comando sale con `odin: cloud sync is not available in this build`.
+- `--cloud` o `ODIN_CLOUD_SYNC` verdadero (`1`, `true`, `yes`, `on`) sincronizan con el servidor de la nube del proyecto indicado: ver `30-cloud/01-cliente.md` (exige `--project`, comprobaciones previas, estado del destino `cloud:<proyecto>`).
+- `Syncer` es asíncrono: `export`, `import(report)` y `status` devuelven promesas y esperan al transporte; el constructor acepta `targetKey` (por defecto el destino local de chunks; la nube usa `cloud:<proyecto>`). Quien lo llame (`odin sync`, el hook `sessionStart`) debe esperarlo.
 
 ## Rescate de propiedad (`projects rescue-ownership`)
 
 Registros históricos pueden carecer de proyecto. `rescueNullProjectOwnership(store, { target_project, session_ids, observation_ids, prompt_ids })` les asigna el proyecto destino y devuelve `{ rescued_sessions, rescued_observations, rescued_prompts, conflicting_records, skipped_records, journaled, complete, blocked[] }`; cada elemento de `blocked` es `{ kind, id, reason, owned_by? }` (`owned_by` solo si tiene dueño). Un registro cuyo dueño es otro proyecto, o que depende de uno que lo es, queda bloqueado y no se modifica.
 
-Errores: `project_required` y `project_rescue_invalid_request` (`project rescue request is invalid: …`). Si el proyecto destino está inscrito en la nube lanza `sync_journal_unavailable`: el diario de la nube llega con F9.
+Errores: `project_required` y `project_rescue_invalid_request` (`project rescue request is invalid: …`). Si el proyecto destino está inscrito en la nube lanza `sync_journal_unavailable`: el rescate de propiedad sobre proyectos inscritos llega con F9.4.
 
 CLI: `odin projects rescue-ownership --project <p> [--session <id>]… [--observation <id>]… [--prompt <id>]…`. Imprime `Rescued ownership into "<p>": S sessions, O observations, P prompts` y `Everything selected now belongs to the target project.` o la lista de lo bloqueado.
 
@@ -135,5 +136,5 @@ HTTP: `POST /projects/rescue-ownership` (alias `POST /projects/migrate`) exige u
 
 ## Omisiones deliberadas
 
-- La nube y el diario de proyectos inscritos (F9).
+- Sincronización por mutaciones, autosync y rescate de propiedad sobre proyectos inscritos (F9.2 y F9.4). La sincronización por chunks con la nube está en `30-cloud/`.
 - El arranque desde un diario anterior a esta versión.

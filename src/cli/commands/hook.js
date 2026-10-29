@@ -14,7 +14,7 @@ export const HOOK_USAGE = `usage: odin hook ${Object.keys(HANDLERS).join('|')}|r
  * `resolve-hook-project` no necesita configuración ni almacén.
  * @param {import('../runtime.js').Cli} cli
  */
-export function cmdHook(cli) {
+export async function cmdHook(cli) {
   const [, name, ...extra] = cli.args;
   if (extra.length > 0 || (name !== 'resolve-hook-project' && !Object.hasOwn(HANDLERS, name ?? ''))) {
     cli.err(`${HOOK_USAGE}\n`);
@@ -37,7 +37,7 @@ export function cmdHook(cli) {
       return undefined;
     }
     store = cli.openStore(config);
-    const output = HANDLERS[name]({ store, input, env: cli.env, dataDir: config.dataDir });
+    const output = await HANDLERS[name]({ store, input, env: cli.env, dataDir: config.dataDir });
     if (output) cli.out(`${toGoJson(output)}\n`);
   } catch {
     // fail-open

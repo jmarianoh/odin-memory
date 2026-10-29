@@ -54,19 +54,19 @@ function registerSession(store, sessionId, res, cwd) {
 }
 
 /** Importa los chunks de Git compartidos si la carpeta existe; cualquier fallo se ignora. */
-function autoImport(store, cwd, project, env) {
+async function autoImport(store, cwd, project, env) {
   if (env.ODIN_HOOK_AUTO_IMPORT === '0') return;
   const dir = join(cwd, CONFIG_DIR);
   if (!existsSync(join(dir, 'manifest.json'))) return;
   try {
-    Syncer.local(store, dir, project, { log: () => {} }).import();
+    await Syncer.local(store, dir, project, { log: () => {} }).import();
   } catch {
     // la importación es de mejor esfuerzo
   }
 }
 
 /** `sessionStart`: registra la sesión, importa lo compartido e inyecta el contexto. */
-export function sessionStart({ store, input, env }) {
+export async function sessionStart({ store, input, env }) {
   const res = projectOf(store, input.cwd, env, false);
   let context = '';
   if (res && input.sessionId !== '') {
@@ -75,7 +75,7 @@ export function sessionStart({ store, input, env }) {
     } catch {
       // sin sesión registrada el agente puede usar las herramientas igualmente
     }
-    autoImport(store, goTrim(input.cwd), res.project, env);
+    await autoImport(store, goTrim(input.cwd), res.project, env);
     try {
       context = formatContext(store, res.project, '', CONTEXT_OPTIONS);
     } catch {

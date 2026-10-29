@@ -1,7 +1,12 @@
 import { join } from 'node:path';
 import { CONFIG_DIR } from '../../project/detect.js';
 import { Syncer, getUsername } from '../../sync/index.js';
+import { cloudSyncFailureMessage, markCloudSyncFailure, preflightCloudSync } from '../../cloud/client.js';
+import { RemoteTransport } from '../../cloud/remote.js';
+import { hasPendingSyncMutationsForProject } from '../../store/enrollment.js';
+import { cloudTargetKeyForProject, markSyncHealthy, markSyncPending } from '../../store/sync-state.js';
 import { goTrim } from '../../store/text.js';
+import { normalizeCloudCliProjectInput } from './cloud.js';
 import { requiredProjectValue, resolveCliProject } from '../project.js';
 import { fatal, println } from '../runtime.js';
 
@@ -45,14 +50,37 @@ function printImportRelationCounts(cli, result) {
   println(cli, `  Relations dead:     ${result.relations_dead}`);
 }
 
+const MAX_CLOUD_IMPORT_PROGRESS_UPDATES = 10;
+
+/** Línea de progreso de la importación desde la nube, como mucho unas diez veces. */
+function cloudImportProgressPrinter(cli) {
+  let initialPending = 0;
+  let interval = 0;
+  const print = (p) => println(cli, `Cloud import progress: local=${p.local_chunks} remote=${p.remote_chunks} pending=${p.pending_chunks} progress=${p.percentage}%`);
+  return (progress) => {
+    if (initialPending === 0 && interval === 0) {
+      initialPending = progress.pending_chunks;
+      interval = initialPending > MAX_CLOUD_IMPORT_PROGRESS_UPDATES ? Math.ceil(initialPending / MAX_CLOUD_IMPORT_PROGRESS_UPDATES) : 1;
+      print(progress);
+      return;
+    }
+    if (progress.pending_chunks === 0) {
+      print(progress);
+      return;
+    }
+    const completed = initialPending - progress.pending_chunks;
+    if (completed > 0 && completed % interval === 0) print(progress);
+  };
+}
+
 /**
  * `odin sync [--import | --status] [--all] [--include-prompts] [--project P]`: intercambia
  * memoria por Git (chunks comprimidos en `.odin-memory/`). Con `--cloud` o `ODIN_CLOUD_SYNC`
- * delega en `Cli.cloud.sync`, que aporta la sincronización con un servidor.
+ * intercambia chunks con el servidor de la nube del proyecto indicado.
  * @param {import('../runtime.js').Cli} cli
  * @param {{ dataDir: string }} config
  */
-export function cmdSync(cli, config) {
+export async function cmdSync(cli, config) {
   const args = cli.args.slice(1);
   const envCloud = truthy(cli.env.ODIN_CLOUD_SYNC);
   try {
@@ -101,9 +129,14 @@ export function cmdSync(cli, config) {
   if (literalProject && (!cloudEnabled || doAll || !projectProvided || goTrim(project) === '')) {
     return fatal(cli, new Error('--literal-project requires cloud sync with an explicit non-empty --project and cannot use --all'));
   }
-  if (cloudEnabled) {
-    if (!cli.cloud?.sync) return fatal(cli, new Error('cloud sync is not available in this build'));
-    return cli.cloud.sync(cli, config, { doImport, doStatus, doAll, project, projectProvided, literalProject });
+  if (cloudEnabled && projectProvided) {
+    try {
+      const decoded = normalizeCloudCliProjectInput(project, literalProject);
+      project = decoded.project;
+      if (decoded.warning !== '') cli.err(`${decoded.warning}\n`);
+    } catch (err) {
+      return fatal(cli, new Error(`cloud sync project: ${err.message}`));
+    }
   }
 
   const syncDir = join(cli.cwd(), CONFIG_DIR);
@@ -121,16 +154,56 @@ export function cmdSync(cli, config) {
         return fatal(cli, err);
       }
     }
-    const syncer = Syncer.local(store, syncDir, project, { log: (m) => cli.err(`${m}\n`) });
+    if (cloudEnabled) {
+      if (doAll) return fatal(cli, new Error('cloud sync requires a single explicit --project scope; --all is not supported'));
+      if (!projectProvided || goTrim(project) === '') return fatal(cli, new Error('cloud sync requires an explicit non-empty --project value'));
+    }
+    const targetKey = cloudTargetKeyForProject(project);
+    const log = (m) => cli.err(`${m}\n`);
+    let syncer = Syncer.local(store, syncDir, project, { log });
+    if (cloudEnabled) {
+      let runtime;
+      try {
+        runtime = preflightCloudSync(store, config, project, !doStatus, cli.env);
+      } catch (err) {
+        return fatal(cli, err);
+      }
+      try {
+        const transport = new RemoteTransport(runtime.server_url, runtime.token, project, cli.fetch ? { fetch: cli.fetch } : {});
+        syncer = new Syncer(store, { transport, project, log, targetKey });
+      } catch (err) {
+        if (!doStatus) markCloudSyncFailure(store, targetKey, err);
+        return fatal(cli, new Error(cloudSyncFailureMessage(project, err)));
+      }
+    }
+    const failWith = (err) => {
+      if (!cloudEnabled) return fatal(cli, err);
+      if (!doStatus) markCloudSyncFailure(store, targetKey, err);
+      return fatal(cli, new Error(cloudSyncFailureMessage(project, err)));
+    };
+    // Tras una sincronización con la nube el destino queda pendiente o sano según lo que falte por mover.
+    const markCloudOutcome = async () => {
+      if (!cloudEnabled) return;
+      let pendingImports = 0;
+      let verified = false;
+      try {
+        pendingImports = (await syncer.status()).pending;
+        verified = true;
+      } catch {
+        // sin estado remoto verificado no se declara sano
+      }
+      if (hasPendingSyncMutationsForProject(store, project) || (verified && pendingImports > 0)) markSyncPending(store, targetKey);
+      else if (verified) markSyncHealthy(store, targetKey);
+    };
 
     if (doStatus) {
       let status;
       try {
-        status = syncer.status();
+        status = await syncer.status();
       } catch (err) {
-        return fatal(cli, err);
+        return failWith(err);
       }
-      println(cli, 'Sync status:');
+      println(cli, cloudEnabled ? `Cloud sync status (project=${JSON.stringify(project)}):` : 'Sync status:');
       println(cli, `  Local chunks:    ${status.local}`);
       println(cli, `  Remote chunks:   ${status.remote}`);
       println(cli, `  Pending import:  ${status.pending}`);
@@ -140,17 +213,20 @@ export function cmdSync(cli, config) {
     if (doImport) {
       let result;
       try {
-        result = syncer.import();
+        result = await syncer.import(cloudEnabled ? cloudImportProgressPrinter(cli) : undefined);
       } catch (err) {
-        return fatal(cli, err);
+        return failWith(err);
       }
+      await markCloudOutcome();
       if (result.chunks_imported === 0) {
         println(cli, 'No new chunks to import.');
         if (result.chunks_skipped > 0) println(cli, `  (${result.chunks_skipped} chunks already imported)`);
         printImportRelationCounts(cli, result);
         return undefined;
       }
-      println(cli, `Imported ${result.chunks_imported} new chunk(s) from ${CONFIG_DIR}/`);
+      println(cli, cloudEnabled
+        ? `Imported ${result.chunks_imported} new remote chunk(s) for project ${JSON.stringify(project)}`
+        : `Imported ${result.chunks_imported} new chunk(s) from ${CONFIG_DIR}/`);
       println(cli, `  Sessions:     ${result.sessions_imported}`);
       println(cli, `  Observations: ${result.observations_imported}`);
       println(cli, `  Prompts:      ${result.prompts_imported}`);
@@ -159,14 +235,16 @@ export function cmdSync(cli, config) {
       return undefined;
     }
 
-    println(cli, doAll ? 'Exporting ALL memories (all projects)...' : `Exporting memories for project ${JSON.stringify(project)}...`);
-    if (!includePrompts) println(cli, 'Prompts excluded from Git sync (use --include-prompts to intentionally share them).');
+    if (doAll) println(cli, 'Exporting ALL memories (all projects)...');
+    else println(cli, cloudEnabled ? `Exporting memories for project ${JSON.stringify(project)} to cloud...` : `Exporting memories for project ${JSON.stringify(project)}...`);
+    if (!cloudEnabled && !includePrompts) println(cli, 'Prompts excluded from Git sync (use --include-prompts to intentionally share them).');
     let result;
     try {
-      result = syncer.export(getUsername(cli.env), project, { includePrompts });
+      result = await syncer.export(getUsername(cli.env), project, { includePrompts });
     } catch (err) {
-      return fatal(cli, err);
+      return failWith(err);
     }
+    await markCloudOutcome();
     if (result.is_empty) {
       println(cli, doAll ? 'Nothing new to sync — all memories already exported.' : `Nothing new to sync for project ${JSON.stringify(project)} — all memories already exported.`);
       return undefined;
@@ -176,6 +254,10 @@ export function cmdSync(cli, config) {
     println(cli, `  Observations: ${result.observations_exported}`);
     println(cli, `  Prompts:      ${result.prompts_exported}`);
     if (result.mutations_exported > 0) println(cli, `  Mutations:    ${result.mutations_exported}`);
+    if (cloudEnabled) {
+      println(cli, `Cloud sync complete for project ${JSON.stringify(project)}.`);
+      return undefined;
+    }
     println(cli);
     println(cli, 'Warning: sessions, observations, and any included prompts may contain sensitive content.');
     println(cli, `Review ${CONFIG_DIR}/ before sharing; committed content can remain permanently in Git history.`);

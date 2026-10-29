@@ -2,7 +2,7 @@
 
 ## Qué cubre este capítulo
 
-`odin tui` abre una interfaz de terminal para buscar, leer y administrar la memoria sin recordar comandos. La entrega F8 (spec 0.23.0) trae nueve pantallas: panel, búsqueda, resultados, recientes, detalle de observación, cronología, sesiones, detalle de sesión y preparación de Copilot. Las pantallas de la nube llegan con ella (F9) y se añadirán como entradas del panel.
+`odin tui` abre una interfaz de terminal para buscar, leer y administrar la memoria sin recordar comandos. La entrega F8 (spec 0.23.0) trae nueve pantallas: panel, búsqueda, resultados, recientes, detalle de observación, cronología, sesiones, detalle de sesión y preparación de Copilot. Las pantallas de la nube llegan con F9.4 y se añadirán como entradas del panel.
 
 La TUI se construye con **Ink** (React para terminal) y **htm** (plantillas sin JSX) y sigue la arquitectura de Elm: toda la lógica vive en una función pura `update(estado, mensaje)` que se prueba sin terminal; la vista y la ejecución de comandos son capas finas.
 

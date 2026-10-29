@@ -16,7 +16,8 @@ Todas con versión **exacta** (sin `^` ni `~`). Se incorporan por fases:
 
 | Paquete | Fase | Uso |
 |---|---|---|
-| `pg` | F9 | Cliente Postgres de Cloud |
+| `pg` | F9.1 | Cliente Postgres del servidor de la nube (solo se carga con `odin cloud serve`) |
+| `embedded-postgres` (desarrollo) | F9.1 | Postgres real y desechable para las pruebas de la nube |
 | `ink`, `react`, `htm` | F8 | TUI (`htm` evita JSX) |
 | `htmx.org`, `@picocss/pico` | F9 | Se copian a `static/`; no se cargan desde CDN |
 
@@ -29,8 +30,10 @@ Las versiones exactas se fijan al incorporar cada paquete y se anotan aquí:
 | `ink` | 8.0.0 | F8 |
 | `react` | 19.3.1 | F8 |
 | `htm` | 3.1.1 | F8 |
+| `pg` | 8.23.1 | F9.1 |
+| `embedded-postgres` (`devDependencies`) | 18.4.0-beta.17 | F9.1 |
 
-`package-lock.json` se versiona. Hasta F9 no hay más dependencias.
+`package-lock.json` se versiona. `embedded-postgres` instala un binario por plataforma (`@embedded-postgres/<plataforma>`) cuyo `postinstall` (`node scripts/hydrate-symlinks.js`) hay que ejecutar a mano si npm no lo lanza; detalles y alternativa (`ODIN_TEST_DATABASE_URL`) en `30-cloud/README.md`. Hasta F9.3 no hay más dependencias (`htmx.org` y `@picocss/pico`, del panel).
 
 ## Verificación del entorno
 

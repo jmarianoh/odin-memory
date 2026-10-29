@@ -85,9 +85,11 @@ export class Syncer {
    * @param {{ readManifest: Function, writeManifest: Function, writeChunk: Function, readChunk: Function }} [options.transport]
    * @param {string} [options.project] ámbito de la reaplicación de diferidos
    * @param {(message: string) => void} [options.log]
+   * @param {string} [options.targetKey] destino con el que se anotan los chunks (por defecto `local`; la nube usa `cloud:<proyecto>`)
    */
-  constructor(store, { syncDir = '', transport, project = '', log } = {}) {
+  constructor(store, { syncDir = '', transport, project = '', log, targetKey = LOCAL_CHUNK_TARGET_KEY } = {}) {
     this.store = store;
+    this.targetKey = targetKey;
     this.syncDir = syncDir;
     this.transport = transport ?? new FileTransport(syncDir);
     this.project = goTrim(normalizeProject(project).normalized);
@@ -108,7 +110,7 @@ export class Syncer {
    * @param {{ includePrompts?: boolean }} [options] los prompts solo se comparten si se pide
    * @returns {{ chunk_id?: string, sessions_exported: number, observations_exported: number, prompts_exported: number, mutations_exported: number, is_empty: boolean }}
    */
-  export(createdBy, project = '', { includePrompts = false } = {}) {
+  async export(createdBy, project = '', { includePrompts = false } = {}) {
     const name = goTrim(normalizeProject(project).normalized);
     if (this.syncDir !== '') {
       try {
@@ -117,8 +119,8 @@ export class Syncer {
         throw new Error(`create chunks dir: ${err.message}`, { cause: err });
       }
     }
-    const manifest = this.transport.readManifest();
-    const locallySynced = getSyncedChunksForTarget(this.store, LOCAL_CHUNK_TARGET_KEY);
+    const manifest = await this.transport.readManifest();
+    const locallySynced = getSyncedChunksForTarget(this.store, this.targetKey);
     const projectOwned = hasProjectOwnedSessionsForProject(this.store, name);
     const known = stringKeys(locallySynced);
     for (const c of manifest.chunks) known.add(c.id);
@@ -132,15 +134,15 @@ export class Syncer {
     if (name !== '') data = { ...data, observations: data.observations.filter((o) => o.scope === 'project') };
     if (projectOwned && manifest.version < OWNERSHIP_MODE_MANIFEST_VERSION) {
       manifest.version = OWNERSHIP_MODE_MANIFEST_VERSION;
-      this.transport.writeManifest(manifest);
+      await this.transport.writeManifest(manifest);
     }
 
     const relationMutations = exportRelationMutations(this.store, name);
     const lastChunkTime = this.#lastChunkTime(manifest);
     const historicalPrompts = new Set();
-    const history = this.#exportedChunkKeys(manifest, historicalPrompts);
+    const history = await this.#exportedChunkKeys(manifest, historicalPrompts);
     const localDeletes = exportLocalDeleteTombstones(this.store, name);
-    const { reviewDates, exportedClears } = this.#exportedReviewState(manifest);
+    const { reviewDates, exportedClears } = await this.#exportedReviewState(manifest);
 
     const chunk = this.#filterNewData(data, lastChunkTime);
     chunk.incremental = lastChunkTime !== '';
@@ -185,14 +187,14 @@ export class Syncer {
     let payloadAvailable = false;
     if (known.has(id)) {
       try {
-        this.transport.readChunk(id);
+        await this.transport.readChunk(id);
         payloadAvailable = true;
       } catch (err) {
         if (!(err instanceof ChunkNotFoundError)) throw new Error(`read chunk ${id}: ${err.message}`, { cause: err });
       }
     }
     if (payloadAvailable) {
-      if (!locallySynced.has(id)) recordSyncedChunkForTarget(this.store, LOCAL_CHUNK_TARGET_KEY, id);
+      if (!locallySynced.has(id)) recordSyncedChunkForTarget(this.store, this.targetKey, id);
       return { sessions_exported: 0, observations_exported: 0, prompts_exported: 0, mutations_exported: 0, is_empty: true };
     }
 
@@ -202,15 +204,15 @@ export class Syncer {
     const existing = manifest.chunks.find((c) => c.id === id);
     if (existing) entry = existing;
     try {
-      this.transport.writeChunk(id, json, entry);
+      await this.transport.writeChunk(id, json, entry);
     } catch (err) {
       throw new Error(`write chunk: ${err.message}`, { cause: err });
     }
     if (!existing) {
       manifest.chunks.push(entry);
-      this.transport.writeManifest(manifest);
+      await this.transport.writeManifest(manifest);
     }
-    recordSyncedChunkForTarget(this.store, LOCAL_CHUNK_TARGET_KEY, id);
+    recordSyncedChunkForTarget(this.store, this.targetKey, id);
     return {
       chunk_id: id, sessions_exported: chunk.sessions.length, observations_exported: chunk.observations.length, prompts_exported: chunk.prompts.length,
       mutations_exported: chunk.mutations.length, is_empty: false,
@@ -237,12 +239,12 @@ export class Syncer {
   }
 
   /** Lee cada chunk del manifiesto; uno ausente se omite. */
-  #chunks(manifest) {
+  async #chunks(manifest) {
     const out = [];
     for (const entry of manifest.chunks) {
       let text;
       try {
-        text = this.transport.readChunk(entry.id);
+        text = await this.transport.readChunk(entry.id);
       } catch (err) {
         if (err instanceof ChunkNotFoundError) continue;
         throw new Error(`read chunk ${entry.id}: ${err.message}`, { cause: err });
@@ -258,10 +260,10 @@ export class Syncer {
     return out;
   }
 
-  #exportedReviewState(manifest) {
+  async #exportedReviewState(manifest) {
     const reviewDates = new Map();
     const exportedClears = new Set();
-    for (const chunk of this.#chunks(manifest)) {
+    for (const chunk of await this.#chunks(manifest)) {
       for (const receipt of chunk.review_clears) exportedClears.add(receipt);
       for (const mutation of buildImportMutations(chunk)) {
         if (mutation.entity !== SYNC_ENTITY.observation) continue;
@@ -277,12 +279,12 @@ export class Syncer {
     return { reviewDates, exportedClears };
   }
 
-  #exportedChunkKeys(manifest, promptHistory) {
+  async #exportedChunkKeys(manifest, promptHistory) {
     const relations = new Set();
     const observations = new Set();
     const historicalObservations = new Set();
     const deletes = new Set();
-    for (const chunk of this.#chunks(manifest)) {
+    for (const chunk of await this.#chunks(manifest)) {
       for (const o of chunk.observations) {
         observations.add(o.sync_id);
         historicalObservations.add(o.sync_id);
@@ -356,10 +358,10 @@ export class Syncer {
    * @param {(progress: { local_chunks: number, remote_chunks: number, pending_chunks: number, percentage: number }) => void} [report]
    * @returns {{ chunks_imported: number, chunks_skipped: number, sessions_imported: number, observations_imported: number, prompts_imported: number, relations_replayed: number, relations_deferred: number, relations_dead: number }}
    */
-  import(report) {
-    const manifest = this.transport.readManifest();
+  async import(report) {
+    const manifest = await this.transport.readManifest();
     const entries = manifest.chunks;
-    const known = getSyncedChunksForTarget(this.store, LOCAL_CHUNK_TARGET_KEY);
+    const known = getSyncedChunksForTarget(this.store, this.targetKey);
     let result;
     if (entries.length === 0) {
       result = this.#emptyImportResult();
@@ -370,7 +372,7 @@ export class Syncer {
         local_chunks: known.size, remote_chunks: entries.length, pending_chunks: remaining, percentage: initial > 0 ? Math.floor(((initial - remaining) * 100) / initial) : 100,
       });
       report?.(snapshot());
-      result = this.#importEntries(entries, known, manifest.version, () => {
+      result = await this.#importEntries(entries, known, manifest.version, () => {
         remaining -= 1;
         if (remaining > 0) report?.(snapshot());
       });
@@ -393,16 +395,16 @@ export class Syncer {
   }
 
   #finalize(result) {
-    const replay = replayDeferredForScope(this.store, LOCAL_CHUNK_TARGET_KEY, this.project);
+    const replay = replayDeferredForScope(this.store, this.targetKey, this.project);
     result.relations_replayed = replay.succeeded;
-    const counts = countDeferredAndDead(this.store, LOCAL_CHUNK_TARGET_KEY, this.project);
+    const counts = countDeferredAndDead(this.store, this.targetKey, this.project);
     result.relations_deferred = counts.deferred;
     result.relations_dead = counts.dead;
     return result;
   }
 
-  #readDecoded(entry) {
-    const text = this.transport.readChunk(entry.id);
+  async #readDecoded(entry) {
+    const text = await this.transport.readChunk(entry.id);
     try {
       return parseChunk(text);
     } catch (err) {
@@ -410,7 +412,7 @@ export class Syncer {
     }
   }
 
-  #importEntries(entries, known, manifestVersion, afterCommit) {
+  async #importEntries(entries, known, manifestVersion, afterCommit) {
     const result = this.#emptyImportResult();
     let pending = [];
     for (const entry of entries) {
@@ -424,7 +426,7 @@ export class Syncer {
       for (const entry of pending) {
         let chunk;
         try {
-          chunk = this.#readDecoded(entry);
+          chunk = await this.#readDecoded(entry);
         } catch (err) {
           if (err instanceof ChunkNotFoundError) continue;
           throw err instanceof Error && err.message.startsWith('parse chunk') ? err : new Error(`read chunk ${entry.id}: ${err.message}`, { cause: err });
@@ -433,7 +435,7 @@ export class Syncer {
         decoded.set(entry.id, chunk);
       }
     }
-    const availableSessionIds = this.#sessionIdsAvailableInChunks(entries, known, decoded);
+    const availableSessionIds = await this.#sessionIdsAvailableInChunks(entries, known, decoded);
 
     const lastErrors = new Map();
     for (let pass = 1; pending.length > 0; pass++) {
@@ -443,7 +445,7 @@ export class Syncer {
         let chunk = decoded.get(entry.id);
         if (!chunk) {
           try {
-            chunk = this.#readDecoded(entry);
+            chunk = await this.#readDecoded(entry);
           } catch (err) {
             if (err instanceof ChunkNotFoundError) {
               result.chunks_skipped += 1;
@@ -484,17 +486,17 @@ export class Syncer {
   }
 
   #importChunk(id, chunk) {
-    applyPulledChunk(this.store, LOCAL_CHUNK_TARGET_KEY, id, orderMutationsForApply(buildImportMutations(chunk)));
+    applyPulledChunk(this.store, this.targetKey, id, orderMutationsForApply(buildImportMutations(chunk)));
   }
 
-  #sessionIdsAvailableInChunks(entries, known, decoded) {
+  async #sessionIdsAvailableInChunks(entries, known, decoded) {
     const available = new Set();
     for (const entry of entries) {
       let chunk = decoded.get(entry.id);
       if (!chunk) {
         let text;
         try {
-          text = this.transport.readChunk(entry.id);
+          text = await this.transport.readChunk(entry.id);
         } catch (err) {
           if (err instanceof ChunkNotFoundError || known.has(entry.id)) continue;
           throw new Error(`read chunk ${entry.id}: ${err.message}`, { cause: err });
@@ -585,9 +587,9 @@ export class Syncer {
    * Chunks locales, chunks en el manifiesto y los que faltan por importar.
    * @returns {{ local: number, remote: number, pending: number }}
    */
-  status() {
-    const manifest = this.transport.readManifest();
-    const known = getSyncedChunksForTarget(this.store, LOCAL_CHUNK_TARGET_KEY);
+  async status() {
+    const manifest = await this.transport.readManifest();
+    const known = getSyncedChunksForTarget(this.store, this.targetKey);
     return { local: known.size, remote: manifest.chunks.length, pending: manifest.chunks.filter((e) => !known.has(e.id)).length };
   }
 }

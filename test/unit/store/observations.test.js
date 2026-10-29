@@ -136,12 +136,24 @@ test('el proyecto de escritura se hereda de la sesión o se valida contra ella',
   assert.throws(() => save(store, { session_id: 'no-existe', project: '' }), code('project_required'));
 });
 
-test('una escritura sobre un proyecto inscrito falla y se revierte entera', (t) => {
+test('una escritura anota su mutación en el diario según la inscripción del proyecto', (t) => {
   const store = setup(t);
+  const mutations = () => store.db.all('SELECT target_key, entity, op, source, project, payload, occurred_at FROM sync_mutations ORDER BY seq').map((r) => ({ ...r }));
+  const before = mutations().length;
+  save(store, { title: 'sin inscribir' });
+  assert.equal(mutations().filter((m) => m.entity === 'observation').length, 0, 'un proyecto sin inscribir no acumula filas');
   store.db.run("INSERT INTO sync_enrolled_projects (project) VALUES ('proj')");
-  assert.throws(() => save(store), code('sync_journal_unavailable'));
-  assert.equal(store.db.get('SELECT count(*) AS n FROM observations').n, 0);
-  assert.equal(store.db.get('SELECT count(*) AS n FROM observation_save_operations').n, 0);
+  const { id } = save(store, { title: 'inscrita', content: 'contenido inscrito' });
+  const added = mutations().slice(before);
+  const row = added.find((m) => m.entity === 'observation');
+  assert.deepEqual([row.target_key, row.op, row.source, row.project], ['cloud', 'upsert', 'local', 'proj']);
+  assert.equal(JSON.parse(row.payload).title, 'inscrita');
+  assert.match(row.occurred_at, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{9}$/);
+  const states = Object.fromEntries(store.db.all('SELECT target_key, lifecycle, last_enqueued_seq FROM sync_state').map((r) => [r.target_key, [r.lifecycle, r.last_enqueued_seq]]));
+  assert.equal(states.cloud[0], 'pending');
+  assert.equal(states['cloud:proj'][0], 'pending');
+  assert.equal(states.cloud[1], states['cloud:proj'][1], 'ambos destinos apuntan a la última mutación');
+  assert.equal(store.db.get('SELECT count(*) AS n FROM observations WHERE id = ?', id).n, 1);
 });
 
 test('updateObservation: parcial, con versión solo si cambia título o contenido', (t) => {
