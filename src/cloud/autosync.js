@@ -2,7 +2,7 @@ import { normalizeProject } from '../project/canonical.js';
 import { countDeferredAndDead } from '../store/conflicts.js';
 import {
   ackSyncMutationSeqs, acquireSyncLease, applyCloudMutation, countPendingNonEnrolledSyncMutations, ensureEnrolledProjectSyncMutations, listDeferredProjectsForTarget,
-  listPendingSyncMutationsAfterSeq, maxPendingSyncMutationSeq, releaseSyncLease,
+  listPendingSyncMutationsAfterSeq, localPromptCreationIdentity, localSessionProvenance, maxPendingSyncMutationSeq, releaseSyncLease,
 } from '../store/index.js';
 import { replayDeferredForScope } from '../store/sync-apply.js';
 import { DEFAULT_SYNC_TARGET_KEY } from '../store/schema.js';
@@ -35,6 +35,14 @@ class NonEnrolledPendingError extends Error {
   }
 }
 
+/** Un prompt no pasó la comprobación local de origen: no sale, pero no impide empujar ni leer el resto. */
+class PromptPreflightError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'PromptPreflightError';
+  }
+}
+
 /** Fallo de empujar el lote de un proyecto. */
 class ProjectTransportFailure extends Error {
   constructor(project, cause) {
@@ -53,8 +61,13 @@ class JoinedError extends Error {
   }
 }
 
-/** Solo un bloqueo local conocido permite seguir leyendo de la nube aunque la salida no pueda. */
-const safeOutboundBlock = (err) => err instanceof NonEnrolledPendingError;
+/** Solo los bloqueos locales conocidos permiten seguir leyendo de la nube aunque la salida no pueda. */
+function safeOutboundBlock(err) {
+  if (!err) return false;
+  if (err instanceof NonEnrolledPendingError || err instanceof PromptPreflightError) return true;
+  if (err instanceof JoinedError) return err.errors.length > 0 && err.errors.every(safeOutboundBlock);
+  return err.cause ? safeOutboundBlock(err.cause) : false;
+}
 
 /** Primer error del árbol que clasifica por estado HTTP. */
 function findStatusError(err) {
@@ -244,7 +257,8 @@ export class AutosyncManager {
         return;
       }
       const message = err.message;
-      const reason = REASON.nonEnrolledPendingMutations;
+      const reason = err instanceof NonEnrolledPendingError || (err instanceof JoinedError && err.errors.every((e) => e instanceof NonEnrolledPendingError))
+        ? REASON.nonEnrolledPendingMutations : 'prompt_provenance_blocked';
       this.#recordBlocked(message, reason);
       try {
         await this.#pull(true);
@@ -325,10 +339,18 @@ export class AutosyncManager {
       const seqs = [];
       for (const mutation of batch) {
         if (mutation.entity === 'prompt') {
-          const problem = promptIdentityProblem(mutation, project);
-          if (problem) {
-            failures.push(new Error(`prompt seq ${mutation.seq}: ${problem}`));
+          const identity = promptIdentity(mutation, project);
+          if (typeof identity === 'string') {
+            failures.push(new Error(`prompt seq ${mutation.seq}: ${identity}`));
             continue;
+          }
+          if (identity.inbox !== '') {
+            try {
+              await this.#preflightPrompt(mutation, identity);
+            } catch (err) {
+              failures.push(err instanceof PromptPreflightError ? new PromptPreflightError(`prompt seq ${mutation.seq}: ${err.message}`) : new Error(`prompt seq ${mutation.seq}: ${err.message}`, { cause: err }));
+              continue;
+            }
           }
         }
         entries.push({ project: mutation.project, entity: mutation.entity, entity_key: mutation.entity_key, op: mutation.op, payload: mutation.payload });
@@ -358,6 +380,34 @@ export class AutosyncManager {
       }
     }
     return failures;
+  }
+
+  /**
+   * Un prompt con buzón de origen solo sale si el almacén conserva su origen local intacto: se registra al dueño
+   * de la sesión ante la nube y se enlaza el par (sesión, buzón) con el prompt.
+   */
+  async #preflightPrompt(mutation, { syncId, session, inbox, project }) {
+    if (typeof this.transport.registerSessionAuthority !== 'function' || typeof this.transport.claimPromptPair !== 'function') throw new Error('remote prompt authority unavailable');
+    let creation;
+    let owner;
+    try {
+      creation = localPromptCreationIdentity(this.store, syncId);
+      owner = localSessionProvenance(this.store, session);
+    } catch (err) {
+      throw new Error(`read local prompt origin: ${err.message}`, { cause: err });
+    }
+    if (!creation.eligible || creation.session !== session || creation.inbox !== inbox || creation.project !== project) throw new PromptPreflightError('unverified keyed prompt origin');
+    if (!owner.eligible || owner.owner === '') throw new PromptPreflightError('unverified local session owner');
+    try {
+      await this.transport.registerSessionAuthority(session, owner.owner);
+    } catch (err) {
+      throw new Error(`register session authority: ${err.message}`, { cause: err });
+    }
+    try {
+      await this.transport.claimPromptPair(session, inbox, syncId, owner.owner, project);
+    } catch (err) {
+      throw new Error(`claim prompt pair: ${err.message}`, { cause: err });
+    }
   }
 
   // ─── Leer ──────────────────────────────────────────────────────────────────
@@ -474,8 +524,8 @@ export class AutosyncManager {
   }
 }
 
-/** Una mutación de prompt debe llevar su identidad completa; con un buzón de origen exige autoridad de sesión. */
-function promptIdentityProblem(mutation, project) {
+/** Identidad de un prompt del diario, o el motivo por el que no es válida. */
+function promptIdentity(mutation, project) {
   let identity;
   try {
     identity = JSON.parse(mutation.payload);
@@ -484,7 +534,5 @@ function promptIdentityProblem(mutation, project) {
   }
   const text = (v) => (typeof v === 'string' ? v : '');
   if (text(identity?.sync_id) === '' || identity.sync_id !== mutation.entity_key || text(identity.project) !== project || text(identity.session_id) === '') return 'invalid journal identity';
-  if (text(identity.source_inbox_id) !== '') return 'local prompt provenance unavailable';
-  return '';
+  return { syncId: identity.sync_id, session: identity.session_id, inbox: text(identity.source_inbox_id), project: identity.project };
 }
-

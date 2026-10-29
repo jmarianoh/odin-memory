@@ -392,6 +392,21 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F9.2c a F9.4
+### F9.2c-1 — Identidades gestionadas, administración y procedencia (spec 0.27.0)
+
+1. Copiar de `fuentes/` los tests nuevos y modificados (`test/unit/cloud/{identity,autosync,cli}.test.js`, `test/unit/store/sync-queue.test.js`) y `package.json`.
+2. Crear, según `30-cloud/05-identidad-y-procedencia.md`: `src/cloud/server/{respond,tokens,identity,provenance,admin}.js`; ampliar `store.js` (DDL de identidades y de procedencia; mezclar `identityMethods` y `provenanceMethods`), `server.js` (autenticación asíncrona con principal, `authorizeProject`, auditoría de autenticación, lectura de mutaciones por permisos, rutas de `/admin` y de procedencia) e `index.js` (exportaciones).
+3. Añadir `MutationTransport.registerSessionAuthority|claimPromptPair|attestPromptSource` a `src/cloud/remote.js`; `localSessionProvenance` y `localPromptCreationIdentity` a `src/store/sync-queue.js`; la comprobación previa de prompts a `src/cloud/autosync.js`.
+4. Crear `src/cli/commands/cloud-bootstrap.js` y registrar `bootstrap` en `src/cli/commands/cloud.js` (que además construye el `ManagedTokenHasher` en `serve`).
+
+Aceptación:
+```bash
+node --test "test/unit/cloud/*.test.js" test/unit/store/sync-queue.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F9.2c-2 a F9.4
 
 Se detallan en `30-cloud/` al completarse cada porción. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

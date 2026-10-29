@@ -13,6 +13,11 @@ import { MAX_DECODED_BYTES, REASON, UPGRADE_ERROR_CLASS, UPGRADE_ERROR_CODE } fr
 import { parseTypedChunk, validateRelationPayload } from '../materialize.js';
 import { canonicalMutationEntry } from './mutations.js';
 import { DEFAULT_MAX_PUSH_BODY_BYTES } from './config.js';
+import { installAdminRoutes } from './admin.js';
+import { installProvenanceRoutes } from './provenance.js';
+import { actionable, readBuffer, sendMap } from './respond.js';
+import { normalizeProjectGrant } from './identity.js';
+import { AuthError, ERR, KIND, PRINCIPAL_SOURCE, ROLE } from './tokens.js';
 import { AUDIT_ACTION_CHUNK_PUSH, AUDIT_ACTION_MUTATION_PUSH, AUDIT_OUTCOME_REJECTED_PROJECT_PAUSED, ChunkConflictError, ChunkNotFoundInCloud, MutationBatchEntryError } from './store.js';
 import { validateChunkRows } from './validate.js';
 
@@ -55,40 +60,11 @@ export class ProjectAllowlist {
   }
 }
 
-/** Respuesta JSON de un objeto libre: las claves salen por orden alfabético, como en un mapa. */
-const sendMap = (res, status, fields) => sendJson(res, status, Object.fromEntries(Object.entries(fields).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
+/** ¿Se rige por permisos concedidos (token gestionado) en vez de por la lista del servidor? */
+const managedGrants = (principal) => principal.source === PRINCIPAL_SOURCE.managedToken || principal.kind === KIND.human || principal.kind === KIND.serviceAccount;
 
 const MAX_MUTATION_BATCH = 100;
 const DEFAULT_PULL_LIMIT = 100;
-
-const actionable = (res, status, errorClass, errorCode, message) => sendMap(res, status, { error_class: errorClass, error_code: errorCode, error: goTrim(message) });
-
-/** Cuerpo completo con tope de bytes. */
-function readBuffer(req, limit) {
-  return new Promise((resolve, reject) => {
-    const parts = [];
-    let size = 0;
-    let done = false;
-    const finish = (fn, value) => {
-      if (done) return;
-      done = true;
-      fn(value);
-    };
-    req.on('data', (part) => {
-      size += part.length;
-      if (size > limit) {
-        parts.length = 0;
-        finish(reject, new BodyTooLargeError());
-        req.resume();
-        return;
-      }
-      parts.push(part);
-    });
-    req.on('end', () => finish(resolve, Buffer.concat(parts)));
-    req.on('error', (err) => finish(reject, err));
-    req.on('aborted', () => finish(reject, new Error('unexpected EOF')));
-  });
-}
 
 /**
  * Entradas de un lote de mutaciones. Cada carga se conserva como el texto JSON recibido.
@@ -138,6 +114,7 @@ export class CloudServer {
    * @param {string} [options.adminToken] secreto de administración; también autentica
    * @param {number} [options.port] 0 = puerto libre
    * @param {string} [options.host]
+   * @param {import('./tokens.js').ManagedTokenHasher|null} [options.hasher] verifica los tokens gestionados; sin él solo valen los del entorno
    * @param {number} [options.maxPushBodyBytes]
    * @param {(message: string) => void} [options.log]
    */
@@ -146,6 +123,7 @@ export class CloudServer {
     this.allowlist = new ProjectAllowlist(options.allowedProjects);
     this.token = goTrim(options.token ?? '');
     this.adminToken = goTrim(options.adminToken ?? '');
+    this.hasher = options.hasher ?? null;
     this.port = options.port ?? 8080;
     this.host = goTrim(options.host ?? '') || '127.0.0.1';
     this.maxPushBodyBytes = options.maxPushBodyBytes > 0 ? options.maxPushBodyBytes : DEFAULT_MAX_PUSH_BODY_BYTES;
@@ -157,6 +135,8 @@ export class CloudServer {
     this.router.add('POST /sync/push', { handler: (c) => this.#pushChunk(c), auth: true });
     this.router.add('POST /sync/mutations/push', { handler: (c) => this.#pushMutations(c), auth: true });
     this.router.add('GET /sync/mutations/pull', { handler: (c) => this.#pullMutations(c), auth: true });
+    installAdminRoutes(this);
+    installProvenanceRoutes(this);
     this.http = createServer((req, res) => {
       this.#serve(req, res).catch((err) => {
         this.log(`[odin-cloud] unexpected request error: ${err?.stack ?? err}`);
@@ -187,18 +167,57 @@ export class CloudServer {
   }
 
   /**
-   * @returns {{ failure: string|null, principal: string }} el motivo del rechazo (o `null` si la petición
-   * está autenticada) y el nombre con que se anotan sus escrituras
+   * Resuelve quién hace la petición. Con token configurado valen el de sincronización, el de administración y los
+   * tokens gestionados (si hay pimienta); sin token no se autentica a nadie.
+   * @returns {Promise<{ failure: string|null, reason: string, principal: object|null }>}
    */
-  #authenticate(req) {
-    if (this.token === '') return { failure: null, principal: '' };
+  async #authenticate(req) {
+    if (this.token === '') return { failure: null, reason: '', principal: null };
+    const deny = (failure, reason) => ({ failure, reason, principal: null });
     const header = goTrim(req.headers.authorization ?? '');
-    if (header === '') return { failure: 'missing authorization header', principal: '' };
+    if (header === '') return deny('missing authorization header', 'missing_header');
     const fields = header.split(/\s+/);
-    if (fields.length !== 2 || fields[0].toLowerCase() !== 'bearer') return { failure: 'authorization must use Bearer token', principal: '' };
-    if (tokenEquals(fields[1], this.token)) return { failure: null, principal: 'LEGACY_SYNC' };
-    if (tokenEquals(fields[1], this.adminToken)) return { failure: null, principal: 'OPERATOR' };
-    return { failure: 'unknown token', principal: '' };
+    if (fields.length !== 2 || fields[0].toLowerCase() !== 'bearer') return deny('authorization must use Bearer token', 'malformed_bearer');
+    const presented = fields[1];
+    if (tokenEquals(presented, this.token)) {
+      return { failure: null, reason: '', principal: { id: 'legacy:sync', kind: KIND.legacy, displayName: 'LEGACY_SYNC', role: ROLE.member, enabled: true, source: PRINCIPAL_SOURCE.legacyEnvSync, tokenId: '' } };
+    }
+    if (tokenEquals(presented, this.adminToken)) {
+      return { failure: null, reason: '', principal: { id: 'legacy:admin', kind: KIND.legacy, displayName: 'OPERATOR', role: ROLE.admin, enabled: true, source: PRINCIPAL_SOURCE.legacyEnvAdmin, tokenId: '' } };
+    }
+    if (this.hasher === null) return deny(ERR.unknownToken().message, 'unknown_token');
+    try {
+      return { failure: null, reason: '', principal: await this.#resolveManaged(presented) };
+    } catch (err) {
+      if (!(err instanceof AuthError)) {
+        this.log(`[odin-cloud] managed token resolution failed: ${err.message}`);
+        return deny(err.message, 'resolver_error');
+      }
+      return deny(err.message, err.code);
+    }
+  }
+
+  async #resolveManaged(raw) {
+    let found;
+    try {
+      found = await this.store.findPrincipalTokenByHash(this.hasher.hash(raw));
+    } catch (err) {
+      if (err.code === 'token_not_found') throw ERR.unknownToken();
+      throw err;
+    }
+    const { token, principal } = found;
+    if (token.principalId === '' || token.principalId !== principal.id) throw ERR.mismatch();
+    if (token.revokedAt) throw ERR.tokenRevoked();
+    if (!principal.enabled) throw ERR.principalDisabled();
+    try {
+      await this.store.markPrincipalTokenUsed(token.id);
+    } catch (err) {
+      if (err.code === 'token_not_found' || err.code === 'principal_not_found') throw ERR.unknownToken();
+      if (err.code === 'token_revoked') throw ERR.tokenRevoked();
+      if (err.code === 'principal_disabled') throw ERR.principalDisabled();
+      throw new Error(`record managed token usage: ${err.message}`, { cause: err });
+    }
+    return { ...principal, source: PRINCIPAL_SOURCE.managedToken, tokenId: token.id };
   }
 
   async #serve(req, res) {
@@ -215,17 +234,19 @@ export class CloudServer {
       return;
     }
     const { handler, auth } = found.route.handler;
-    let principal = '';
+    let principal = null;
     if (auth) {
-      const outcome = this.#authenticate(req);
+      const outcome = await this.#authenticate(req);
       if (outcome.failure !== null) {
         req.resume();
+        this.log(`[odin-cloud] request auth denied: ${req.socket.remoteAddress} (reason=${outcome.reason})`);
+        await this.#authAudit({ actorSource: 'request', action: 'sync.auth', outcome: 'denied', reasonCode: outcome.reason, metadata: { source: 'request' } });
         sendText(res, 401, `unauthorized: ${outcome.failure}`);
         return;
       }
       principal = outcome.principal;
     }
-    await handler({ req, res, query: url.searchParams, params: found.params, principal });
+    await handler({ req, res, query: url.searchParams, params: found.params, principal, body: found.route.handler.body });
   }
 
   #health({ res }) {
@@ -242,17 +263,47 @@ export class CloudServer {
     return project;
   }
 
-  /** @returns {boolean} `false` si el proyecto no está permitido (ya respondido) */
-  #authorizeProject(res, project) {
-    if (this.allowlist.allows(project)) return true;
+  /** Registra en la auditoría de autenticación (mejor esfuerzo: un fallo solo se anota en el log). */
+  async #authAudit(event) {
+    try {
+      await this.store.insertAuthAuditEvent(event);
+    } catch (err) {
+      this.log(`[odin-cloud] auth audit insert failed (best-effort): ${err.message}`);
+    }
+  }
+
+  /**
+   * ¿Puede esta persona usar el proyecto? Un principal gestionado solo ve los proyectos que se le han concedido;
+   * los demás, la lista permitida del servidor. Con autenticación, una petición sin principal no pasa.
+   * @returns {Promise<boolean>} `false` si no (ya respondido)
+   */
+  async authorizeProject(res, project, principal) {
+    const authMode = this.token !== '';
+    let allowed;
+    if (authMode && principal === null) {
+      allowed = false;
+    } else if (principal !== null && managedGrants(principal)) {
+      allowed = (await this.store.listProjectGrants(principal.id)).some((g) => g.project === normalizeProjectGrant(project));
+    } else {
+      allowed = this.allowlist.allows(project);
+    }
+    if (allowed) return true;
+    if (authMode && principal === null) {
+      actionable(res, 403, UPGRADE_ERROR_CLASS.policy, REASON.policyForbidden, 'forbidden: principal is required');
+      return false;
+    }
     this.log(`[odin-cloud] project authorization denied: project=${JSON.stringify(project)}`);
+    const numeric = principal !== null && /^\d+$/.test(principal.id) ? principal.id : '';
+    await this.#authAudit({
+      actorPrincipalId: numeric, actorSource: principal?.source ?? 'request', project, action: 'sync.authorize', outcome: 'denied', reasonCode: 'project_forbidden', metadata: { source: principal?.source ?? 'request' },
+    });
     actionable(res, 403, UPGRADE_ERROR_CLASS.policy, REASON.policyForbidden, `forbidden: project ${JSON.stringify(project)} is not allowed`);
     return false;
   }
 
   async #pullManifest(ctx) {
     const project = this.#projectFromQuery(ctx);
-    if (project === null || !this.#authorizeProject(ctx.res, project)) return;
+    if (project === null || !(await this.authorizeProject(ctx.res, project, ctx.principal))) return;
     let manifest;
     try {
       manifest = await this.store.readManifest(project);
@@ -266,7 +317,7 @@ export class CloudServer {
   async #pullChunk(ctx) {
     const { req, res, params } = ctx;
     const project = this.#projectFromQuery(ctx);
-    if (project === null || !this.#authorizeProject(res, project)) return;
+    if (project === null || !(await this.authorizeProject(res, project, ctx.principal))) return;
     const chunkId = goTrim(params.chunkID ?? '');
     if (chunkId === '') {
       sendText(res, 400, 'chunkID is required');
@@ -290,7 +341,7 @@ export class CloudServer {
     res.end(body);
   }
 
-  async #pushChunk({ req, res, query }) {
+  async #pushChunk({ req, res, query, principal }) {
     const limit = this.maxPushBodyBytes;
     const invalid = (message) => actionable(res, 400, UPGRADE_ERROR_CLASS.repairable, UPGRADE_ERROR_CODE.payloadInvalid, message);
     const tooLarge = (message) => actionable(res, 413, UPGRADE_ERROR_CLASS.repairable, UPGRADE_ERROR_CODE.payloadTooLarge, message);
@@ -325,7 +376,7 @@ export class CloudServer {
     if (project === '') project = goTrim(query.get('project') ?? '');
     project = goTrim(normalizeProject(project).normalized);
     if (project === '') return actionable(res, 400, UPGRADE_ERROR_CLASS.blocked, UPGRADE_ERROR_CODE.projectRequired, 'project is required');
-    if (!this.#authorizeProject(res, project)) return;
+    if (!(await this.authorizeProject(res, project, principal))) return;
 
     try {
       if (!(await this.store.isProjectSyncEnabled(project))) return await this.#rejectPaused(res, project, request);
@@ -419,7 +470,7 @@ export class CloudServer {
     for (const entry of entries) {
       if (seen.has(entry.project)) continue;
       seen.add(entry.project);
-      if (!this.#authorizeProject(res, entry.project)) return;
+      if (!(await this.authorizeProject(res, entry.project, principal))) return;
     }
     const primary = entries[0].project;
     for (const entry of entries) {
@@ -438,7 +489,7 @@ export class CloudServer {
       });
       return;
     }
-    const createdBy = principal === '' ? 'unknown' : principal;
+    const createdBy = principal === null ? 'unknown' : goTrim(principal.displayName ?? '') || goTrim(principal.id ?? '') || 'unknown';
     const invalidEntries = [];
     const normalized = [];
     entries.forEach((entry, index) => {
@@ -476,14 +527,28 @@ export class CloudServer {
     sendMap(res, 200, { accepted_seqs: seqs, project: primary, project_source: 'request_body', project_path: '' });
   }
 
-  async #pullMutations({ res, query }) {
+  async #pullMutations({ res, query, principal }) {
     const sinceRaw = goTrim(query.get('since_seq') ?? '');
     let sinceSeq = 0;
     if (sinceRaw !== '' && /^[+-]?\d+$/.test(sinceRaw)) sinceSeq = Number(sinceRaw);
     const limitRaw = goTrim(query.get('limit') ?? '');
     let limit = DEFAULT_PULL_LIMIT;
     if (limitRaw !== '' && /^[+-]?\d+$/.test(limitRaw) && Number(limitRaw) > 0) limit = Math.min(Number(limitRaw), DEFAULT_PULL_LIMIT);
-    const allowed = this.allowlist.enrolled();
+    let allowed;
+    if (this.token !== '' && principal === null) {
+      actionable(res, 403, UPGRADE_ERROR_CLASS.policy, REASON.policyForbidden, 'forbidden: principal is required');
+      return;
+    }
+    if (principal !== null && managedGrants(principal)) {
+      try {
+        allowed = (await this.store.listProjectGrants(principal.id)).map((g) => g.project);
+      } catch {
+        actionable(res, 403, UPGRADE_ERROR_CLASS.policy, REASON.policyForbidden, 'forbidden: project is not allowed');
+        return;
+      }
+    } else {
+      allowed = this.allowlist.enrolled();
+    }
     const primary = allowed !== null && allowed.length > 0 ? allowed[0] : '';
     let page;
     try {

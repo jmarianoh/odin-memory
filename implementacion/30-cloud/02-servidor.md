@@ -33,10 +33,12 @@ Todas las respuestas JSON se escriben con `sendJson` (`<`, `>`, `&` escapados, s
 | `POST /sync/push` | sí | `{"chunk_id":"…","status":"ok"}` |
 | `POST /sync/mutations/push` | sí | `{"accepted_seqs":[…],"project":"…","project_path":"","project_source":"request_body"}` |
 | `GET /sync/mutations/pull` | sí | Página del diario de mutaciones |
+| `/admin/*` | administrador gestionado | Usuarios, tokens y permisos (ver 05) |
+| `POST /sync/session-authorities`, `/sync/prompt-pair-claims`, `/sync/prompt-source-attestations[/verify]` | sí | Procedencia de prompts (ver 05) |
 
 ### Autenticación
 
-Sin token configurado no se pide. Con token: cabecera `Authorization` recortada; vacía → 401 `unauthorized: missing authorization header`; no son exactamente dos campos separados por espacios en blanco o el esquema no es `bearer` (sin distinguir mayúsculas) → 401 `unauthorized: authorization must use Bearer token`; secreto distinto del token y del de administración → 401 `unauthorized: unknown token`. Respuesta de texto plano. La comparación es en tiempo constante (SHA-256 de ambos y `timingSafeEqual`; un secreto vacío nunca coincide).
+Sin token configurado no se pide. Con token: cabecera `Authorization` recortada; vacía → 401 `unauthorized: missing authorization header`; no son exactamente dos campos separados por espacios en blanco o el esquema no es `bearer` (sin distinguir mayúsculas) → 401 `unauthorized: authorization must use Bearer token`; secreto distinto del token y del de administración → si hay pimienta se busca como token gestionado (ver 05); si no, 401 `unauthorized: unknown token`. Respuesta de texto plano. La comparación es en tiempo constante (SHA-256 de ambos y `timingSafeEqual`; un secreto vacío nunca coincide).
 
 ### Proyecto y lista permitida
 

@@ -45,9 +45,11 @@ after(async () => {
 });
 
 const MASKS = [
-  [/\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?Z?/g, '<T>'],
+  [/\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?/g, '<T>'],
   [/vnd\.engram\.sync/g, 'vnd.odin.sync'],
   [/engram-cloud/g, 'odin-cloud'],
+  [/\b(egc|odc)_live_[0-9a-f]{8}_[\w-]+/g, '<TOKEN>'],
+  [/\b(egc|odc)_live_[0-9a-f]{8}\b/g, '<PREFIX>'],
   [/ENGRAM_/g, 'ODIN_'],
   [/engram/g, 'odin'],
 ];
@@ -88,7 +90,7 @@ async function waitHealthy(port, child) {
 let counter = 0;
 
 /** Un par de servidores de nube (referencia y odin), cada uno con su base en el mismo Postgres. */
-async function cloudPair({ token = TOKEN, allowed = 'proj-a,proj-b,proj-c' } = {}) {
+async function cloudPair({ token = TOKEN, allowed = 'proj-a,proj-b,proj-c', pepper = '' } = {}) {
   counter += 1;
   const dir = join(base, `pair-${counter}`);
   mkdirSync(dir);
@@ -98,6 +100,7 @@ async function cloudPair({ token = TOKEN, allowed = 'proj-a,proj-b,proj-c' } = {
   const envFor = (prefix, dsn, port, dataVar) => {
     const env = { [dataVar]: join(dir, `${prefix}-data`), HOME: dir, [`${prefix}_DATABASE_URL`]: dsn, [`${prefix}_PORT`]: String(port), [`${prefix}_CLOUD_HOST`]: '127.0.0.1', [`${prefix}_CLOUD_ALLOWED_PROJECTS`]: allowed, [`${prefix}_CLOUD_MAX_PUSH_BYTES`]: String(MAX_PUSH) };
     for (const [k, v] of Object.entries(insecure)) env[`${prefix}_${k}`] = v;
+    if (pepper !== '') env[`${prefix}_CLOUD_TOKEN_PEPPER`] = pepper;
     return env;
   };
   const refChild = spawnServer(binary.bin, ['cloud', 'serve'], { ...envFor('ENGRAM', refDsn, refPort, 'ENGRAM_DATA_DIR'), ENGRAM_NO_UPDATE_CHECK: '1' }, dir);
@@ -493,3 +496,164 @@ for (const serverSide of ['ref', 'odin']) {
     assert.equal(b.db.get("SELECT COUNT(*) AS n FROM observations WHERE deleted_at IS NOT NULL").n, 1);
   });
 }
+
+// ─── Identidades gestionadas ─────────────────────────────────────────────────
+
+const PEPPER = 'pimienta-de-conformidad-con-mas-de-32-bytes';
+
+test('personas, tokens y permisos gestionados: la API /admin responde igual', { skip }, async () => {
+  const pair = await cloudPair({ pepper: PEPPER });
+  const cli = (side, args) => {
+    const common = { cwd: pair.dir, encoding: 'utf8', timeout: 60_000 };
+    return side === 'ref'
+      ? spawnSync(binary.bin, ['cloud', ...args], { ...common, env: { ...process.env, ENGRAM_DATABASE_URL: pair.refDsn, ENGRAM_CLOUD_TOKEN_PEPPER: PEPPER, ENGRAM_DATA_DIR: join(pair.dir, 'br'), ENGRAM_NO_UPDATE_CHECK: '1', HOME: pair.dir } })
+      : spawnSync(process.execPath, ['--no-warnings', ODIN_BIN, 'cloud', ...args], { ...common, env: { ...process.env, ODIN_DATABASE_URL: pair.odinDsn, ODIN_CLOUD_TOKEN_PEPPER: PEPPER, ODIN_DATA_DIR: join(pair.dir, 'bo'), HOME: pair.dir } });
+  };
+  const tokens = { ref: {}, odin: {} };
+  // El primer administrador, por CLI, en los dos lados.
+  const boot = ['bootstrap', 'admin', '--username', 'root', '--email', 'root@example.com', '--grant-project', 'Proj-A', '--issue-token', 'raiz'];
+  const out = { ref: cli('ref', boot), odin: cli('odin', boot) };
+  for (const side of ['ref', 'odin']) assert.equal(out[side].status, 0, `${side}: ${out[side].stderr}`);
+  assert.equal(mask(out.odin.stdout), mask(out.ref.stdout), 'salida de bootstrap');
+  for (const side of ['ref', 'odin']) tokens[side].root = out[side].stdout.split('\n').find((l) => /_live_/.test(l)).trim();
+  const again = { ref: cli('ref', ['bootstrap', 'admin', '--username', 'otro']), odin: cli('odin', ['bootstrap', 'admin', '--username', 'otro']) };
+  assert.equal(again.odin.status, again.ref.status);
+  assert.equal(mask(again.odin.stderr), mask(again.ref.stderr));
+  for (const args of [['recover-token'], ['recover-token', '--name'], ['recover-token', '--wat'], [], ['admin'], ['admin', '--username'], ['admin', '--wat'], ['admin', '--username', 'x', '--grant-project', ' '], ['otra']]) {
+    const [r, o] = [cli('ref', ['bootstrap', ...args]), cli('odin', ['bootstrap', ...args])];
+    assert.equal(o.status, r.status, args.join(' '));
+    assert.equal(mask(o.stdout + o.stderr), mask(r.stdout + r.stderr), args.join(' '));
+  }
+
+  const call = async (who, method, path, body, extra = {}) => {
+    const make = (side) => ({ headers: { Authorization: `Bearer ${tokens[side][who] ?? who}`, ...extra }, ...(typeof body === 'string' ? { raw: body } : body === undefined ? {} : { body }) });
+    const [ref, odin] = await Promise.all([send(pair.refPort, method, path, make('ref')), send(pair.odinPort, method, path, make('odin'))]);
+    const label = `${who} ${method} ${path} ${JSON.stringify(body)}`;
+    assert.equal(odin.status, ref.status, `${label}\n--- ref ${ref.text}\n--- odin ${odin.text}`);
+    return { ref, odin, label };
+  };
+  const strict = async (...args) => {
+    const r = await call(...args);
+    const norm = (t) => mask(t).replace(/"(created_at|last_used_at|revoked_at)":"<T>"/g, '"$1":"<T>"');
+    assert.equal(norm(r.odin.text), norm(r.ref.text), r.label);
+    return r;
+  };
+  const loose = async (...args) => {
+    const r = await call(...args);
+    for (const key of ['error_class', 'error_code']) assert.equal(r.odin.json?.[key], r.ref.json?.[key], r.label);
+    return r;
+  };
+
+  await strict('root', 'GET', '/admin/users');
+  const created = await strict('root', 'POST', '/admin/users', { username: 'ana', email: 'ana@example.com', display_name: 'Ana', role: 'member' });
+  assert.equal(created.ref.status, 201);
+  await strict('root', 'POST', '/admin/users', { username: 'beto' });
+  await loose('root', 'POST', '/admin/users', { username: 'ana' });
+  await loose('root', 'POST', '/admin/users', { username: 'x', role: 'dios' });
+  await loose('root', 'POST', '/admin/users', { username: '' });
+  await loose('root', 'POST', '/admin/users', { username: 'x', extra: 1 });
+  await loose('root', 'POST', '/admin/users', '{');
+  await strict('root', 'GET', '/admin/users');
+
+  // Sin ser administrador gestionado no se entra.
+  await strict(TOKEN, 'GET', '/admin/users');
+  await strict('wrong', 'GET', '/admin/users');
+
+  const idOf = async (name) => (await call('root', 'GET', '/admin/users')).ref.json.find((u) => u.username === name).principal_id;
+  const ana = await idOf('ana');
+  for (const side of ['ref', 'odin']) {
+    const r = await send(side === 'ref' ? pair.refPort : pair.odinPort, 'POST', `/admin/users/${ana}/tokens`, { headers: { Authorization: `Bearer ${tokens[side].root}` }, body: { name: 'portátil' } });
+    assert.equal(r.status, 201, r.text);
+    tokens[side].ana = r.json.raw_token;
+  }
+  await strict('root', 'GET', `/admin/users/${ana}/tokens`);
+  await loose('root', 'POST', '/admin/users/999/tokens', {});
+  await loose('root', 'POST', `/admin/users/${ana}/tokens`, { name: 5 });
+  await strict('root', 'POST', `/admin/users/${ana}/grants`, { project: 'Proj-B' });
+  await loose('root', 'POST', `/admin/users/${ana}/grants`, { project: ' ' });
+  await strict('root', 'GET', `/admin/users/${ana}/grants`);
+  await loose('root', 'GET', '/admin/users/abc/grants');
+
+  // Con el token de Ana: lo suyo entra, lo ajeno no.
+  await strict('ana', 'GET', '/admin/users');
+  await strict('ana', 'GET', '/sync/pull?project=proj-b');
+  await strict('ana', 'GET', '/sync/pull?project=proj-a');
+  await strict('ana', 'GET', '/sync/mutations/pull');
+  const chunk = (project) => ({ chunk_id: '', created_by: 'ana', project, data: sample(project) });
+  await strict('ana', 'POST', '/sync/push', chunk('proj-b'));
+  await strict('ana', 'POST', '/sync/push', chunk('proj-a'));
+  await strict('ana', 'POST', '/sync/mutations/push', { entries: [entry('proj-b', 'session', 's9', 'upsert', sessionPayload('s9'))] });
+  await strict('ana', 'GET', '/sync/mutations/pull');
+  await strict('root', 'GET', '/sync/mutations/pull');
+
+  // Procedencia de prompts: autoridad de sesión, reclamos de pares y atestación.
+  await strict('root', 'POST', `/admin/users/${ana}/grants`, { project: 'proj-a' });
+  const claim = (extra = {}) => ({ session_id: 's1', source_inbox_id: 'in1', sync_id: 'p1', owner_project: 'proj-b', project: 'proj-a', ...extra });
+  const attest = (extra = {}) => ({ session_id: 's1', source_inbox_id: 'in1', sync_id: 'p1', owner_project: 'proj-b', prompt_project: 'proj-a', ...extra });
+  await strict('ana', 'POST', '/sync/session-authorities', { session_id: 's1', project: 'Proj-B' });
+  await strict('ana', 'POST', '/sync/session-authorities', { session_id: 's1', project: 'proj-b' });
+  await strict('ana', 'POST', '/sync/session-authorities', { session_id: 's1', project: 'proj-a' });
+  await strict('ana', 'POST', '/sync/session-authorities', { session_id: 's9', project: 'ajeno' });
+  await strict('ana', 'POST', '/sync/session-authorities', { session_id: '', project: 'proj-a' });
+  await strict('ana', 'POST', '/sync/session-authorities', { session_id: 's9', project: 'proj-a', extra: 1 });
+  await strict('ana', 'POST', '/sync/session-authorities', '{"session_id":"s9"} {"x":1}');
+  await strict('ana', 'POST', '/sync/session-authorities', '[');
+  await strict(TOKEN, 'POST', '/sync/session-authorities', { session_id: 's2', project: 'proj-c' });
+  await strict('ana', 'POST', '/sync/prompt-pair-claims', claim());
+  await strict('ana', 'POST', '/sync/prompt-pair-claims', claim());
+  await strict('ana', 'POST', '/sync/prompt-pair-claims', claim({ sync_id: 'p2' }));
+  await strict('ana', 'POST', '/sync/prompt-pair-claims', claim({ source_inbox_id: 'in2' }));
+  await strict('ana', 'POST', '/sync/prompt-pair-claims', claim({ session_id: 'nadie' }));
+  await strict('ana', 'POST', '/sync/prompt-pair-claims', claim({ owner_project: 'proj-a' }));
+  await strict('ana', 'POST', '/sync/prompt-pair-claims', claim({ project: 'ajeno' }));
+  await strict('ana', 'POST', '/sync/prompt-pair-claims', claim({ sync_id: '' }));
+  await strict(TOKEN, 'POST', '/sync/prompt-pair-claims', { session_id: 's2', source_inbox_id: 'in1', sync_id: 'q1', owner_project: 'proj-c', project: 'proj-c' });
+  await strict('wrong', 'POST', '/sync/prompt-pair-claims', claim());
+  const attested = await strict('ana', 'POST', '/sync/prompt-source-attestations', attest());
+  assert.equal(attested.ref.status, 200, attested.ref.text);
+  await strict('ana', 'POST', '/sync/prompt-source-attestations', attest());
+  await strict('ana', 'POST', '/sync/prompt-source-attestations', attest({ sync_id: 'otro' }));
+  await strict('ana', 'POST', '/sync/prompt-source-attestations', attest({ owner_project: 'proj-a' }));
+  await strict('ana', 'POST', '/sync/prompt-source-attestations', attest({ prompt_project: 'ajeno' }));
+  await strict('ana', 'POST', '/sync/prompt-source-attestations', attest({ session_id: '' }));
+  await strict('root', 'POST', '/sync/prompt-source-attestations', attest());
+  await strict(TOKEN, 'POST', '/sync/prompt-source-attestations', attest());
+  const auditId = attested.ref.json.attestation_id;
+  await strict('ana', 'POST', '/sync/prompt-source-attestations/verify', { audit_id: auditId, ...attest() });
+  await strict('ana', 'POST', '/sync/prompt-source-attestations/verify', { audit_id: auditId, ...attest({ sync_id: 'otro' }) });
+  await strict('ana', 'POST', '/sync/prompt-source-attestations/verify', { audit_id: 0, ...attest() });
+  await strict('ana', 'POST', '/sync/prompt-source-attestations/verify', { audit_id: auditId, ...attest({ owner_project: 'ajeno' }) });
+  await strict('root', 'POST', '/sync/prompt-source-attestations/verify', { audit_id: auditId, ...attest() });
+  await strict(TOKEN, 'POST', '/sync/prompt-source-attestations/verify', { audit_id: auditId, ...attest() });
+  const prov = (pool) => Promise.all([
+    pool.query('SELECT session_id, owner_project, registered_by FROM cloud_session_authority ORDER BY 1'),
+    pool.query('SELECT session_id, source_inbox_id, sync_id, prompt_project, claimed_by FROM cloud_prompt_pair_claims ORDER BY 1, 2'),
+    pool.query('SELECT id::text, session_id, source_inbox_id, sync_id, owner_project, prompt_project, actor_id FROM cloud_prompt_source_attestations ORDER BY id'),
+  ]).then((all) => all.map((r) => r.rows));
+  assert.deepEqual(await prov(pair.odinPool), await prov(pair.refPool), 'tablas de procedencia');
+
+  await strict('root', 'POST', `/admin/users/${ana}/grants/proj-b/revoke`);
+  await strict('ana', 'GET', '/sync/pull?project=proj-b');
+  await strict('root', 'GET', `/admin/users/${ana}/grants`);
+
+  // Deshabilitar, revocar y el último administrador.
+  const rootId = await idOf('root');
+  await strict('root', 'POST', `/admin/users/${ana}/disable`);
+  await strict('ana', 'GET', '/sync/pull?project=proj-b');
+  await loose('root', 'POST', `/admin/users/${ana}/tokens`, {});
+  await strict('root', 'POST', `/admin/users/${ana}/enable`);
+  await strict('ana', 'GET', '/sync/pull?project=proj-b');
+  await loose('root', 'POST', `/admin/users/${rootId}/disable`);
+  await loose('root', 'POST', '/admin/users/999/disable');
+  const tokenId = (await call('root', 'GET', `/admin/users/${ana}/tokens`)).ref.json[0].id;
+  await strict('root', 'POST', `/admin/tokens/${tokenId}/revoke`, { reason: 'perdido' });
+  await strict('ana', 'GET', '/sync/pull?project=proj-a');
+  await strict('root', 'GET', `/admin/users/${ana}/tokens`);
+  await loose('root', 'POST', '/admin/tokens/999/revoke', {});
+
+  const audit = (pool) => pool.query('SELECT actor_principal_id::text AS actor, actor_source, target_principal_id::text AS target, project, action, outcome, reason_code, metadata::text AS metadata FROM cloud_auth_audit_log ORDER BY id')
+    .then((r) => r.rows.map((row) => ({ ...row, metadata: mask(row.metadata) })));
+  assert.deepEqual(await audit(pair.odinPool), await audit(pair.refPool), 'la auditoría de autenticación');
+  const grants = (pool) => pool.query('SELECT principal_id::text, project FROM cloud_project_grants ORDER BY 1, 2').then((r) => r.rows);
+  assert.deepEqual(await grants(pair.odinPool), await grants(pair.refPool));
+});

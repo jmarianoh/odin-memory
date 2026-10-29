@@ -4,6 +4,8 @@ import {
 } from '../materialize.js';
 import { goTrim } from '../../store/text.js';
 import { isUniqueViolation } from './db.js';
+import { identityMethods } from './identity.js';
+import { PROVENANCE_DDL, provenanceMethods } from './provenance.js';
 
 /** Un chunk con ese identificador ya existe con otra carga. */
 export class ChunkConflictError extends Error {
@@ -25,6 +27,61 @@ export const AUDIT_ACTION_MUTATION_PUSH = 'mutation_push';
 export const AUDIT_OUTCOME_REJECTED_PROJECT_PAUSED = 'rejected_project_paused';
 
 const DDL = [
+  `CREATE TABLE IF NOT EXISTS cloud_principals (
+    id BIGSERIAL PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('human', 'service_account')),
+    display_name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_cloud_principals_kind ON cloud_principals(kind)',
+  'CREATE INDEX IF NOT EXISTS idx_cloud_principals_role ON cloud_principals(role)',
+  'CREATE INDEX IF NOT EXISTS idx_cloud_principals_enabled ON cloud_principals(enabled)',
+  `CREATE TABLE IF NOT EXISTS cloud_human_users (
+    principal_id BIGINT PRIMARY KEY REFERENCES cloud_principals(id) ON DELETE CASCADE,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS cloud_principal_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    principal_id BIGINT NOT NULL REFERENCES cloud_principals(id) ON DELETE CASCADE,
+    token_prefix TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL DEFAULT '',
+    created_by_principal_id BIGINT REFERENCES cloud_principals(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_used_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ,
+    revoked_by_principal_id BIGINT REFERENCES cloud_principals(id),
+    revocation_reason TEXT
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_cloud_principal_tokens_prefix ON cloud_principal_tokens(token_prefix)',
+  'CREATE INDEX IF NOT EXISTS idx_cloud_principal_tokens_principal_revoked ON cloud_principal_tokens(principal_id, revoked_at)',
+  `CREATE TABLE IF NOT EXISTS cloud_project_grants (
+    principal_id BIGINT NOT NULL REFERENCES cloud_principals(id) ON DELETE CASCADE,
+    project TEXT NOT NULL,
+    granted_by_principal_id BIGINT REFERENCES cloud_principals(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (principal_id, project)
+  )`,
+  `CREATE TABLE IF NOT EXISTS cloud_auth_audit_log (
+    id BIGSERIAL PRIMARY KEY,
+    occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    actor_principal_id BIGINT REFERENCES cloud_principals(id),
+    actor_source TEXT NOT NULL,
+    target_principal_id BIGINT REFERENCES cloud_principals(id),
+    project TEXT,
+    action TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    reason_code TEXT,
+    metadata JSONB
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_cloud_auth_audit_log_occurred_at ON cloud_auth_audit_log(occurred_at DESC)',
+  'CREATE INDEX IF NOT EXISTS idx_cloud_auth_audit_log_actor ON cloud_auth_audit_log(actor_principal_id)',
+  'CREATE INDEX IF NOT EXISTS idx_cloud_auth_audit_log_action ON cloud_auth_audit_log(action)',
   `CREATE TABLE IF NOT EXISTS cloud_chunks (
     project_name TEXT NOT NULL DEFAULT 'default',
     chunk_id TEXT NOT NULL,
@@ -119,6 +176,7 @@ export class CloudStore {
 
   async migrate() {
     for (const statement of DDL) await this.db.query(statement);
+    for (const statement of PROVENANCE_DDL) await this.db.query(statement);
   }
 
   close() {
@@ -389,3 +447,5 @@ async function insertMaterialized(tx, entries) {
     }
   }
 }
+
+Object.assign(CloudStore.prototype, identityMethods, provenanceMethods);

@@ -205,3 +205,31 @@ export function ensureEnrolledProjectSyncMutations(store) {
   for (const project of projects) store.db.writeTransaction((db) => backfillProjectSyncMutations(db, project));
 }
 
+
+/**
+ * Dueño de una sesión y si se creó localmente bajo ese mismo proyecto (condición para afirmar su origen ante la nube).
+ * @returns {{ owner: string, eligible: boolean }}
+ */
+export function localSessionProvenance(store, id) {
+  const row = store.db.get("SELECT ifnull(project, '') AS owner, local_creation_project FROM sessions WHERE id = ?", id);
+  if (!row) return { owner: '', eligible: false };
+  return { owner: row.owner, eligible: row.local_creation_project != null && row.local_creation_project !== '' && row.owner === row.local_creation_project };
+}
+
+/**
+ * Identidad con la que se creó un prompt localmente (sesión, buzón y proyecto), si no ha cambiado desde entonces;
+ * la lápida de un prompt borrado conserva la misma evidencia.
+ * @returns {{ session: string, inbox: string, project: string, eligible: boolean }}
+ */
+export function localPromptCreationIdentity(store, syncId) {
+  const none = { session: '', inbox: '', project: '', eligible: false };
+  if (!syncId) return none;
+  const columns = "local_creation_session_id AS os, local_creation_inbox_id AS oi, local_creation_project AS op, ifnull(session_id, '') AS session, ifnull(source_inbox_id, '') AS inbox, ifnull(project, '') AS project";
+  const live = store.db.all(`SELECT ${columns} FROM user_prompts WHERE sync_id = ? LIMIT 2`, syncId);
+  if (live.length > 1) return none;
+  const row = live[0] ?? store.db.get(`SELECT ${columns} FROM prompt_tombstones WHERE sync_id = ?`, syncId);
+  if (!row) return none;
+  const same = (original, current) => original != null && original !== '' && original === current;
+  const eligible = same(row.os, row.session) && same(row.oi, row.inbox) && same(row.op, row.project);
+  return eligible ? { session: row.session, inbox: row.inbox, project: row.project, eligible } : { session: row.session, inbox: row.inbox, project: row.project, eligible: false };
+}

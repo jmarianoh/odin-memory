@@ -83,12 +83,13 @@ Destinos: `cloud` (global), `cloud:<proyecto>` y el reservado `cloud:inbox` (nun
 
 ## `odin cloud` (`src/cli/commands/cloud.js`)
 
-Sin subcomando, o uno desconocido, escribe en el error estándar (sin prefijo) `usage: odin cloud <subcommand> [options]` y `supported subcommands: status, enroll, unenroll, config, serve, repair` (desconocido: antes `unknown cloud command: <x>`) y sale con 1. `--help`, `-h` y `help` lo imprimen en la salida estándar y salen con 0.
+Sin subcomando, o uno desconocido, escribe en el error estándar (sin prefijo) `usage: odin cloud <subcommand> [options]` y `supported subcommands: status, enroll, unenroll, config, serve, repair, bootstrap` (desconocido: antes `unknown cloud command: <x>`) y sale con 1. `--help`, `-h` y `help` lo imprimen en la salida estándar y salen con 0.
 
 - **`config --server <url> | --clear`**: `--clear` (única opción) vacía el archivo e imprime `✓ Persisted cloud server URL and token cleared`, más una nota por cada variable `ODIN_CLOUD_SERVER` / `ODIN_CLOUD_TOKEN` activa (`Note: <VAR> remains active and overrides the cleared persisted server URL.` / `… token.`). `--server`: URL vacía → `error: server URL is required`; inválida → `error: invalid server URL: <detalle>`; si no, guarda y escribe `✓ Cloud server set to <url>`. Cualquier otra forma: `usage: odin cloud config --server <url> | --clear`.
 - **`enroll|unenroll <proyecto> [--literal-project]`**: el proyecto se decodifica como ruta URL (salvo `--literal-project`; `%zz` → `invalid cloud project URL encoding "%zz": invalid URL escape "%zz"`) y se normaliza (el aviso de normalización va al error estándar). Admite `--` y rechaza opciones desconocidas (`unknown option: --x`) y más de un proyecto (`cloud enroll requires exactly one project`). Salidas: `✓ Project "<p>" enrolled for cloud sync`; `✓ Project "<p>" unenrolled from future cloud sync` + `Local data, remote data, and pending journal rows were preserved.` + `Note: an already in-flight push is not cancelled.`
 - **`status [--project <p>]`**: ver el orden de líneas en las pruebas (`test/unit/cloud/cli.test.js`): `Cloud status: configured (target=cloud)`, `Server: …`, `Server source: ODIN_CLOUD_SERVER | cloud.json`, `Auth status: …`, `Sync readiness: …`, avisos de modo inseguro o de token ausente, `Project enrollment: …`, `Local daemon: …` (sonda `GET http://127.0.0.1:<ODIN_PORT|7438>/health`, 1 s; inyectable con `Cli.probeDaemon`) y `Sync diagnostic: …` (último error del destino del proyecto, o de los destinos por proyecto, o el motivo `non_enrolled_pending_mutations` del global). Sin servidor: `Cloud status: not configured (no effective server URL)` y `Sync readiness: blocked (no effective server URL)`. Los errores de uso salen con `usage: odin cloud status [--project <name>]` + `error: …`.
 - **`serve`** y **`repair`**: ver `02-servidor.md`.
+- **`bootstrap admin|recover-token`**: ver `05-identidad-y-procedencia.md`.
 
 ## `odin sync --cloud`
 

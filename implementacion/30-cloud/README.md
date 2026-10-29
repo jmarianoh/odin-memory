@@ -9,11 +9,12 @@ Cloud replica la memoria de proyectos concretos en un servidor compartido con Po
 | F9.1 | 0.24.0 | Sincronización **por chunks** con la nube: servidor `/sync/*`, `odin cloud …`, `odin sync --cloud`, estado del destino | hecha |
 | F9.2a | 0.25.0 | Servidor de mutaciones: `/sync/mutations/push` y `/sync/mutations/pull`, materialización en las dos direcciones entre `cloud_chunks` y `cloud_mutations`, `odin cloud repair materialize-mutations` | hecha |
 | F9.2b | 0.26.0 | Cliente de mutaciones: transporte, cola de salida con acuses y arriendo, relleno del diario al inscribir, autosync en `serve` y `mcp` | hecha |
-| F9.2c | — | Autoridad de sesión y reclamos de prompts, cuarentena de mutaciones irreparables, `cloud upgrade` | pendiente |
+| F9.2c-1 | 0.27.0 | Identidades gestionadas (personas, tokens con pimienta, permisos por proyecto), API `/admin/*`, auditoría de autenticación, procedencia de prompts (autoridad de sesión, reclamos, atestación) y su comprobación previa en el autosync, `odin cloud bootstrap` | hecha |
+| F9.2c-2 | — | Cuarentena de mutaciones irreparables, `cloud upgrade`, `cloud attest-prompt-source` | pendiente |
 | F9.3 | — | Panel web (SSR + htmx + Pico), sesión HMAC, administración | pendiente |
 | F9.4 | — | Pantallas de la TUI, reparaciones del diario, `rescue-ownership` sobre proyectos inscritos, Docker | pendiente |
 
-Fuera de alcance de F9.1/F9.2a y sin fecha: principales y tokens gestionados, autoridad de sesión, reclamos de pares de prompts, atestación de origen de prompts y las órdenes `cloud upgrade|repair|bootstrap|attest-prompt-source`.
+Pendiente tras 0.27.0: la cuarentena de mutaciones irreparables y las órdenes `cloud upgrade` y `cloud attest-prompt-source`.
 
 ## Documentos
 
@@ -23,6 +24,7 @@ Fuera de alcance de F9.1/F9.2a y sin fecha: principales y tokens gestionados, au
 | [`02-servidor.md`](02-servidor.md) | Servidor HTTP, almacén Postgres (DDL), autenticación, lista de proyectos, pausa y auditoría, `odin cloud serve` |
 | [`03-formato-de-chunks.md`](03-formato-de-chunks.md) | Sobre comprimido, forma canónica del chunk y de las cargas de mutación, validación de referencias, materialización |
 | [`04-autosync.md`](04-autosync.md) | Transporte de mutaciones, gestor de autosync, cola de salida, dominio de la nube al aplicar, relleno del diario |
+| [`05-identidad-y-procedencia.md`](05-identidad-y-procedencia.md) | Tokens gestionados, almacén de identidades, auditoría de autenticación, API de administración, procedencia de prompts, `odin cloud bootstrap` |
 
 ## Módulos
 
@@ -35,6 +37,7 @@ Fuera de alcance de F9.1/F9.2a y sin fecha: principales y tokens gestionados, au
 | `src/cloud/codec.js`, `src/cloud/materialize.js` | 03 |
 | `src/cloud/server/mutations.js` | 02 |
 | `src/cloud/autosync.js`, `src/cli/autosync.js`, `src/store/sync-queue.js` | 04 |
+| `src/cloud/server/{tokens,identity,admin,provenance,respond}.js`, `src/cli/commands/cloud-bootstrap.js` | 05 |
 
 ## Dependencias nuevas
 
@@ -61,7 +64,7 @@ Fuera de alcance de F9.1/F9.2a y sin fecha: principales y tokens gestionados, au
 | `ODIN_CLOUD_INSECURE_NO_AUTH` | servidor | `1` desactiva la autenticación (solo desarrollo); incompatible con `ODIN_CLOUD_TOKEN` y con `ODIN_CLOUD_ADMIN` |
 | `ODIN_CLOUD_ADMIN` | servidor | Segundo secreto, de administración; también autentica en `/sync/*` |
 | `ODIN_JWT_SECRET` | servidor | Obligatorio y distinto del valor de desarrollo cuando hay token; firmará las sesiones del panel (F9.3) |
-| `ODIN_CLOUD_TOKEN_PEPPER` | servidor | Reservada para los tokens gestionados (sin efecto en F9.1) |
+| `ODIN_CLOUD_TOKEN_PEPPER` | servidor / bootstrap | Pimienta (≥ 32 bytes) de los tokens gestionados; ver 05 |
 
 ## Estrategia de pruebas
 

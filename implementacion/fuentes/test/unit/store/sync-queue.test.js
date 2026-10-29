@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ackSyncMutationSeqs, acquireSyncLease, applyCloudMutation, countPendingNonEnrolledSyncMutations, ensureEnrolledProjectSyncMutations, listDeferredProjectsForTarget,
-  listPendingSyncMutationsAfterSeq, maxPendingSyncMutationSeq, releaseSyncLease,
+  listPendingSyncMutationsAfterSeq, localPromptCreationIdentity, localSessionProvenance, maxPendingSyncMutationSeq, releaseSyncLease,
 } from '../../../src/store/sync-queue.js';
 import { deleteSession } from '../../../src/store/session-delete.js';
 import { backfillProjectSyncMutations } from '../../../src/store/journal.js';
@@ -313,4 +313,29 @@ test('el relleno también lleva lápidas de sesión y relaciones juzgadas, y no 
   assert.deepEqual(relations.map((r) => r.entity_key), ['rel-juzgada'], 'ni la pendiente ni la juzgada sin autor viajan');
   const payload = JSON.parse(relations[0].payload);
   assert.deepEqual([payload.marked_by_actor, payload.marked_by_kind, payload.judgment_status, payload.project], ['ana', 'human', 'judged', 'demo']);
+});
+
+test('el origen local de una sesión y de un prompt solo es fiable mientras no cambie', (t) => {
+  const store = openTempStore(t);
+  createSession(store, 's1', 'demo', '/x');
+  assert.deepEqual(localSessionProvenance(store, 's1'), { owner: 'demo', eligible: true });
+  assert.deepEqual(localSessionProvenance(store, 'nada'), { owner: '', eligible: false });
+  store.db.run("UPDATE sessions SET project = 'otro' WHERE id = 's1'");
+  assert.deepEqual(localSessionProvenance(store, 's1'), { owner: 'otro', eligible: false });
+  store.db.run("UPDATE sessions SET project = 'demo', local_creation_project = NULL WHERE id = 's1'");
+  assert.equal(localSessionProvenance(store, 's1').eligible, false);
+
+  const { id } = addPrompt(store, { session_id: 's1', content: 'hola', project: 'demo', source_inbox_id: 'in1' });
+  const syncId = store.db.get('SELECT sync_id FROM user_prompts WHERE id = ?', id).sync_id;
+  assert.deepEqual(localPromptCreationIdentity(store, syncId), { session: 's1', inbox: 'in1', project: 'demo', eligible: true });
+  assert.equal(localPromptCreationIdentity(store, '').eligible, false);
+  assert.equal(localPromptCreationIdentity(store, 'nada').eligible, false);
+  addPrompt(store, { session_id: 's1', content: 'sin buzón', project: 'demo' });
+  const plain = store.db.get("SELECT sync_id FROM user_prompts WHERE source_inbox_id IS NULL").sync_id;
+  assert.equal(localPromptCreationIdentity(store, plain).eligible, false, 'sin buzón no hay origen que afirmar');
+  store.db.run("UPDATE user_prompts SET project = 'otro' WHERE id = ?", id);
+  assert.equal(localPromptCreationIdentity(store, syncId).eligible, false);
+  store.db.run("UPDATE user_prompts SET project = 'demo' WHERE id = ?", id);
+  deletePrompt(store, id);
+  assert.deepEqual(localPromptCreationIdentity(store, syncId), { session: 's1', inbox: 'in1', project: 'demo', eligible: true }, 'la lápida conserva la evidencia');
 });

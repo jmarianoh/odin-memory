@@ -9,9 +9,10 @@ import { enrollProject, unenrollProject } from '../../store/enrollment.js';
 import { cloudSyncSummary, cloudTargetKeyForProject, getSyncState, isProjectEnrolled } from '../../store/sync-state.js';
 import { goTrim } from '../../store/text.js';
 import { CliExit, fatal, println } from '../runtime.js';
+import { cmdCloudBootstrap } from './cloud-bootstrap.js';
 import { DEFAULT_PORT } from './serve.js';
 
-const SUBCOMMANDS = 'status, enroll, unenroll, config, serve, repair';
+const SUBCOMMANDS = 'status, enroll, unenroll, config, serve, repair, bootstrap';
 const DAEMON_PROBE_TIMEOUT_MS = 1000;
 
 /** Termina con el código 1 tras escribir el uso en el error estándar (sin el prefijo `odin:`). */
@@ -361,7 +362,15 @@ async function cmdCloudServe(cli) {
     return fatal(cli, err);
   }
   const cfg = cloudServeConfigFromEnv(cli.env);
-  const { CloudServer, CloudStore, Database } = await import('../../cloud/server/index.js');
+  const { CloudServer, CloudStore, Database, ManagedTokenHasher } = await import('../../cloud/server/index.js');
+  let hasher = null;
+  if (cfg.tokenPepper !== '' && !cfg.insecureNoAuth) {
+    try {
+      hasher = new ManagedTokenHasher(cfg.tokenPepper);
+    } catch (err) {
+      return fatal(cli, new Error(`cloud serve: invalid ODIN_CLOUD_TOKEN_PEPPER: ${err.message}`));
+    }
+  }
   const hooks = cli.cloudServe ?? {};
   const processRef = hooks.processRef ?? process;
   const log = hooks.log ?? ((message) => cli.err(`${message}\n`));
@@ -389,6 +398,7 @@ async function cmdCloudServe(cli) {
     // La validación de arranque ya garantiza que el modo inseguro no trae token ni administración.
     token: cfg.token,
     adminToken: cfg.adminToken,
+    hasher,
     port: hooks.port ?? cfg.port,
     host: cfg.bindHost,
     maxPushBodyBytes: cfg.maxPushBodyBytes,
@@ -436,6 +446,7 @@ export async function cmdCloud(cli, config) {
     case 'config': return cmdCloudConfig(cli, config);
     case 'serve': return cmdCloudServe(cli);
     case 'repair': return cmdCloudRepair(cli);
+    case 'bootstrap': return cmdCloudBootstrap(cli);
     default: return usageError(cli, `unknown cloud command: ${sub}`, `supported subcommands: ${SUBCOMMANDS}`);
   }
 }

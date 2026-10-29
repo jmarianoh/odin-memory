@@ -262,4 +262,46 @@ export class MutationTransport {
       throw new Error(`cloud: decode mutation pull response: ${err.message}`, { cause: err });
     }
   }
+
+  /** POST de un mensaje de procedencia; devuelve el cuerpo ya analizado. */
+  async #provenance(operation, path, payload) {
+    let response;
+    try {
+      response = await sendRequest(this.fetch, this.token, `${this.baseUrl}/sync/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }, ORDINARY_TIMEOUT_MS);
+    } catch (err) {
+      throw new Error(`cloud: ${operation}: ${err.message}`, { cause: err });
+    }
+    if (response.status !== 200) throw statusError(operation, response.status, await response.text());
+    let body;
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
+    if (body?.status !== 'ok') throw new Error(`cloud: invalid ${operation} response`);
+    return body;
+  }
+
+  /** Registra a un proyecto como dueño de una sesión. */
+  async registerSessionAuthority(sessionId, ownerProject) {
+    await this.#provenance('register session authority', 'session-authorities', { session_id: sessionId, project: ownerProject });
+  }
+
+  /** Enlaza un buzón de origen con la identidad de sincronización de un prompt. */
+  async claimPromptPair(sessionId, sourceInboxId, syncId, ownerProject, promptProject) {
+    await this.#provenance('claim prompt pair', 'prompt-pair-claims', {
+      session_id: sessionId, source_inbox_id: sourceInboxId, sync_id: syncId, owner_project: ownerProject, project: promptProject,
+    });
+  }
+
+  /** Pide al servidor la atestación humana del origen de un prompt; devuelve su identificador. */
+  async attestPromptSource(sessionId, sourceInboxId, syncId, ownerProject, promptProject) {
+    const operation = 'attest prompt source';
+    if ([sessionId, sourceInboxId, syncId, ownerProject, promptProject].some((v) => goTrim(v ?? '') === '')) throw new Error(`cloud: ${operation}: all fields are required`);
+    const body = await this.#provenance(operation, 'prompt-source-attestations', {
+      session_id: sessionId, source_inbox_id: sourceInboxId, sync_id: syncId, owner_project: ownerProject, prompt_project: promptProject,
+    });
+    if (!Number.isInteger(body.attestation_id) || body.attestation_id <= 0) throw new Error(`cloud: invalid ${operation} response`);
+    return body.attestation_id;
+  }
 }

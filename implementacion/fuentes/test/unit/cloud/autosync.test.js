@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AutosyncManager, PHASE, classifyTransportError, DEFAULT_CONFIG } from '../../../src/cloud/autosync.js';
 import { HttpStatusError } from '../../../src/cloud/remote.js';
-import { addObservation, createSession, enrollProject, getSyncState, saveRelation, judgeRelation, applyCloudMutation } from '../../../src/store/index.js';
+import { addPrompt, addObservation, createSession, enrollProject, getSyncState, saveRelation, judgeRelation, applyCloudMutation } from '../../../src/store/index.js';
 import { openTempStore } from '../store/helpers.js';
 
 const http = (statusCode, extra = {}) => new HttpStatusError({ operation: 'push', statusCode, ...extra });
@@ -196,7 +196,7 @@ test('las mutaciones con proyecto vacío o con identidad de prompt inválida no 
   for (const rejected of ['p1', 'p2', 'p3', 'sinproyecto']) assert.ok(!sent.includes(rejected), rejected);
   const error = manager.status().lastError;
   assert.match(error, /prompt seq \d+: invalid journal identity/);
-  assert.match(error, /prompt seq \d+: local prompt provenance unavailable/);
+  assert.match(error, /prompt seq \d+: remote prompt authority unavailable/);
   assert.match(error, /prompt seq \d+: invalid identity: /);
   assert.match(error, /has an empty or padded project and was not sent/);
   assert.equal(store.db.get("SELECT COUNT(*) AS n FROM sync_mutations WHERE entity_key = 'p4' AND acked_at IS NOT NULL").n, 1, 'lo válido sí se acusa');
@@ -394,4 +394,67 @@ test('un ciclo correcto limpia en el almacén un fallo anterior aunque no haya n
   await manager.runOnce();
   const state = getSyncState(store, 'cloud');
   assert.deepEqual([state.lifecycle, state.consecutive_failures, state.last_error, state.reason_code], ['healthy', 0, null, null]);
+});
+
+/** Transporte que además registra la autoridad de sesión y los reclamos de prompts. */
+function provenanceTransport(overrides = {}) {
+  const base = fakeTransport();
+  const calls = { register: [], claim: [] };
+  return {
+    ...base,
+    pushMutations: base.pushMutations,
+    calls: { ...base.calls, ...calls },
+    registerSessionAuthority: async (...args) => { calls.register.push(args); if (overrides.register) await overrides.register(...args); },
+    claimPromptPair: async (...args) => { calls.claim.push(args); if (overrides.claim) await overrides.claim(...args); },
+  };
+}
+
+test('un prompt con buzón de origen registra la sesión y reclama el par antes de salir', async (t) => {
+  const transport = provenanceTransport();
+  const { store, manager } = setup(t, transport);
+  addPrompt(store, { session_id: 's1', content: 'hola', project: 'demo', source_inbox_id: 'buzon-1' });
+  const syncId = store.db.get('SELECT sync_id FROM user_prompts').sync_id;
+  await manager.runOnce();
+  assert.equal(manager.status().phase, PHASE.healthy, manager.status().lastError);
+  assert.deepEqual(transport.calls.register, [['s1', 'demo']]);
+  assert.deepEqual(transport.calls.claim, [['s1', 'buzon-1', syncId, 'demo', 'demo']]);
+  assert.ok(transport.calls.push.flat().some((e) => e.entity === 'prompt' && e.entity_key === syncId));
+});
+
+test('un prompt cuyo origen local cambió no sale, pero lo demás sí y se sigue leyendo', async (t) => {
+  const transport = provenanceTransport();
+  const { store, manager } = setup(t, transport);
+  addPrompt(store, { session_id: 's1', content: 'hola', project: 'demo', source_inbox_id: 'buzon-1' });
+  store.db.run("UPDATE user_prompts SET local_creation_inbox_id = 'otro'");
+  await manager.runOnce();
+  assert.equal(transport.calls.claim.length, 0);
+  assert.ok(!transport.calls.push.flat().some((e) => e.entity === 'prompt'), 'el prompt no sale');
+  assert.ok(transport.calls.push.flat().some((e) => e.entity === 'session'), 'la sesión sí');
+  assert.equal(transport.calls.pull.length, 1, 'la lectura continúa');
+  const state = getSyncState(store, 'cloud');
+  assert.deepEqual([state.lifecycle, state.reason_code], ['degraded', 'prompt_provenance_blocked']);
+  assert.match(state.last_error, /prompt seq \d+: unverified keyed prompt origin/);
+  assert.equal(manager.status().consecutiveFailures, 0);
+  assert.equal(store.db.get("SELECT COUNT(*) AS n FROM sync_mutations WHERE entity = 'prompt' AND acked_at IS NULL").n, 1, 'queda pendiente');
+
+  store.db.run("UPDATE user_prompts SET local_creation_inbox_id = 'buzon-1'");
+  store.db.run("UPDATE sessions SET local_creation_project = 'ajeno'");
+  await manager.runOnce();
+  assert.match(manager.status().lastError, /prompt seq \d+: unverified local session owner/);
+  assert.equal(transport.calls.register.length, 0);
+});
+
+test('si el servidor rechaza el registro o el reclamo el prompt falla como un error de red', async (t) => {
+  for (const [name, overrides, pattern] of [
+    ['registro', { register: () => { throw http(409); } }, /prompt seq \d+: register session authority: /],
+    ['reclamo', { claim: () => { throw http(409); } }, /prompt seq \d+: claim prompt pair: /],
+  ]) {
+    const transport = provenanceTransport(overrides);
+    const { store, manager } = setup(t, transport);
+    addPrompt(store, { session_id: 's1', content: 'hola', project: 'demo', source_inbox_id: 'buzon-1' });
+    await manager.runOnce();
+    assert.match(manager.status().lastError, pattern, name);
+    assert.equal(manager.status().phase, PHASE.pushFailed, name);
+    assert.equal(manager.status().consecutiveFailures, 1, name);
+  }
 });
