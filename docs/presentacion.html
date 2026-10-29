@@ -10,12 +10,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Concepto: una noche nórdica. Fondo azul tinta, un único acento ámbar (la brasa), azul para el flujo de datos.
+/* Concepto: acero y brasa. Grises (oscuro de noche, claro de día) con naranjas como único color: acento vivo, ámbar y naranja quemado.
    Cada diapositiva = una idea + un diagrama que se mueve; el interruptor superior cambia entre analogía y detalle técnico. */
 :root {
-  --bg: #0d1520; --surface: #152233; --surface2: #1c2e44; --line: #2b4160;
-  --fg: #e9eef5; --muted: #9db0c6; --accent: #f2b25c; --accent-soft: #3a2f1c; --accent-ink: #1b1305;
-  --blue: #70acff; --green: #62d3a2; --red: #ff8383; --violet: #aea1ff;
+  --bg: #1f2124; --surface: #292c30; --surface2: #33373c; --line: #474c53;
+  --fg: #eceef0; --muted: #a4aab2; --accent: #ff8a1f; --accent-soft: #3d2a17; --accent-ink: #1d1208;
+  --blue: #c7ccd2; --green: #ffc078; --red: #ff6a2e; --violet: #8f969f;
   --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
   --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -23,15 +23,15 @@
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --bg: #f1f4f8; --surface: #ffffff; --surface2: #e5ecf3; --line: #c5d2e0;
-    --fg: #14202e; --muted: #50647a; --accent: #b0640a; --accent-soft: #f7e8d2; --accent-ink: #ffffff;
-    --blue: #1b5cc0; --green: #0f7c57; --red: #b93636; --violet: #5848c2; color-scheme: light;
+    --bg: #eceef0; --surface: #f8f9fa; --surface2: #dfe2e6; --line: #c4c9cf;
+    --fg: #2b2e33; --muted: #5f666e; --accent: #c9500b; --accent-soft: #fde6d3; --accent-ink: #ffffff;
+    --blue: #4b5159; --green: #8a5a00; --red: #b3360b; --violet: #7b838c; color-scheme: light;
   }
 }
 :root[data-theme="light"] {
-  --bg: #f1f4f8; --surface: #ffffff; --surface2: #e5ecf3; --line: #c5d2e0;
-  --fg: #14202e; --muted: #50647a; --accent: #b0640a; --accent-soft: #f7e8d2; --accent-ink: #ffffff;
-  --blue: #1b5cc0; --green: #0f7c57; --red: #b93636; --violet: #5848c2; color-scheme: light;
+  --bg: #eceef0; --surface: #f8f9fa; --surface2: #dfe2e6; --line: #c4c9cf;
+  --fg: #2b2e33; --muted: #5f666e; --accent: #c9500b; --accent-soft: #fde6d3; --accent-ink: #ffffff;
+  --blue: #4b5159; --green: #8a5a00; --red: #b3360b; --violet: #7b838c; color-scheme: light;
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -154,8 +154,8 @@ svg .ico { color: var(--accent); } svg .ico.b { color: var(--blue); } svg .ico.g
 .bubble.bad { border-color: var(--red); }
 .lane { display: flex; flex-direction: column; gap: 10px; }
 .day { font: 500 .72rem var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-.term { --green: #62d3a2; --accent: #f2b25c; --blue: #70acff; --red: #ff8383; background: #0a0f17; color: #dfe7f2; border-radius: 12px; border: 1px solid var(--line); font: 400 .88rem/1.7 var(--mono); padding: 14px 16px; overflow-x: auto; }
-.term .p { color: var(--accent); } .term .ok { color: var(--green); } .term .dim { color: #7f92a9; } .term .bl { color: var(--blue); }
+.term { --green: #ffc078; --accent: #ff8a1f; --blue: #c7ccd2; --red: #ff6a2e; background: #17191c; color: #e6e8eb; border-radius: 12px; border: 1px solid var(--line); font: 400 .88rem/1.7 var(--mono); padding: 14px 16px; overflow-x: auto; }
+.term .p { color: var(--accent); } .term .ok { color: var(--green); } .term .dim { color: #8b9199; } .term .bl { color: var(--blue); }
 .term div { white-space: pre; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: .9rem; }
 .kv dt { font-family: var(--mono); color: var(--accent); font-size: .82rem; }
