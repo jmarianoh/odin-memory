@@ -34,6 +34,7 @@ Todas las respuestas JSON se escriben con `sendJson` (`<`, `>`, `&` escapados, s
 | `POST /sync/mutations/push` | sí | `{"accepted_seqs":[…],"project":"…","project_path":"","project_source":"request_body"}` |
 | `GET /sync/mutations/pull` | sí | Página del diario de mutaciones |
 | `/admin/*` | administrador gestionado | Usuarios, tokens y permisos (ver 05) |
+| `/dashboard/*` | sesión del panel | Panel web (ver 06) |
 | `POST /sync/session-authorities`, `/sync/prompt-pair-claims`, `/sync/prompt-source-attestations[/verify]` | sí | Procedencia de prompts (ver 05) |
 
 ### Autenticación

@@ -5,6 +5,7 @@ import {
 import { goTrim } from '../../store/text.js';
 import { isUniqueViolation } from './db.js';
 import { identityMethods } from './identity.js';
+import { dashboardMethods } from './dashboard-store.js';
 import { PROVENANCE_DDL, provenanceMethods } from './provenance.js';
 
 /** Un chunk con ese identificador ya existe con otra carga. */
@@ -248,6 +249,7 @@ export class CloudStore {
         await this.#indexSessions(tx, project, sessionIdsOfPayload(payload));
         await insertMaterialized(tx, entries);
       });
+      this.invalidateDashboard();
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
       // Otra petición lo insertó entre la lectura y la escritura.
@@ -280,6 +282,7 @@ export class CloudStore {
        ON CONFLICT (project) DO UPDATE SET sync_enabled = EXCLUDED.sync_enabled, paused_reason = EXCLUDED.paused_reason, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
       [goTrim(project), enabled, enabled ? null : goTrim(reason) || null, goTrim(updatedBy) || null],
     );
+    this.invalidateDashboard();
   }
 
   async insertAuditEntry({ contributor, project, action, outcome, entryCount = 0, reasonCode = '', metadata = null }) {
@@ -302,8 +305,8 @@ export class CloudStore {
   async insertMutationBatch(batch) {
     if (batch.length === 0) return [];
     const chunks = mutationBatchChunks(batch);
-    return this.db.transaction(async (tx) => {
-      const seqs = [];
+    const seqs = await this.db.transaction(async (tx) => {
+      const assigned = [];
       for (const [batchIndex, entry] of batch.entries()) {
         const entity = goTrim(entry.entity);
         const entityKey = mutationEntityKey(entry.entity, entry.entity_key);
@@ -312,7 +315,7 @@ export class CloudStore {
             'INSERT INTO cloud_mutations (project, entity, entity_key, op, payload) VALUES ($1, $2, $3, $4, $5::jsonb) RETURNING seq',
             [goTrim(entry.project), entity, entityKey, goTrim(entry.op), goTrim(entry.payload ?? '') === '' ? '{}' : entry.payload],
           );
-          seqs.push(Number(rows[0].seq));
+          assigned.push(Number(rows[0].seq));
         } catch (cause) {
           throw new MutationBatchEntryError(batchIndex, entity, entityKey, cause);
         }
@@ -325,8 +328,10 @@ export class CloudStore {
         );
         await this.#indexSessions(tx, chunk.project, sessionIdsOfPayload(chunk.payload));
       }
-      return seqs;
+      return assigned;
     });
+    this.invalidateDashboard();
+    return seqs;
   }
 
   /**
@@ -396,6 +401,7 @@ export class CloudStore {
         await this.#indexSessions(tx, chunk.project, sessionIdsOfPayload(chunk.payload));
       }
     });
+    this.invalidateDashboard();
     return report;
   }
 
@@ -448,4 +454,4 @@ async function insertMaterialized(tx, entries) {
   }
 }
 
-Object.assign(CloudStore.prototype, identityMethods, provenanceMethods);
+Object.assign(CloudStore.prototype, identityMethods, provenanceMethods, dashboardMethods);

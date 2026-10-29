@@ -407,6 +407,19 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F9.2c-2 a F9.4
+### F9.3 — Panel web (spec 0.28.0)
+
+1. Copiar de `fuentes/` el test nuevo (`test/unit/cloud/dashboard.test.js`), `static/styles.css` y `package.json`; ejecutar `npm install` (nuevas: `htmx.org`, `@picocss/pico`).
+2. Crear, según `30-cloud/06-panel-web.md`: `src/cloud/server/dashboard-model.js` y `dashboard-store.js` (mezclar `dashboardMethods` en `CloudStore` y llamar a `invalidateDashboard()` en las escrituras), `src/cloud/dashboard/{html,format,views,session,routes}.js`; añadir `getPrincipal` a `identity.js`, exportar `auditEvent` de `admin.js`, extraer `principalForToken` de `server.js`, aceptar `jwtSecret` y `version` en `CloudServer` (que llama a `installDashboard`) y pasarlos desde `odin cloud serve`.
+
+Aceptación:
+```bash
+node --test test/unit/cloud/dashboard.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F9.2c-2, F9.4
 
 Se detallan en `30-cloud/` al completarse cada porción. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

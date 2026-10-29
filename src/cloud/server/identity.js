@@ -127,6 +127,16 @@ export const identityMethods = {
     });
   },
 
+  /** El principal con ese id, para revalidar una sesión; `principal_not_found` si no existe. */
+  async getPrincipal(id) {
+    const key = goTrim(id ?? '');
+    if (!/^\d+$/.test(key)) throw ErrPrincipalNotFound();
+    const rows = await this.db.query('SELECT id::text AS id, kind, display_name, role, enabled FROM cloud_principals WHERE id = $1', [key]);
+    if (rows.length === 0) throw ErrPrincipalNotFound();
+    const r = rows[0];
+    return { id: r.id, kind: r.kind, displayName: r.display_name, role: r.role, enabled: r.enabled };
+  },
+
   async listHumanUsers() {
     const rows = await this.db.query(
       `SELECT h.principal_id::text AS principal_id, h.username, COALESCE(h.email, '') AS email, p.display_name, p.role, p.enabled, ${ts('h.created_at')} AS created_at

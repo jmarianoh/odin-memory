@@ -49,7 +49,7 @@ const tokenMetadata = (t) => {
   return out;
 };
 
-const auditEvent = (actor, action, targetPrincipalId, project, metadata) => ({
+export const auditEvent = (actor, action, targetPrincipalId, project, metadata) => ({
   actorPrincipalId: goTrim(actor.id), actorSource: actor.source, targetPrincipalId: goTrim(targetPrincipalId), project: goTrim(project), action, outcome: 'success', metadata,
 });
 

@@ -1,5 +1,7 @@
 export * from './admin.js';
 export * from './config.js';
+export * from './dashboard-model.js';
+export * from './dashboard-store.js';
 export * from './db.js';
 export * from './identity.js';
 export * from './tokens.js';

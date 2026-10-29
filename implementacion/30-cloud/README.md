@@ -11,7 +11,7 @@ Cloud replica la memoria de proyectos concretos en un servidor compartido con Po
 | F9.2b | 0.26.0 | Cliente de mutaciones: transporte, cola de salida con acuses y arriendo, relleno del diario al inscribir, autosync en `serve` y `mcp` | hecha |
 | F9.2c-1 | 0.27.0 | Identidades gestionadas (personas, tokens con pimienta, permisos por proyecto), API `/admin/*`, auditoría de autenticación, procedencia de prompts (autoridad de sesión, reclamos, atestación) y su comprobación previa en el autosync, `odin cloud bootstrap` | hecha |
 | F9.2c-2 | — | Cuarentena de mutaciones irreparables, `cloud upgrade`, `cloud attest-prompt-source` | pendiente |
-| F9.3 | — | Panel web (SSR + htmx + Pico), sesión HMAC, administración | pendiente |
+| F9.3 | 0.28.0 | Panel web (HTML en servidor + htmx + Pico): acceso con token y sesión firmada, navegador de memoria, proyectos, contribuidores, administración, controles de sincronización, usuarios gestionados y registro de rechazos | hecha |
 | F9.4 | — | Pantallas de la TUI, reparaciones del diario, `rescue-ownership` sobre proyectos inscritos, Docker | pendiente |
 
 Pendiente tras 0.27.0: la cuarentena de mutaciones irreparables y las órdenes `cloud upgrade` y `cloud attest-prompt-source`.
@@ -25,6 +25,7 @@ Pendiente tras 0.27.0: la cuarentena de mutaciones irreparables y las órdenes `
 | [`03-formato-de-chunks.md`](03-formato-de-chunks.md) | Sobre comprimido, forma canónica del chunk y de las cargas de mutación, validación de referencias, materialización |
 | [`04-autosync.md`](04-autosync.md) | Transporte de mutaciones, gestor de autosync, cola de salida, dominio de la nube al aplicar, relleno del diario |
 | [`05-identidad-y-procedencia.md`](05-identidad-y-procedencia.md) | Tokens gestionados, almacén de identidades, auditoría de autenticación, API de administración, procedencia de prompts, `odin cloud bootstrap` |
+| [`06-panel-web.md`](06-panel-web.md) | Modelo de lectura, sesión firmada, rutas `/dashboard/*`, paginación y formato, marcado que fijan las pruebas |
 
 ## Módulos
 
@@ -38,6 +39,7 @@ Pendiente tras 0.27.0: la cuarentena de mutaciones irreparables y las órdenes `
 | `src/cloud/server/mutations.js` | 02 |
 | `src/cloud/autosync.js`, `src/cli/autosync.js`, `src/store/sync-queue.js` | 04 |
 | `src/cloud/server/{tokens,identity,admin,provenance,respond}.js`, `src/cli/commands/cloud-bootstrap.js` | 05 |
+| `src/cloud/server/{dashboard-model,dashboard-store}.js`, `src/cloud/dashboard/{html,format,views,session,routes}.js`, `static/styles.css` | 06 |
 
 ## Dependencias nuevas
 
@@ -63,7 +65,7 @@ Pendiente tras 0.27.0: la cuarentena de mutaciones irreparables y las órdenes `
 | `ODIN_CLOUD_ALLOWED_PROJECTS` | servidor | Lista separada por comas; `*` admite todos. Obligatoria |
 | `ODIN_CLOUD_INSECURE_NO_AUTH` | servidor | `1` desactiva la autenticación (solo desarrollo); incompatible con `ODIN_CLOUD_TOKEN` y con `ODIN_CLOUD_ADMIN` |
 | `ODIN_CLOUD_ADMIN` | servidor | Segundo secreto, de administración; también autentica en `/sync/*` |
-| `ODIN_JWT_SECRET` | servidor | Obligatorio y distinto del valor de desarrollo cuando hay token; firmará las sesiones del panel (F9.3) |
+| `ODIN_JWT_SECRET` | servidor | Obligatorio y distinto del valor de desarrollo cuando hay token; firma las sesiones del panel (ver 06) |
 | `ODIN_CLOUD_TOKEN_PEPPER` | servidor / bootstrap | Pimienta (≥ 32 bytes) de los tokens gestionados; ver 05 |
 
 ## Estrategia de pruebas

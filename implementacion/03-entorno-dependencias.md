@@ -19,7 +19,7 @@ Todas con versión **exacta** (sin `^` ni `~`). Se incorporan por fases:
 | `pg` | F9.1 | Cliente Postgres del servidor de la nube (solo se carga con `odin cloud serve`) |
 | `embedded-postgres` (desarrollo) | F9.1 | Postgres real y desechable para las pruebas de la nube |
 | `ink`, `react`, `htm` | F8 | TUI (`htm` evita JSX) |
-| `htmx.org`, `@picocss/pico` | F9 | Se copian a `static/`; no se cargan desde CDN |
+| `htmx.org`, `@picocss/pico` | F9.3 | Panel web; el servidor los sirve desde `node_modules` (no hay CDN) |
 
 El servidor MCP (F3) **no** usa ningún SDK: el protocolo se implementa a mano (`12-mcp/README.md`).
 
@@ -32,8 +32,10 @@ Las versiones exactas se fijan al incorporar cada paquete y se anotan aquí:
 | `htm` | 3.1.1 | F8 |
 | `pg` | 8.23.1 | F9.1 |
 | `embedded-postgres` (`devDependencies`) | 18.4.0-beta.17 | F9.1 |
+| `htmx.org` | 2.0.8 | F9.3 |
+| `@picocss/pico` | 2.1.1 | F9.3 |
 
-`package-lock.json` se versiona. `embedded-postgres` instala un binario por plataforma (`@embedded-postgres/<plataforma>`) cuyo `postinstall` (`node scripts/hydrate-symlinks.js`) hay que ejecutar a mano si npm no lo lanza; detalles y alternativa (`ODIN_TEST_DATABASE_URL`) en `30-cloud/README.md`. Hasta F9.3 no hay más dependencias (`htmx.org` y `@picocss/pico`, del panel).
+`package-lock.json` se versiona. `embedded-postgres` instala un binario por plataforma (`@embedded-postgres/<plataforma>`) cuyo `postinstall` (`node scripts/hydrate-symlinks.js`) hay que ejecutar a mano si npm no lo lanza; detalles y alternativa (`ODIN_TEST_DATABASE_URL`) en `30-cloud/README.md`. No hay más dependencias.
 
 ## Verificación del entorno
 

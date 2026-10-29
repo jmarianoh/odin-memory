@@ -13,6 +13,7 @@ import { MAX_DECODED_BYTES, REASON, UPGRADE_ERROR_CLASS, UPGRADE_ERROR_CODE } fr
 import { parseTypedChunk, validateRelationPayload } from '../materialize.js';
 import { canonicalMutationEntry } from './mutations.js';
 import { DEFAULT_MAX_PUSH_BODY_BYTES } from './config.js';
+import { installDashboard } from '../dashboard/routes.js';
 import { installAdminRoutes } from './admin.js';
 import { installProvenanceRoutes } from './provenance.js';
 import { actionable, readBuffer, sendMap } from './respond.js';
@@ -116,6 +117,8 @@ export class CloudServer {
    * @param {string} [options.host]
    * @param {import('./tokens.js').ManagedTokenHasher|null} [options.hasher] verifica los tokens gestionados; sin él solo valen los del entorno
    * @param {number} [options.maxPushBodyBytes]
+   * @param {string} [options.jwtSecret] clave de las sesiones del panel; sin ella cada arranque usa una aleatoria
+   * @param {string} [options.version] versión que muestra el panel
    * @param {(message: string) => void} [options.log]
    */
   constructor(store, options) {
@@ -137,6 +140,7 @@ export class CloudServer {
     this.router.add('GET /sync/mutations/pull', { handler: (c) => this.#pullMutations(c), auth: true });
     installAdminRoutes(this);
     installProvenanceRoutes(this);
+    this.dashboard = installDashboard(this, { secret: options.jwtSecret ?? '', version: options.version ?? '' });
     this.http = createServer((req, res) => {
       this.#serve(req, res).catch((err) => {
         this.log(`[odin-cloud] unexpected request error: ${err?.stack ?? err}`);
@@ -178,7 +182,12 @@ export class CloudServer {
     if (header === '') return deny('missing authorization header', 'missing_header');
     const fields = header.split(/\s+/);
     if (fields.length !== 2 || fields[0].toLowerCase() !== 'bearer') return deny('authorization must use Bearer token', 'malformed_bearer');
-    const presented = fields[1];
+    return this.principalForToken(fields[1]);
+  }
+
+  /** Principal de un secreto presentado (token de entorno o gestionado), o el motivo del rechazo. */
+  async principalForToken(presented) {
+    const deny = (failure, reason) => ({ failure, reason, principal: null });
     if (tokenEquals(presented, this.token)) {
       return { failure: null, reason: '', principal: { id: 'legacy:sync', kind: KIND.legacy, displayName: 'LEGACY_SYNC', role: ROLE.member, enabled: true, source: PRINCIPAL_SOURCE.legacyEnvSync, tokenId: '' } };
     }

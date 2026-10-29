@@ -5,6 +5,7 @@ import {
 } from '../../cloud/config.js';
 import { TARGET_KEY_CLOUD } from '../../cloud/constants.js';
 import { normalizeProject } from '../../project/canonical.js';
+import { VERSION } from '../../version/index.js';
 import { enrollProject, unenrollProject } from '../../store/enrollment.js';
 import { cloudSyncSummary, cloudTargetKeyForProject, getSyncState, isProjectEnrolled } from '../../store/sync-state.js';
 import { goTrim } from '../../store/text.js';
@@ -402,6 +403,8 @@ async function cmdCloudServe(cli) {
     port: hooks.port ?? cfg.port,
     host: cfg.bindHost,
     maxPushBodyBytes: cfg.maxPushBodyBytes,
+    jwtSecret: cfg.jwtSecret,
+    version: VERSION === 'dev' ? 'dev' : `v${VERSION}`,
     log,
   });
   const stop = new Promise((resolve) => {
