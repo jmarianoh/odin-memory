@@ -38,14 +38,17 @@ export function deleteSession(store, id) {
     const res = db.run('DELETE FROM sessions WHERE id = ?', id);
     if (Number(res.changes) === 0) throw storeError('session_not_found', JSON.stringify(id));
 
-    // Con el proyecto inscrito el diario anota los borrados (aún no disponible: falla);
-    // si no, no hay nada que anotar.
+    // Con el proyecto inscrito el diario anota los borrados; si no, no hay nada que anotar.
     for (const p of prompts) {
       journalMutation(db, {
         entity: SYNC_ENTITY.prompt, entityKey: p.sync_id, op: SYNC_OP_DELETE, project: p.project, sessionId: p.session_id,
-        payload: () => ({}),
+        payload: () => ({
+          sync_id: p.sync_id, session_id: p.session_id, project: nullableString(p.project), source_inbox_id: p.source_inbox_id, deleted: true, hard_delete: true, deleted_at: deletedAt,
+        }),
       });
     }
-    journalMutation(db, { entity: SYNC_ENTITY.session, entityKey: id, op: SYNC_OP_DELETE, project, payload: () => ({}) });
+    journalMutation(db, {
+      entity: SYNC_ENTITY.session, entityKey: id, op: SYNC_OP_DELETE, project, payload: () => ({ id, project, deleted: true, hard_delete: true, deleted_at: deletedAt }),
+    });
   });
 }

@@ -483,7 +483,14 @@ export function importData(store, data) {
         db.run('DELETE FROM user_prompts WHERE sync_id = ?', prompt.sync_id);
         recordPromptTombstone(db, prompt.sync_id, prompt.session_id, nullableString(project), prompt.inbox_id, tombstone.deleted_at);
         journalMutation(db, {
-          entity: SYNC_ENTITY.prompt, entityKey: prompt.sync_id, op: SYNC_OP_DELETE, project, sessionId: prompt.session_id, payload: () => ({}),
+          entity: SYNC_ENTITY.prompt,
+          entityKey: prompt.sync_id,
+          op: SYNC_OP_DELETE,
+          project,
+          sessionId: prompt.session_id,
+          payload: () => ({
+            sync_id: prompt.sync_id, session_id: prompt.session_id, source_inbox_id: prompt.inbox_id, project: nullableString(project), deleted: true, hard_delete: true, deleted_at: tombstone.deleted_at,
+          }),
         });
       }
       recordPromptTombstone(db, tombstone.sync_id, tombstone.session_id, tombstone.project, tombstone.source_inbox_id, tombstone.deleted_at);
@@ -524,7 +531,14 @@ export function importData(store, data) {
             );
             if (Number(res.changes) !== 1) throw importError(`import prompt ${p.id}: inbox identity already owned`);
             journalMutation(db, {
-              entity: SYNC_ENTITY.prompt, entityKey: syncId, op: 'upsert', project: localProject, payload: () => ({}),
+              entity: SYNC_ENTITY.prompt,
+              entityKey: syncId,
+              op: 'upsert',
+              project: localProject,
+              payload: () => {
+                const adopted = db.get('SELECT sync_id, session_id, content, created_at, source_inbox_id FROM user_prompts WHERE id = ?', found.id);
+                return { ...adopted, project: nullableString(localProject) };
+              },
             });
           }
         }

@@ -80,6 +80,24 @@ export function validateBearerBaseUrl(baseUrl, token) {
   return { baseUrl: normalized, token: bearer };
 }
 
+/** Una petición con el token (si hay); con token, una redirección solo se sigue hacia HTTPS. */
+async function sendRequest(fetchFn, token, url, init, timeoutMs) {
+  const headers = { ...init.headers };
+  if (token !== '') headers.Authorization = `Bearer ${token}`;
+  let target = url;
+  for (let hops = 0; hops <= MAX_REDIRECTS; hops++) {
+    const response = await fetchFn(target, { ...init, headers, redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
+    if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
+      const next = new URL(response.headers.get('location'), target).href;
+      if (token !== '' && !next.startsWith('https://')) throw new Error('cloud: bearer token redirect requires HTTPS');
+      target = next;
+      continue;
+    }
+    return response;
+  }
+  throw new Error('cloud: too many redirects');
+}
+
 /**
  * Transporte de chunks contra el servidor de la nube de un proyecto. Cumple el contrato del
  * sincronizador (`readManifest`, `writeManifest`, `writeChunk`, `readChunk`) con E/S asíncrona.
@@ -106,21 +124,8 @@ export class RemoteTransport {
   }
 
   /** Una petición; con token, una redirección solo se sigue hacia HTTPS. */
-  async #request(url, init, timeoutMs) {
-    const headers = { ...init.headers };
-    if (this.token !== '') headers.Authorization = `Bearer ${this.token}`;
-    let target = url;
-    for (let hops = 0; hops <= MAX_REDIRECTS; hops++) {
-      const response = await this.fetch(target, { ...init, headers, redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
-      if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
-        const next = new URL(response.headers.get('location'), target).href;
-        if (this.token !== '' && !next.startsWith('https://')) throw new Error('cloud: bearer token redirect requires HTTPS');
-        target = next;
-        continue;
-      }
-      return response;
-    }
-    throw new Error('cloud: too many redirects');
+  #request(url, init, timeoutMs) {
+    return sendRequest(this.fetch, this.token, url, init, timeoutMs);
   }
 
   async readManifest() {
@@ -185,5 +190,76 @@ export class RemoteTransport {
       }
     }
     return data.toString('utf8');
+  }
+}
+
+/**
+ * Transporte de mutaciones sueltas: empuja lotes al diario de la nube y lee por cursor. Un 404 se clasifica como
+ * `server_unsupported` (el servidor aún no trae las rutas).
+ */
+export class MutationTransport {
+  /**
+   * @param {string} baseUrl
+   * @param {string} token
+   * @param {{ fetch?: typeof fetch, log?: (message: string) => void }} [options]
+   */
+  constructor(baseUrl, token, { fetch: fetchFn = globalThis.fetch, log = () => {} } = {}) {
+    const checked = validateBearerBaseUrl(baseUrl, token);
+    this.baseUrl = checked.baseUrl;
+    this.token = checked.token;
+    this.fetch = fetchFn;
+    this.log = log;
+  }
+
+  #failure(operation, status, body) {
+    const err = statusError(operation, status, body);
+    if (status === 404) {
+      err.errorCode = 'server_unsupported';
+      this.log('[autosync] cloud mutation endpoint returned 404 (server_unsupported); deploy the new server first before enabling ODIN_CLOUD_AUTOSYNC=1');
+    }
+    return err;
+  }
+
+  /**
+   * @param {{ project: string, entity: string, entity_key: string, op: string, payload: string }[]} entries carga como texto JSON
+   * @returns {Promise<number[]>} los `seq` aceptados por el servidor
+   */
+  async pushMutations(entries) {
+    let body;
+    try {
+      body = JSON.stringify({ entries: entries.map((e) => ({ project: e.project, entity: e.entity, entity_key: e.entity_key, op: e.op, payload: JSON.parse(e.payload) })) });
+    } catch (err) {
+      throw new Error(`cloud: marshal mutation push: ${err.message}`, { cause: err });
+    }
+    let response;
+    try {
+      response = await sendRequest(this.fetch, this.token, `${this.baseUrl}/sync/mutations/push`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }, ORDINARY_TIMEOUT_MS);
+    } catch (err) {
+      throw new Error(`cloud: mutation push: ${err.message}`, { cause: err });
+    }
+    if (response.status !== 200) throw this.#failure('mutation push', response.status, await response.text());
+    try {
+      const result = await response.json();
+      return result.accepted_seqs ?? [];
+    } catch (err) {
+      throw new Error(`cloud: decode mutation push response: ${err.message}`, { cause: err });
+    }
+  }
+
+  /** @returns {Promise<{ mutations: object[], has_more: boolean, latest_seq: number }>} */
+  async pullMutations(sinceSeq, limit) {
+    let response;
+    try {
+      response = await sendRequest(this.fetch, this.token, `${this.baseUrl}/sync/mutations/pull?since_seq=${sinceSeq}&limit=${limit}`, { method: 'GET' }, ORDINARY_TIMEOUT_MS);
+    } catch (err) {
+      throw new Error(`cloud: mutation pull: ${err.message}`, { cause: err });
+    }
+    if (response.status !== 200) throw this.#failure('mutation pull', response.status, await response.text());
+    try {
+      const result = await response.json();
+      return { mutations: result.mutations ?? [], has_more: result.has_more === true, latest_seq: Number(result.latest_seq ?? 0) };
+    } catch (err) {
+      throw new Error(`cloud: decode mutation pull response: ${err.message}`, { cause: err });
+    }
   }
 }

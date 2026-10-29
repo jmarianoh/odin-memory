@@ -3,6 +3,7 @@ import { HttpServer } from '../../server/index.js';
 import { DatabaseGenerationChangedError } from '../../store/errors.js';
 import { goTrim } from '../../store/text.js';
 import { VERSION } from '../../version/index.js';
+import { autosyncSyncStatus, localSyncStatus, tryStartAutosync } from '../autosync.js';
 import { fatal } from '../runtime.js';
 
 /** El proceso padre cerró su extremo antes de que el servidor estuviera listo: no es un fallo. */
@@ -110,7 +111,10 @@ export async function cmdServe(cli, config) {
     return;
   }
 
+  const autosync = tryStartAutosync(cli, store, config);
   const server = new HttpServer(store, {
+    syncStatus: autosyncSyncStatus(autosync, localSyncStatus(cli, store, config)),
+    onWrite: () => autosync?.notifyDirty(),
     port: options.port,
     version: VERSION,
     env: cli.env,
@@ -154,6 +158,7 @@ export async function cmdServe(cli, config) {
     else failure = err;
   }
   server.cleanupSignals?.();
+  await autosync?.stop();
   if (reason === 'parent') log('[odin] session owner disconnected; shutting down...');
   else if (reason === 'signal') log('[odin] shutting down...');
   await server.shutdown(hooks.graceMs ?? 5000);

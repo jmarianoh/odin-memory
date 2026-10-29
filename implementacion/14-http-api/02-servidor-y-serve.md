@@ -73,6 +73,8 @@ El proceso padre la lee, usa `endpoint` con `Authorization: Bearer <ODIN_TOKEN>`
 
 ## Estado de sincronización (`src/server/sync-status.js`, `src/store/sync-state.js`)
 
+`odin serve` pasa al servidor `localSyncStatus` (estado del almacén con la configuración de la nube real) o, con el autosync activo, `autosyncSyncStatus`; ver `30-cloud/04-autosync.md`.
+
 `GET /sync/status` usa `storeSyncStatus(store, { defaultProject, cloudConfig })`. `cloudConfig()` devuelve `{ server_url }` o `null` (la nube llega en F9; hasta entonces es siempre `null`).
 
 Resolución (`proyecto` = el de la petición normalizado; si está vacío, `defaultProject`):

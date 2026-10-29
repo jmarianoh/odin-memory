@@ -378,6 +378,20 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F9.2b a F9.4
+### F9.2b — Cliente de mutaciones y autosync (spec 0.26.0)
+
+1. Copiar de `fuentes/` los tests nuevos y modificados (`test/unit/cloud/{autosync,autosync.e2e,autosync-cli,remote,client}.test.js`, `test/unit/store/sync-queue.test.js`, `test/unit/store/{sync-apply,observations,prompts}.test.js` si cambian) y `package.json`.
+2. Ampliar `src/store/sync-state.js` (`markSyncBlocked` con éxito, `markSyncBlockedAfterSuccess`, `isActivelyDegradedState`), `src/store/sync-apply.js` (dominio de la nube y `applyTolerant`), `src/store/journal.js` (relleno real) y crear `src/store/sync-queue.js` (exportado por `src/store/index.js`); completar las cargas de `session-delete.js` y `backup.js`.
+3. Añadir `MutationTransport` a `src/cloud/remote.js` y crear `src/cloud/autosync.js` y `src/cli/autosync.js`; cablear `serve.js` (estado, `onWrite`, parada) y `mcp.js`; hacer que `guidance.js` recorra la cadena de errores.
+
+Aceptación:
+```bash
+node --test "test/unit/cloud/*.test.js" test/unit/store/sync-queue.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F9.2c a F9.4
 
 Se detallan en `30-cloud/` al completarse cada porción. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

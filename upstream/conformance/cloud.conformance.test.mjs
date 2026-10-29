@@ -14,6 +14,9 @@ import { fileURLToPath } from 'node:url';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import pg from 'pg';
 import { startPostgres } from '../../test/unit/cloud/pg-helper.js';
+import { AutosyncManager } from '../../src/cloud/autosync.js';
+import { MutationTransport } from '../../src/cloud/remote.js';
+import { Store, addObservation, addPrompt, createSession, deleteObservation, enrollProject, searchObservations, updateObservation } from '../../src/store/index.js';
 import { resolveBinary } from './engram-mcp.mjs';
 
 const binary = resolveBinary();
@@ -455,5 +458,38 @@ for (const [writer, reader] of [['odin', 'ref'], ['ref', 'odin']]) {
       assert.match(pulled.stdout, /Imported 1 new remote chunk\(s\) for project "proj-c"/);
       assert.equal(countObservations(dir, reader, title), 1, 'la memoria llegó al lector');
     }
+  });
+}
+
+// ─── Sincronización por mutaciones desde odin ────────────────────────────────
+
+for (const serverSide of ['ref', 'odin']) {
+  test(`el autosync de odin intercambia mutaciones con el servidor de ${serverSide === 'ref' ? 'la referencia' : 'odin'}`, { skip }, async (t) => {
+    const pair = await cloudPair({ token: '', allowed: 'proj-c' });
+    const url = serverSide === 'ref' ? pair.refUrl : pair.odinUrl;
+    const open = (name) => {
+      const store = Store.open({ dataDir: join(pair.dir, `auto-${serverSide}-${name}`), log: () => {} });
+      t.after(() => store.close());
+      return store;
+    };
+    const [a, b] = [open('a'), open('b')];
+    for (const store of [a, b]) enrollProject(store, 'proj-c');
+    createSession(a, 's1', 'proj-c', '/work/a');
+    const first = addObservation(a, { session_id: 's1', type: 'decision', title: 'Primera x', content: 'contenido uno x', project: 'proj-c' });
+    addObservation(a, { session_id: 's1', type: 'note', title: 'Segunda x', content: 'contenido dos x', project: 'proj-c', topic_key: 'arq/uno' });
+    addPrompt(a, { session_id: 's1', content: 'una pregunta x', project: 'proj-c' });
+    const manager = (store) => new AutosyncManager(store, new MutationTransport(url, ''), { log: () => {}, baseBackoff: 10 });
+    const [ma, mb] = [manager(a), manager(b)];
+    await ma.runOnce();
+    assert.equal(ma.status().phase, 'healthy', ma.status().lastError);
+    updateObservation(a, first.id, { title: 'Primera cambiada x' });
+    deleteObservation(a, first.id, { hardDelete: false });
+    await ma.runOnce();
+    assert.equal(ma.status().phase, 'healthy', ma.status().lastError);
+    await mb.runOnce();
+    assert.equal(mb.status().phase, 'healthy', mb.status().lastError);
+    assert.deepEqual(searchObservations(b, 'x', { project: 'proj-c' }).map((o) => o.title), ['Segunda x']);
+    assert.equal(b.db.get('SELECT COUNT(*) AS n FROM user_prompts').n, 1);
+    assert.equal(b.db.get("SELECT COUNT(*) AS n FROM observations WHERE deleted_at IS NOT NULL").n, 1);
   });
 }

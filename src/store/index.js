@@ -32,4 +32,5 @@ export * from './text.js';
 export * from './session-delete.js';
 export * from './sync-apply.js';
 export * from './sync-chunks.js';
+export * from './sync-queue.js';
 export * from './sync-state.js';

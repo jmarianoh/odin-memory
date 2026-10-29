@@ -8,7 +8,8 @@ Cloud replica la memoria de proyectos concretos en un servidor compartido con Po
 |---|---|---|---|
 | F9.1 | 0.24.0 | Sincronización **por chunks** con la nube: servidor `/sync/*`, `odin cloud …`, `odin sync --cloud`, estado del destino | hecha |
 | F9.2a | 0.25.0 | Servidor de mutaciones: `/sync/mutations/push` y `/sync/mutations/pull`, materialización en las dos direcciones entre `cloud_chunks` y `cloud_mutations`, `odin cloud repair materialize-mutations` | hecha |
-| F9.2b | — | Cliente de mutaciones, autosync, relleno del diario al inscribir | pendiente |
+| F9.2b | 0.26.0 | Cliente de mutaciones: transporte, cola de salida con acuses y arriendo, relleno del diario al inscribir, autosync en `serve` y `mcp` | hecha |
+| F9.2c | — | Autoridad de sesión y reclamos de prompts, cuarentena de mutaciones irreparables, `cloud upgrade` | pendiente |
 | F9.3 | — | Panel web (SSR + htmx + Pico), sesión HMAC, administración | pendiente |
 | F9.4 | — | Pantallas de la TUI, reparaciones del diario, `rescue-ownership` sobre proyectos inscritos, Docker | pendiente |
 
@@ -20,7 +21,8 @@ Fuera de alcance de F9.1/F9.2a y sin fecha: principales y tokens gestionados, au
 |---|---|
 | [`01-cliente.md`](01-cliente.md) | Configuración del cliente, `odin cloud …`, `odin sync --cloud`, comprobaciones previas, estado del destino, transporte remoto, guía de recuperación |
 | [`02-servidor.md`](02-servidor.md) | Servidor HTTP, almacén Postgres (DDL), autenticación, lista de proyectos, pausa y auditoría, `odin cloud serve` |
-| [`03-formato-de-chunks.md`](03-formato-de-chunks.md) | Sobre comprimido, forma canónica del chunk y de las cargas de mutación, validación de referencias |
+| [`03-formato-de-chunks.md`](03-formato-de-chunks.md) | Sobre comprimido, forma canónica del chunk y de las cargas de mutación, validación de referencias, materialización |
+| [`04-autosync.md`](04-autosync.md) | Transporte de mutaciones, gestor de autosync, cola de salida, dominio de la nube al aplicar, relleno del diario |
 
 ## Módulos
 
@@ -32,6 +34,7 @@ Fuera de alcance de F9.1/F9.2a y sin fecha: principales y tokens gestionados, au
 | `src/cloud/server/{config,db,store,validate,server,index}.js` | 02 |
 | `src/cloud/codec.js`, `src/cloud/materialize.js` | 03 |
 | `src/cloud/server/mutations.js` | 02 |
+| `src/cloud/autosync.js`, `src/cli/autosync.js`, `src/store/sync-queue.js` | 04 |
 
 ## Dependencias nuevas
 
@@ -48,6 +51,7 @@ Fuera de alcance de F9.1/F9.2a y sin fecha: principales y tokens gestionados, au
 |---|---|---|
 | `ODIN_CLOUD_SERVER` | cliente | URL del servidor; sustituye a la guardada en `cloud.json` |
 | `ODIN_CLOUD_TOKEN` | cliente / servidor | Cliente: token Bearer que se envía (sustituye al guardado). Servidor: token que deben presentar los clientes |
+| `ODIN_CLOUD_AUTOSYNC` | cliente | `1` activa el autosync en `odin serve` y `odin mcp` (necesita servidor y token) |
 | `ODIN_CLOUD_SYNC` | cliente | Verdadero (`1`, `true`, `yes`, `on`) equivale a `--cloud` en `odin sync` |
 | `ODIN_DATABASE_URL` | servidor | DSN de Postgres (por defecto `postgres://odin:odin_dev@localhost:5433/odin_cloud?sslmode=disable`) |
 | `ODIN_PORT` | servidor | Puerto (por defecto 8080). El mismo nombre fija el puerto del servidor local (7438) y el que sondea `cloud status` |
@@ -61,6 +65,6 @@ Fuera de alcance de F9.1/F9.2a y sin fecha: principales y tokens gestionados, au
 
 ## Estrategia de pruebas
 
-- Pruebas de producto en `test/unit/cloud/` (`codec`, `materialize`, `config`, `client`, `remote`, `server`, `cli`, `e2e`) y `test/unit/store/sync-lifecycle.test.js`. Las que necesitan servidor arrancan un Postgres real con `test/unit/cloud/pg-helper.js` (no es una prueba): `startPostgres()` devuelve `createDatabase()` (DSN de una base nueva) y `stop()`.
+- Pruebas de producto en `test/unit/cloud/` (`codec`, `materialize`, `config`, `client`, `remote`, `server`, `cli`, `e2e`, `autosync`, `autosync.e2e`, `autosync-cli`) y `test/unit/store/sync-queue.test.js` y `test/unit/store/sync-lifecycle.test.js`. Las que necesitan servidor arrancan un Postgres real con `test/unit/cloud/pg-helper.js` (no es una prueba): `startPostgres()` devuelve `createDatabase()` (DSN de una base nueva) y `stop()`.
 - `e2e.test.js` conecta dos almacenes SQLite a un servidor real y comprueba el intercambio completo, el bloqueo por proyecto sin inscribir, por lista permitida y por pausa.
 - Todas las pruebas de red usan `http://127.0.0.1`: sin token (modo inseguro) porque el cliente solo envía tokens por HTTPS.

@@ -13,8 +13,16 @@ function displayProject(project) {
   return name === '' ? '<project>' : name;
 }
 
-/** ¿El error es una denegación de la política del servidor? */
-export const isPolicyFailure = (err) => err?.isPolicyFailure === true;
+/** ¿Algún error de la cadena (`cause`, o la lista de un fallo múltiple) cumple la condición? */
+function inChain(err, predicate, depth = 0) {
+  if (!err || depth > 16) return false;
+  if (predicate(err)) return true;
+  if (Array.isArray(err.errors) && err.errors.some((child) => inChain(child, predicate, depth + 1))) return true;
+  return inChain(err.cause, predicate, depth + 1);
+}
+
+/** ¿El error (o alguno de su cadena) es una denegación de la política del servidor? */
+export const isPolicyFailure = (err) => inChain(err, (e) => e.isPolicyFailure === true);
 
 /**
  * ¿Es un fallo conocido que el flujo de reparación explícito puede diagnosticar?
@@ -22,7 +30,7 @@ export const isPolicyFailure = (err) => err?.isPolicyFailure === true;
  */
 export function isRepairableCloudSyncError(err) {
   if (!err) return false;
-  if (err.isRepairable === true || err.isRepairableMigrationFailure === true) return true;
+  if (inChain(err, (e) => e.isRepairable === true || e.isRepairableMigrationFailure === true)) return true;
   const msg = String(err.message ?? err).toLowerCase();
   if (msg.includes(HEADER.toLowerCase())) return true;
   if (msg.includes('canonicalize cloud chunk:') || msg.includes('canonicalize push chunk:')) return true;

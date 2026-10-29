@@ -4,6 +4,7 @@ import { runMcp } from '../../mcp/run.js';
 import { processOverride } from '../../project/detect.js';
 import { VERSION } from '../../version/index.js';
 import { goTrim } from '../../store/text.js';
+import { tryStartAutosync } from '../autosync.js';
 import { fatal } from '../runtime.js';
 
 /**
@@ -55,6 +56,7 @@ export async function cmdMcp(cli, config) {
   } catch (err) {
     return fatal(cli, err);
   }
+  const autosync = tryStartAutosync(cli, store, config);
   try {
     const server = createServer(
       store,
@@ -66,6 +68,7 @@ export async function cmdMcp(cli, config) {
   } catch (err) {
     return fatal(cli, err);
   } finally {
+    await autosync?.stop();
     try {
       store.close();
     } catch {

@@ -14,7 +14,9 @@
 | F7 (spec 0.22.0) | `../21-copilot-vscode.md`, `../22-copilot-cli.md`, `../23-hooks-copilot.md` | `setup vscode-copilot`, `setup copilot-cli`, `hook <acción>` y `hook resolve-hook-project` |
 | F8 (spec 0.23.0) | `../19-tui.md` | `tui` |
 | F9.1 (spec 0.24.0) | `../30-cloud/` | `cloud` (`status`, `enroll`, `unenroll`, `config`, `serve`) y `sync --cloud` |
-| F9.2 y siguientes | — | `doctor discard-empty-prompt` y las reparaciones del diario (nube), `cloud upgrade`, autosync |
+| F9.2a (spec 0.25.0) | `../30-cloud/` | `cloud repair materialize-mutations` |
+| F9.2b (spec 0.26.0) | `../30-cloud/04-autosync.md` | autosync en `serve` y `mcp` (`ODIN_CLOUD_AUTOSYNC=1`) |
+| F9.2c y siguientes | — | `doctor discard-empty-prompt` y las reparaciones del diario (nube), `cloud upgrade`, autosync |
 
 ## Decisiones de diseño
 

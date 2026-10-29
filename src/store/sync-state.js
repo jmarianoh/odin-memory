@@ -94,15 +94,32 @@ function updateTargetState(store, targetKey, fn) {
   });
 }
 
-/** El destino queda degradado y bloqueado, con su motivo; no reintenta por sí solo. */
-export function markSyncBlocked(store, targetKey, reasonCode, message) {
+/**
+ * El destino queda degradado y bloqueado, con su motivo; no reintenta por sí solo. Con `recordSuccess` anota
+ * además que la lectura de la nube acabó bien (el bloqueo es solo de salida).
+ */
+export function markSyncBlocked(store, targetKey, reasonCode, message, { recordSuccess = false } = {}) {
   updateTargetState(store, targetKey, (db, key) => {
     db.run(
-      `UPDATE sync_state SET lifecycle = ?, consecutive_failures = 0, backoff_until = NULL, reason_code = ?, reason_message = ?, last_error = ?, updated_at = datetime('now')
+      `UPDATE sync_state SET lifecycle = ?, consecutive_failures = 0, backoff_until = NULL, reason_code = ?, reason_message = ?, last_error = ?,
+         last_success_at = CASE WHEN ? THEN datetime('now') ELSE last_success_at END, updated_at = datetime('now')
        WHERE target_key = ?`,
-      SYNC_LIFECYCLE.degraded, reasonCode, message, message, key,
+      SYNC_LIFECYCLE.degraded, reasonCode, message, message, recordSuccess ? 1 : 0, key,
     );
   });
+}
+
+export const markSyncBlockedAfterSuccess = (store, targetKey, reasonCode, message) => markSyncBlocked(store, targetKey, reasonCode, message, { recordSuccess: true });
+
+/** ¿El destino está degradado por un bloqueo o por un reintento que aún no vence? */
+export function isActivelyDegradedState(state, nowMs = Date.now()) {
+  if (!state || state.lifecycle !== SYNC_LIFECYCLE.degraded) return false;
+  if (['blocked_unenrolled', 'paused', 'auth_required', 'policy_forbidden', 'cloud_config_error'].includes(goTrim(state.reason_code ?? ''))) return true;
+  if (state.backoff_until) {
+    const until = Date.parse(goTrim(state.backoff_until));
+    if (!Number.isNaN(until) && until > nowMs) return true;
+  }
+  return false;
 }
 
 export const markSyncPaused = (store, targetKey, message) => markSyncBlocked(store, targetKey, 'paused', message);

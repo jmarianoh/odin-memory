@@ -17,7 +17,7 @@ Archivo `<datos>/cloud.json` (permisos `0600`, carpeta `0755`): `{ "server_url":
 
 ## Inscripción (`src/store/enrollment.js`)
 
-- `enrollProject(store, project)`: nombre canónico no vacío; `inbox` está reservado (`project name "inbox" is reserved for the cloud inbox and cannot be enrolled`). `INSERT OR IGNORE` en `sync_enrolled_projects`; si la fila es nueva, llama a `backfillProjectSyncMutations` en la misma transacción de escritura (en F9.1 no hace nada; F9.2 materializará el estado previo). Idempotente.
+- `enrollProject(store, project)`: nombre canónico no vacío; `inbox` está reservado (`project name "inbox" is reserved for the cloud inbox and cannot be enrolled`). `INSERT OR IGNORE` en `sync_enrolled_projects`; si la fila es nueva, llama a `backfillProjectSyncMutations` en la misma transacción de escritura (rellena el diario con el estado previo del proyecto). Idempotente.
 - `unenrollProject`: borra la fila; conserva datos locales, remotos y filas pendientes del diario. Idempotente.
 - `hasPendingSyncMutationsForProject(store, project)`: ¿hay filas del destino `cloud` con ese proyecto, sin acuse y con disposición `pending`?
 
@@ -33,7 +33,7 @@ Archivo `<datos>/cloud.json` (permisos `0600`, carpeta `0755`): `{ "server_url":
 6. Un `upsert` local de sesión sustituye a otro pendiente idéntico (mismo destino, entidad, clave, operación, origen y proyecto).
 7. Inserta la fila en `sync_mutations` con `target_key = 'cloud'`, el proyecto en su columna, `occurred_at = now()` y `payload = JSON.stringify(carga)`; deja `sync_state` de `cloud` en `pending` con `last_enqueued_seq`; con dueño, hace lo mismo con `cloud:<proyecto>`.
 
-`backfillProjectSyncMutations` queda como no-op documentado: la sincronización por chunks no lo necesita.
+`backfillProjectSyncMutations` rellena el diario con el estado previo del proyecto al inscribirlo (ver `04-autosync.md`).
 
 ## Ciclo de vida del destino (`src/store/sync-state.js`)
 

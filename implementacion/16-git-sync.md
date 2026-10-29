@@ -118,7 +118,7 @@ odin sync [--import | --status] [--all] [--include-prompts] [--cloud --project P
 - `--status` imprime `Sync status:` con `Local chunks`, `Remote chunks` y `Pending import`.
 - Validaciones: `--all` y `--project` no se combinan; `--literal-project` solo vale con nube, proyecto explícito y sin `--all`; `--include-prompts` no se combina con `--import`, `--status`, `--cloud` ni `ODIN_CLOUD_SYNC` (`validateSyncPromptPrivacy`); la ayuda (`--help`, `-h`, `help`) no abre el almacén ni crea carpetas.
 - `--cloud` o `ODIN_CLOUD_SYNC` verdadero (`1`, `true`, `yes`, `on`) sincronizan con el servidor de la nube del proyecto indicado: ver `30-cloud/01-cliente.md` (exige `--project`, comprobaciones previas, estado del destino `cloud:<proyecto>`).
-- `Syncer` es asíncrono: `export`, `import(report)` y `status` devuelven promesas y esperan al transporte; el constructor acepta `targetKey` (por defecto el destino local de chunks; la nube usa `cloud:<proyecto>`). Quien lo llame (`odin sync`, el hook `sessionStart`) debe esperarlo.
+- `Syncer` es asíncrono: `export`, `import(report)` y `status` devuelven promesas y esperan al transporte; el constructor acepta `targetKey` (por defecto el destino local de chunks; la nube usa `cloud:<proyecto>`). Quien lo llame (`odin sync`, el hook `sessionStart`) debe esperarlo. `applyPulledChunk` aplica cada mutación con `applyTolerant` (`30-cloud/04-autosync.md`).
 
 ## Rescate de propiedad (`projects rescue-ownership`)
 

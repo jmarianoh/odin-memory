@@ -425,10 +425,53 @@ function applyRelationUpsert(db, mutation) {
   );
 }
 
+// ─── Lápidas del dominio de la nube ──────────────────────────────────────────
+
+/**
+ * Lápida de un borrado que llega de la nube, con el piso de secuencia remota: del destino global en la propia
+ * lápida y de cualquier otro destino en `sync_delete_tombstone_remote_floors`.
+ */
+function recordCloudDeleteTombstone(db, targetKey, entity, entityKey, sessionId, project, deletedAt, hardDelete, seq) {
+  const owner = normalizeProject(goTrim(project ?? '')).normalized;
+  const deleted = deletedAt != null && goTrim(deletedAt) !== '' ? deletedAt : now();
+  db.run(
+    `INSERT INTO sync_delete_tombstones (entity, entity_key, session_id, project, deleted_at, hard_delete, active)
+     VALUES (?, ?, ?, ?, ?, ?, 1)
+     ON CONFLICT(entity, entity_key) DO UPDATE SET
+       session_id = excluded.session_id, project = excluded.project, deleted_at = excluded.deleted_at,
+       hard_delete = excluded.hard_delete, active = 1`,
+    entity, entityKey, nullableString(sessionId), owner, deleted, hardDelete ? 1 : 0,
+  );
+  if (targetKey === 'cloud') {
+    db.run(
+      'UPDATE sync_delete_tombstones SET last_remote_mutation_seq = CASE WHEN last_remote_mutation_seq IS NULL OR ? > last_remote_mutation_seq THEN ? ELSE last_remote_mutation_seq END WHERE entity = ? AND entity_key = ?',
+      seq, seq, entity, entityKey,
+    );
+    return;
+  }
+  db.run(
+    `INSERT INTO sync_delete_tombstone_remote_floors (target_key, entity, entity_key, last_mutation_seq) VALUES (?, ?, ?, ?)
+     ON CONFLICT(target_key, entity, entity_key) DO UPDATE SET last_mutation_seq = MAX(sync_delete_tombstone_remote_floors.last_mutation_seq, excluded.last_mutation_seq)`,
+    targetKey, entity, entityKey, seq,
+  );
+}
+
+/** ¿Una lápida de la nube impide aplicar esta alta, según su secuencia remota? */
+function cloudUpsertBlockedByTombstone(db, targetKey, entity, entityKey, seq) {
+  const row = db.get('SELECT active, last_remote_mutation_seq AS floor FROM sync_delete_tombstones WHERE entity = ? AND entity_key = ?', entity, entityKey);
+  if (!row) return false;
+  if (targetKey === 'cloud') return row.floor != null ? seq <= Number(row.floor) : Number(row.active) === 1;
+  const own = db.get('SELECT last_mutation_seq AS floor FROM sync_delete_tombstone_remote_floors WHERE target_key = ? AND entity = ? AND entity_key = ?', targetKey, entity, entityKey);
+  if (own) return seq <= Number(own.floor);
+  const any = db.get('SELECT EXISTS(SELECT 1 FROM sync_delete_tombstone_remote_floors WHERE entity = ? AND entity_key = ?) AS found', entity, entityKey).found;
+  if (Number(any) === 1) return false;
+  return Number(row.active) === 1;
+}
+
 // ─── Despacho ────────────────────────────────────────────────────────────────
 
 /** Si una mutación posterior vuelve a dar de alta la misma sesión, el borrado no la elimina. */
-function supersededSessionDelete(db, mutation, later) {
+function supersededSessionDelete(db, mutation, later, cloud = false) {
   for (const candidate of later) {
     if (candidate.entity !== SYNC_ENTITY.session || candidate.op !== SYNC_OP_UPSERT || candidate.entity_key !== mutation.entity_key) continue;
     let next;
@@ -445,7 +488,7 @@ function supersededSessionDelete(db, mutation, later) {
     }
     if (isSessionDeletePayload(next)) continue;
     if (!directoryIsString(candidate.payload)) continue;
-    if (localUpsertBlockedByTombstone(db, SYNC_ENTITY.session, next.id, text(next.started_at))) continue;
+    if (!cloud && localUpsertBlockedByTombstone(db, SYNC_ENTITY.session, next.id, text(next.started_at))) continue;
     return true;
   }
   return false;
@@ -466,9 +509,10 @@ function directoryIsString(payload) {
  * Aplica una mutación remota al almacén local dentro de la transacción en curso.
  * @param {import('./db.js').Database} db
  * @param {object} mutation `{ entity, entity_key, op, payload, project?, target_key? }`
- * @param {{ later?: object[], targetKey?: string }} [context] mutaciones posteriores del mismo lote
+ * @param {{ later?: object[], targetKey?: string, cloud?: boolean }} [context] mutaciones posteriores del mismo lote y,
+ * con `cloud`, aplicación de una mutación de la nube (lápidas por secuencia remota en vez de por fecha)
  */
-export function applyPulledMutation(db, mutation, { later = [], targetKey = '' } = {}) {
+export function applyPulledMutation(db, mutation, { later = [], targetKey = '', cloud = false } = {}) {
   switch (mutation.entity) {
     case SYNC_ENTITY.relation:
       return applyRelationUpsert(db, mutation);
@@ -482,6 +526,11 @@ export function applyPulledMutation(db, mutation, { later = [], targetKey = '' }
         throw identityInvalid('pulled_session_identity_invalid', `pulled session identity is invalid: ${err.message}`);
       }
       if (mutation.op === SYNC_OP_DELETE || isSessionDeletePayload(payload)) {
+        if (cloud) {
+          if (!supersededSessionDelete(db, mutation, later, true)) applySessionDelete(db, payload);
+          recordCloudDeleteTombstone(db, targetKey, SYNC_ENTITY.session, payload.id, '', text(payload.project), payload.deleted_at ?? null, payload.hard_delete === true, mutation.seq ?? 0);
+          return undefined;
+        }
         const recorded = later.length > 0;
         const deletedAt = goTrim(text(payload.deleted_at)) || now();
         if (recorded) recordDeleteTombstone(db, SYNC_ENTITY.session, payload.id, '', text(payload.project), deletedAt);
@@ -489,7 +538,7 @@ export function applyPulledMutation(db, mutation, { later = [], targetKey = '' }
         if (!recorded) recordDeleteTombstone(db, SYNC_ENTITY.session, payload.id, '', text(payload.project), deletedAt);
         return undefined;
       }
-      if (localUpsertBlockedByTombstone(db, SYNC_ENTITY.session, payload.id, text(payload.started_at))) return undefined;
+      if (cloud ? cloudUpsertBlockedByTombstone(db, targetKey, SYNC_ENTITY.session, payload.id, mutation.seq ?? 0) : localUpsertBlockedByTombstone(db, SYNC_ENTITY.session, payload.id, text(payload.started_at))) return undefined;
       if (!directoryIsString(mutation.payload)) throw new StoreError('pulled_session_directory_invalid', 'pulled session directory is invalid: directory must be a string');
       return applySessionPayload(db, payload);
     }
@@ -512,13 +561,17 @@ export function applyPulledMutation(db, mutation, { later = [], targetKey = '' }
           "DELETE FROM sync_apply_deferred WHERE entity = ? AND entity_key = ? AND target_key = ? AND op = ? AND apply_status = 'deferred'",
           SYNC_ENTITY.observation, payload.sync_id, targetKey, SYNC_OP_UPSERT,
         );
+        if (cloud) {
+          recordCloudDeleteTombstone(db, targetKey, SYNC_ENTITY.observation, payload.sync_id, text(payload.session_id), text(payload.project), payload.deleted_at ?? null, payload.hard_delete === true, mutation.seq ?? 0);
+          return preserveObservationDeleteProvenance(db, payload, true);
+        }
         if (!payload.hard_delete) return preserveObservationDeleteProvenance(db, payload, false);
         if (deletedAt === '') deletedAt = now();
         recordDeleteTombstone(db, SYNC_ENTITY.observation, payload.sync_id, text(payload.session_id), text(payload.project), deletedAt);
         return preserveObservationDeleteProvenance(db, payload, true);
       }
       const generation = goTrim(text(payload.updated_at)) === '' ? text(payload.created_at) : payload.updated_at;
-      if (localUpsertBlockedByTombstone(db, SYNC_ENTITY.observation, payload.sync_id, generation)) return undefined;
+      if (cloud ? cloudUpsertBlockedByTombstone(db, targetKey, SYNC_ENTITY.observation, payload.sync_id, mutation.seq ?? 0) : localUpsertBlockedByTombstone(db, SYNC_ENTITY.observation, payload.sync_id, generation)) return undefined;
       return applyObservationUpsert(db, payload);
     }
     case SYNC_ENTITY.prompt: {
@@ -678,6 +731,40 @@ export function enqueueDeferredRelation(store, targetKey, mutation) {
 }
 
 /**
+ * Aplica una mutación remota dentro de la transacción en curso. Una relación a la que le falta un extremo o con
+ * el proyecto cruzado se encola (`deferred`), una irrecuperable se archiva (`dead`), un padre ausente se difiere
+ * y una identidad inválida se guarda como evidencia; cualquier otro error se propaga tras deshacer la mutación.
+ * @param {import('./store.js').Store} store
+ * @param {import('./db.js').Database} db
+ * @param {string} syncTarget
+ * @param {object} mutation con `seq`, `target_key` y `source`
+ * @param {{ later?: object[], cloud?: boolean }} [options]
+ */
+export function applyTolerant(store, db, syncTarget, mutation, { later = [], cloud = false } = {}) {
+  try {
+    db.run('SAVEPOINT apply_mutation');
+    applyPulledMutation(db, mutation, { later, targetKey: syncTarget, cloud });
+    db.run('RELEASE apply_mutation');
+  } catch (err) {
+    db.run('ROLLBACK TO apply_mutation');
+    db.run('RELEASE apply_mutation');
+    if (mutation.entity === SYNC_ENTITY.relation && (err.code === 'relation_fk_missing' || err.code === 'relation_project_mismatch')) {
+      const syncId = writeRelationApplyFailure(db, syncTarget, mutation, 'deferred', false);
+      logOf(store)(`[store] relation apply seq=${mutation.seq} entity_key=${mutation.entity_key} sync_id=${syncId} err=${err.message} - marking deferred`);
+    } else if (mutation.entity === SYNC_ENTITY.relation && err.code === 'apply_dead') {
+      const syncId = writeRelationApplyFailure(db, syncTarget, mutation, 'dead', false);
+      logOf(store)(`[store] relation apply seq=${mutation.seq} entity_key=${mutation.entity_key} sync_id=${syncId} err=${err.message} - marking dead`);
+    } else if (err.code === 'parent_session_missing') {
+      deferParentSession(db, syncTarget, mutation);
+    } else if (IDENTITY_REASON[err.code]) {
+      deadLetterIdentity(db, syncTarget, mutation, IDENTITY_REASON[err.code]);
+    } else {
+      throw err;
+    }
+  }
+}
+
+/**
  * Aplica las mutaciones de un chunk remoto en una sola transacción y registra el
  * chunk como importado. Un fallo de una relación (extremo ausente o carga inválida)
  * o de un padre ausente se encola; una identidad inválida se archiva como evidencia;
@@ -700,25 +787,9 @@ export function applyPulledChunk(store, targetKey, chunkId, mutations) {
       seq += 1;
       const mutation = { ...original, seq, target_key: syncTarget, source: SYNC_SOURCE_REMOTE };
       try {
-        db.run('SAVEPOINT apply_mutation');
-        applyPulledMutation(db, mutation, { later: mutations.slice(i + 1), targetKey: syncTarget });
-        db.run('RELEASE apply_mutation');
+        applyTolerant(store, db, syncTarget, mutation, { later: mutations.slice(i + 1) });
       } catch (err) {
-        db.run('ROLLBACK TO apply_mutation');
-        db.run('RELEASE apply_mutation');
-        if (mutation.entity === SYNC_ENTITY.relation && (err.code === 'relation_fk_missing' || err.code === 'relation_project_mismatch')) {
-          const syncId = writeRelationApplyFailure(db, syncTarget, mutation, 'deferred', false);
-          logOf(store)(`[store] relation apply seq=${mutation.seq} entity_key=${mutation.entity_key} sync_id=${syncId} err=${err.message} - marking deferred`);
-        } else if (mutation.entity === SYNC_ENTITY.relation && err.code === 'apply_dead') {
-          const syncId = writeRelationApplyFailure(db, syncTarget, mutation, 'dead', false);
-          logOf(store)(`[store] relation apply seq=${mutation.seq} entity_key=${mutation.entity_key} sync_id=${syncId} err=${err.message} - marking dead`);
-        } else if (err.code === 'parent_session_missing') {
-          deferParentSession(db, syncTarget, mutation);
-        } else if (IDENTITY_REASON[err.code]) {
-          deadLetterIdentity(db, syncTarget, mutation, IDENTITY_REASON[err.code]);
-        } else {
-          throw new Error(`apply chunk mutation ${i}: ${err.message}`, { cause: err });
-        }
+        throw new Error(`apply chunk mutation ${i}: ${err.message}`, { cause: err });
       }
     }
     db.run('INSERT OR IGNORE INTO sync_chunks (target_key, chunk_id) VALUES (?, ?)', chunkTarget, id);

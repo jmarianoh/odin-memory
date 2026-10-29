@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gunzipSync, gzipSync } from 'node:zlib';
-import { HttpStatusError, RemoteTransport, validateBaseUrl, validateBearerBaseUrl } from '../../../src/cloud/remote.js';
+import { HttpStatusError, MutationTransport, RemoteTransport, validateBaseUrl, validateBearerBaseUrl } from '../../../src/cloud/remote.js';
 import { ChunkNotFoundError } from '../../../src/sync/transport.js';
 
 /** `fetch` simulado: registra las peticiones y responde con lo que dicte `reply`. */
@@ -120,4 +120,60 @@ test('una redirección solo se sigue con token si va a HTTPS', async () => {
 
   const anon = new RemoteTransport('http://127.0.0.1:1', '', 'p', { fetch: fakeFetch((url) => (url.includes('/aqui') ? { body: '{"version":2}' } : { status: 302, headers: { Location: 'http://127.0.0.1:1/aqui' } })).fn });
   assert.deepEqual(await anon.readManifest(), { version: 2, chunks: [] }, 'sin token puede seguir a http');
+});
+
+// ─── Transporte de mutaciones ────────────────────────────────────────────────
+
+
+test('empujar mutaciones envía las cargas como JSON y devuelve las secuencias aceptadas', async () => {
+  const { fn, calls } = fakeFetch(() => ({ body: JSON.stringify({ accepted_seqs: [4, 5], project: 'p' }) }));
+  const transport = new MutationTransport('https://nube.example/', 'tok', { fetch: fn });
+  const seqs = await transport.pushMutations([
+    { project: 'p', entity: 'prompt', entity_key: 'a', op: 'delete', payload: '{"sync_id":"a"}' },
+    { project: 'p', entity: 'session', entity_key: 'b', op: 'upsert', payload: '"{\\"id\\":\\"b\\"}"' },
+  ]);
+  assert.deepEqual(seqs, [4, 5]);
+  const [{ url, init }] = calls;
+  assert.equal(url, 'https://nube.example/sync/mutations/push');
+  assert.equal(init.method, 'POST');
+  assert.equal(init.headers['Content-Type'], 'application/json');
+  assert.equal(init.headers.Authorization, 'Bearer tok');
+  assert.deepEqual(JSON.parse(init.body), {
+    entries: [
+      { project: 'p', entity: 'prompt', entity_key: 'a', op: 'delete', payload: { sync_id: 'a' } },
+      { project: 'p', entity: 'session', entity_key: 'b', op: 'upsert', payload: '{"id":"b"}' },
+    ],
+  });
+  const none = new MutationTransport('http://127.0.0.1:1', '', { fetch: fakeFetch(() => ({ body: '{}' })).fn });
+  assert.deepEqual(await none.pushMutations([]), []);
+  await assert.rejects(none.pushMutations([{ project: 'p', entity: 'x', entity_key: 'k', op: 'upsert', payload: 'no json' }]), /^Error: cloud: marshal mutation push: /);
+  assert.throws(() => new MutationTransport('http://x.example', 't'), /requires an HTTPS/);
+});
+
+test('leer mutaciones pide por cursor y normaliza la respuesta', async () => {
+  const { fn, calls } = fakeFetch(() => ({ body: JSON.stringify({ mutations: [{ seq: 3, project: 'p', entity: 'prompt', entity_key: 'a', op: 'delete', payload: { sync_id: 'a' }, occurred_at: 'x' }], has_more: true, latest_seq: 3 }) }));
+  const transport = new MutationTransport('http://127.0.0.1:1', '', { fetch: fn });
+  const page = await transport.pullMutations(2, 50);
+  assert.equal(calls[0].url, 'http://127.0.0.1:1/sync/mutations/pull?since_seq=2&limit=50');
+  assert.deepEqual([page.mutations.length, page.has_more, page.latest_seq], [1, true, 3]);
+  const empty = new MutationTransport('http://127.0.0.1:1', '', { fetch: fakeFetch(() => ({ body: '{}' })).fn });
+  assert.deepEqual(await empty.pullMutations(0, 10), { mutations: [], has_more: false, latest_seq: 0 });
+});
+
+test('los fallos de las mutaciones conservan su clasificación y un 404 es «servidor sin soporte»', async () => {
+  const logs = [];
+  const refused = (status, body) => new MutationTransport('http://127.0.0.1:1', '', { fetch: fakeFetch(() => ({ status, body })).fn, log: (m) => logs.push(m) });
+  const missing = await refused(404, '404 page not found').pushMutations([]).catch((e) => e);
+  assert.deepEqual([missing.statusCode, missing.errorCode, missing.message], [404, 'server_unsupported', 'cloud: mutation push: status 404: 404 page not found']);
+  assert.match(logs[0], /\[autosync\] cloud mutation endpoint returned 404 \(server_unsupported\); deploy the new server first before enabling ODIN_CLOUD_AUTOSYNC=1/);
+  const auth = await refused(401, 'unauthorized: unknown token\n').pullMutations(0, 1).catch((e) => e);
+  assert.deepEqual([auth.isAuthFailure, auth.message], [true, 'cloud: mutation pull: status 401: unauthorized: unknown token']);
+  const policy = await refused(403, JSON.stringify({ error_class: 'policy', error_code: 'policy_forbidden', error: 'forbidden' })).pushMutations([]).catch((e) => e);
+  assert.deepEqual([policy.isPolicyFailure, policy.errorCode, logs.length], [true, 'policy_forbidden', 1]);
+  const down = new MutationTransport('http://127.0.0.1:1', '', { fetch: async () => { throw new Error('refused'); } });
+  await assert.rejects(down.pushMutations([]), /^Error: cloud: mutation push: refused$/);
+  await assert.rejects(down.pullMutations(0, 1), /^Error: cloud: mutation pull: refused$/);
+  const broken = new MutationTransport('http://127.0.0.1:1', '', { fetch: fakeFetch(() => ({ body: 'no json' })).fn });
+  await assert.rejects(broken.pushMutations([]), /decode mutation push response/);
+  await assert.rejects(broken.pullMutations(0, 1), /decode mutation pull response/);
 });
