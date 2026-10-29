@@ -1,5 +1,6 @@
 export * from './backup.js';
 export * from './compatibility.js';
+export * from './cloud-upgrade.js';
 export * from './conflicts.js';
 export * from './enrollment.js';
 export * from './consolidate.js';
@@ -17,6 +18,7 @@ export * from './observations.js';
 export * from './passive.js';
 export * from './project-maintenance.js';
 export * from './project-rescue.js';
+export * from './prompt-source.js';
 export * from './provenance.js';
 export * from './project-history.js';
 export * from './projects.js';

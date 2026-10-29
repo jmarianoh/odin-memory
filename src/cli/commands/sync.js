@@ -170,7 +170,7 @@ export async function cmdSync(cli, config) {
       }
       try {
         const transport = new RemoteTransport(runtime.server_url, runtime.token, project, cli.fetch ? { fetch: cli.fetch } : {});
-        syncer = new Syncer(store, { transport, project, log, targetKey });
+        syncer = new Syncer(store, { transport, project, log, targetKey, cloudMode: true });
       } catch (err) {
         if (!doStatus) markCloudSyncFailure(store, targetKey, err);
         return fatal(cli, new Error(cloudSyncFailureMessage(project, err)));

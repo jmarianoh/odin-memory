@@ -48,7 +48,8 @@ test('dos máquinas intercambian memoria por la nube', async (t) => {
   assert.match(pushed.out, /Cloud sync complete for project "mi-repo"\.\n$/);
 
   const sa2 = a.store();
-  assert.equal(getSyncState(sa2, 'cloud:mi-repo').lifecycle, 'pending', 'quedan filas del diario sin acusar');
+  assert.equal(getSyncState(sa2, 'cloud:mi-repo').lifecycle, 'healthy', 'las filas del diario salieron en el chunk y se acusaron');
+  assert.equal(sa2.db.get("SELECT COUNT(*) AS n FROM sync_mutations WHERE acked_at IS NULL AND disposition = 'pending'").n, 0);
   sa2.close();
   const again = await a.odin(['sync', '--cloud', '--project', 'mi-repo']);
   assert.match(again.out, /Nothing new to sync for project "mi-repo"/);

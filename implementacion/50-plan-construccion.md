@@ -420,6 +420,19 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F9.2c-2, F9.4
+### F9.2c-2 — Exportación por el diario, actualización y atestación (spec 0.29.0)
+
+1. Copiar de `fuentes/` los tests nuevos y modificados (`test/unit/sync/cloud-export.test.js`, `test/unit/store/cloud-upgrade.test.js`, `test/unit/cloud/{upgrade-cli,attest,cli,e2e}.test.js`), `docker/cloud/Dockerfile` y `docker-compose.cloud.yml`.
+2. Según `30-cloud/07-actualizacion-y-atestacion.md`: crear `src/store/{cloud-upgrade,prompt-source}.js` (exportarlos de `src/store/index.js`) y `src/cli/commands/{cloud-upgrade,cloud-attest}.js`; registrar `upgrade` y `attest-prompt-source` en `src/cli/commands/cloud.js`; añadir el modo nube a `src/sync/syncer.js` (`cloudMode`, `splitCloudExportChunk`) y activarlo en `src/cli/commands/sync.js` (rama `--cloud`).
+
+Aceptación:
+```bash
+node --test test/unit/sync/cloud-export.test.js test/unit/store/cloud-upgrade.test.js test/unit/cloud/upgrade-cli.test.js test/unit/cloud/attest.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F9.4
 
 Se detallan en `30-cloud/` al completarse cada porción. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

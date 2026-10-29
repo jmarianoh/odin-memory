@@ -90,7 +90,7 @@ async function waitHealthy(port, child) {
 let counter = 0;
 
 /** Un par de servidores de nube (referencia y odin), cada uno con su base en el mismo Postgres. */
-async function cloudPair({ token = TOKEN, allowed = 'proj-a,proj-b,proj-c', pepper = '' } = {}) {
+async function cloudPair({ token = TOKEN, allowed = 'proj-a,proj-b,proj-c', pepper = '', maxPush = MAX_PUSH } = {}) {
   counter += 1;
   const dir = join(base, `pair-${counter}`);
   mkdirSync(dir);
@@ -98,7 +98,7 @@ async function cloudPair({ token = TOKEN, allowed = 'proj-a,proj-b,proj-c', pepp
   const [refPort, odinPort] = [await freePort(), await freePort()];
   const insecure = token === '' ? { CLOUD_INSECURE_NO_AUTH: '1' } : { CLOUD_TOKEN: token, JWT_SECRET: JWT };
   const envFor = (prefix, dsn, port, dataVar) => {
-    const env = { [dataVar]: join(dir, `${prefix}-data`), HOME: dir, [`${prefix}_DATABASE_URL`]: dsn, [`${prefix}_PORT`]: String(port), [`${prefix}_CLOUD_HOST`]: '127.0.0.1', [`${prefix}_CLOUD_ALLOWED_PROJECTS`]: allowed, [`${prefix}_CLOUD_MAX_PUSH_BYTES`]: String(MAX_PUSH) };
+    const env = { [dataVar]: join(dir, `${prefix}-data`), HOME: dir, [`${prefix}_DATABASE_URL`]: dsn, [`${prefix}_PORT`]: String(port), [`${prefix}_CLOUD_HOST`]: '127.0.0.1', [`${prefix}_CLOUD_ALLOWED_PROJECTS`]: allowed, [`${prefix}_CLOUD_MAX_PUSH_BYTES`]: String(maxPush) };
     for (const [k, v] of Object.entries(insecure)) env[`${prefix}_${k}`] = v;
     if (pepper !== '') env[`${prefix}_CLOUD_TOKEN_PEPPER`] = pepper;
     return env;
@@ -656,4 +656,44 @@ test('personas, tokens y permisos gestionados: la API /admin responde igual', { 
   assert.deepEqual(await audit(pair.odinPool), await audit(pair.refPool), 'la auditoría de autenticación');
   const grants = (pool) => pool.query('SELECT principal_id::text, project FROM cloud_project_grants ORDER BY 1, 2').then((r) => r.rows);
   assert.deepEqual(await grants(pair.odinPool), await grants(pair.refPool));
+});
+
+test('cloud upgrade bootstrap y remirror: mismas salidas y mismo estado remoto', { skip }, async () => {
+  const pair = await cloudPair({ token: '', allowed: 'demo', maxPush: 1 << 20 });
+  const local = (side) => join(pair.dir, `${side}-local`);
+  const run = (side, args, env = {}) => {
+    const common = { cwd: pair.dir, encoding: 'utf8' };
+    if (side === 'ref') return spawnSync(binary.bin, args, { ...common, env: { ...process.env, ENGRAM_DATA_DIR: local('ref'), ENGRAM_NO_UPDATE_CHECK: '1', HOME: pair.dir, ...env } });
+    return spawnSync(process.execPath, ['--no-warnings', ODIN_BIN, ...args], { ...common, env: { ...process.env, ODIN_DATA_DIR: local('odin'), HOME: pair.dir, ...Object.fromEntries(Object.entries(env).map(([k, v]) => [k.replace(/^ENGRAM_/, 'ODIN_'), v])) } });
+  };
+  const both = (args, urls) => {
+    const [ref, odin] = [run('ref', args, urls.ref), run('odin', args, urls.odin)];
+    assert.equal(odin.status, ref.status, `${args.join(' ')}\n--- ref ${ref.stderr}\n--- odin ${odin.stderr}`);
+    assert.equal(mask(odin.stdout), mask(ref.stdout), `${args.join(' ')}: stdout`);
+    assert.equal(mask(odin.stderr).replace(/^.*\n?/gm, (line) => line), mask(ref.stderr), `${args.join(' ')}: stderr`);
+    return { ref, odin };
+  };
+  const urls = { ref: { ENGRAM_CLOUD_SERVER: pair.refUrl }, odin: { ENGRAM_CLOUD_SERVER: pair.odinUrl } };
+  const none = { ref: {}, odin: {} };
+  for (const args of [['save', 'Usar Postgres', 'decidimos Postgres', '--project', 'demo', '--type', 'decision'], ['save', 'Segunda nota', 'otro contenido', '--project', 'demo']]) both(args, none);
+  both(['cloud', 'upgrade', 'bootstrap', '--project', 'demo'], none);
+  both(['cloud', 'upgrade', 'doctor', '--project', 'demo'], urls);
+  both(['cloud', 'upgrade', 'bootstrap', '--project', 'demo'], urls);
+  both(['cloud', 'upgrade', 'status', '--project', 'demo'], urls);
+  both(['cloud', 'upgrade', 'bootstrap', '--project', 'demo'], urls);
+  both(['cloud', 'upgrade', 'rollback', '--project', 'demo'], urls);
+  const chunks = (pool) => pool.query('SELECT project_name, created_by, sessions_count, observations_count, prompts_count FROM cloud_chunks ORDER BY 1').then((r) => r.rows);
+  const odinChunks = await chunks(pair.odinPool);
+  const refChunks = await chunks(pair.refPool);
+  assert.equal(odinChunks.length, refChunks.length, 'mismo número de chunks');
+  assert.deepEqual(odinChunks.map((c) => [c.project_name, c.sessions_count, c.observations_count, c.prompts_count]), refChunks.map((c) => [c.project_name, c.sessions_count, c.observations_count, c.prompts_count]));
+  assert.deepEqual(odinChunks.map((c) => c.created_by), refChunks.map((c) => c.created_by.replace('engram', 'odin')));
+  const mutations = (pool) => pool.query('SELECT project, entity, op FROM cloud_mutations ORDER BY seq').then((r) => r.rows);
+  assert.deepEqual(await mutations(pair.odinPool), await mutations(pair.refPool), 'mutaciones remotas tras el arranque');
+  both(['save', 'Tercera nota', 'más contenido', '--project', 'demo'], none);
+  both(['cloud', 'upgrade', 'remirror', '--project', 'demo'], urls);
+  both(['cloud', 'upgrade', 'remirror', '--project', 'otro'], urls);
+  both(['cloud', 'upgrade', 'remirror', '--project', 'demo'], none);
+  assert.deepEqual(await mutations(pair.odinPool), await mutations(pair.refPool), 'mutaciones remotas tras el remirror');
+  assert.equal((await chunks(pair.odinPool)).length, (await chunks(pair.refPool)).length, 'chunks tras el remirror');
 });

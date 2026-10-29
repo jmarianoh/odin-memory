@@ -1,5 +1,5 @@
 {
-  "version": "0.28.0",
+  "version": "0.29.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -44,6 +44,16 @@
       "docSha256": "e0bbc96cbaf9e4260cbe8cbdecce864b90cea93ee4c3c0856b945a0b2545abf4"
     },
     {
+      "path": "src/cli/commands/cloud-attest.js",
+      "doc": "30-cloud/07-actualizacion-y-atestacion.md",
+      "phase": "F9.2",
+      "tests": [
+        "test/unit/cloud/attest.test.js"
+      ],
+      "sha256": "c1bf085f14af80de53a2f27fa6860603826a411058ed6cff7980fd7908e6cc75",
+      "docSha256": "3c3b8270486de88aaa4beeac89c0000830a4235f6eefe14a7e2f86323e8ee2be"
+    },
+    {
       "path": "src/cli/commands/cloud-bootstrap.js",
       "doc": "30-cloud/05-identidad-y-procedencia.md",
       "phase": "F9.2",
@@ -54,6 +64,16 @@
       "docSha256": "ad61f77a0ad592921ffc2ea9de0dc99895585912a82150b06cfaafbb7fa3fd1f"
     },
     {
+      "path": "src/cli/commands/cloud-upgrade.js",
+      "doc": "30-cloud/07-actualizacion-y-atestacion.md",
+      "phase": "F9.2",
+      "tests": [
+        "test/unit/cloud/upgrade-cli.test.js"
+      ],
+      "sha256": "9acc688c356758bb912c7b9891d08e0bf9b533678b00fd77125f30395fd35756",
+      "docSha256": "3c3b8270486de88aaa4beeac89c0000830a4235f6eefe14a7e2f86323e8ee2be"
+    },
+    {
       "path": "src/cli/commands/cloud.js",
       "doc": "30-cloud/01-cliente.md",
       "phase": "F9.1",
@@ -61,8 +81,8 @@
         "test/unit/cloud/cli.test.js",
         "test/unit/cloud/e2e.test.js"
       ],
-      "sha256": "9af9f6b0109f306256998dc62866182adaed7b22459acbab32e03b8911613249",
-      "docSha256": "e297c22c2b934a6bb47ac7ab4e717291189ed3d5fd5a3e07025e4fb2d9b55460"
+      "sha256": "ece16878b18ec1e1cc4614c9a8337f08ae7fb6b16601ea0a4de271c4eb7ed2d5",
+      "docSha256": "4f3bec3a7897e6b70e4cd66503b17b026b406f9620ebf72f58543f29ca608976"
     },
     {
       "path": "src/cli/commands/conflicts.js",
@@ -229,7 +249,7 @@
         "test/unit/cli/sync.test.js",
         "test/unit/cloud/e2e.test.js"
       ],
-      "sha256": "4965df61dd4fe35987ced59b3521c47fa57d773f0c64b1113a8bad9b0ce0161b",
+      "sha256": "fde351bfd97040f5346534a5034c099d668f5b19a1168e36f5eee1c61a502b0c",
       "docSha256": "0c95891a99e004c10b50657794bd4a5cc48ebf6cce90933d9dec7da44d220f33"
     },
     {
@@ -335,7 +355,7 @@
         "test/unit/cloud/e2e.test.js"
       ],
       "sha256": "228c444c0f24da953f1358df7934aabda1472e8ed19acc76b99cd1e0bd8c14a6",
-      "docSha256": "e297c22c2b934a6bb47ac7ab4e717291189ed3d5fd5a3e07025e4fb2d9b55460"
+      "docSha256": "4f3bec3a7897e6b70e4cd66503b17b026b406f9620ebf72f58543f29ca608976"
     },
     {
       "path": "src/cloud/codec.js",
@@ -357,7 +377,7 @@
         "test/unit/cloud/cli.test.js"
       ],
       "sha256": "90d11b51f7e1e5b5f9f73af8129fe28139144792807616d744f839726ae4379a",
-      "docSha256": "e297c22c2b934a6bb47ac7ab4e717291189ed3d5fd5a3e07025e4fb2d9b55460"
+      "docSha256": "4f3bec3a7897e6b70e4cd66503b17b026b406f9620ebf72f58543f29ca608976"
     },
     {
       "path": "src/cloud/constants.js",
@@ -368,7 +388,7 @@
         "test/unit/cloud/e2e.test.js"
       ],
       "sha256": "16028c4bef58cf618422105c2fa6729047fde764f9a52e6c84501f233ce25e29",
-      "docSha256": "e297c22c2b934a6bb47ac7ab4e717291189ed3d5fd5a3e07025e4fb2d9b55460"
+      "docSha256": "4f3bec3a7897e6b70e4cd66503b17b026b406f9620ebf72f58543f29ca608976"
     },
     {
       "path": "src/cloud/dashboard/format.js",
@@ -428,7 +448,7 @@
         "test/unit/cloud/client.test.js"
       ],
       "sha256": "5a55f71df29856bf0e63ef89f2913ced6b976ae1a96c2285a2843293daf58e58",
-      "docSha256": "e297c22c2b934a6bb47ac7ab4e717291189ed3d5fd5a3e07025e4fb2d9b55460"
+      "docSha256": "4f3bec3a7897e6b70e4cd66503b17b026b406f9620ebf72f58543f29ca608976"
     },
     {
       "path": "src/cloud/materialize.js",
@@ -450,7 +470,7 @@
         "test/unit/cloud/e2e.test.js"
       ],
       "sha256": "58186a7229991e7e0cffa377fb7e11ca8e0db967a64e38bec6a4b675f64a86ec",
-      "docSha256": "e297c22c2b934a6bb47ac7ab4e717291189ed3d5fd5a3e07025e4fb2d9b55460"
+      "docSha256": "4f3bec3a7897e6b70e4cd66503b17b026b406f9620ebf72f58543f29ca608976"
     },
     {
       "path": "src/cloud/server/admin.js",
@@ -1447,6 +1467,17 @@
       "docSha256": "ede37fb4cb2409a0f872d9ad08cb3ca3c5e74acea24964c22b18c9b97ed5f408"
     },
     {
+      "path": "src/store/cloud-upgrade.js",
+      "doc": "30-cloud/07-actualizacion-y-atestacion.md",
+      "phase": "F9.2",
+      "tests": [
+        "test/unit/store/cloud-upgrade.test.js",
+        "test/unit/cloud/upgrade-cli.test.js"
+      ],
+      "sha256": "0297c04b5b01f3dfc7642572b1300c39e610a27b627c94ce17e7f66e76937831",
+      "docSha256": "3c3b8270486de88aaa4beeac89c0000830a4235f6eefe14a7e2f86323e8ee2be"
+    },
+    {
       "path": "src/store/compatibility.js",
       "doc": "10-store/11-conflictos-compatibilidad.md",
       "phase": "F4",
@@ -1528,7 +1559,7 @@
         "test/unit/cloud/cli.test.js"
       ],
       "sha256": "10b56672e57e6fe0210a4de649459d932e8d410ab8b3729d6afeeb2be00ddd6d",
-      "docSha256": "e297c22c2b934a6bb47ac7ab4e717291189ed3d5fd5a3e07025e4fb2d9b55460"
+      "docSha256": "4f3bec3a7897e6b70e4cd66503b17b026b406f9620ebf72f58543f29ca608976"
     },
     {
       "path": "src/store/errors.js",
@@ -1557,7 +1588,7 @@
       "tests": [
         "test/unit/store/open.test.js"
       ],
-      "sha256": "0b5d80b3b79429a5d63934f8fffd947dd0ad959b921d0067388f128123034638",
+      "sha256": "c87d569b0400db27f0fdd9b35cd41f29f72c34bcdb90bf6dc81a2eafaa34c175",
       "docSha256": "e9cfd56f22e219f3250f6f528b7b82397ec0bddb49f5412c84af1f365d02f258"
     },
     {
@@ -1665,6 +1696,16 @@
       ],
       "sha256": "8b5e3578f7075fd8770608d7feec1632044297d076295885787a4003b5d29a33",
       "docSha256": "7bbd9f9162436e416d7b80490a08668466404d9e15f28f41c30be71048d7c43d"
+    },
+    {
+      "path": "src/store/prompt-source.js",
+      "doc": "30-cloud/07-actualizacion-y-atestacion.md",
+      "phase": "F9.2",
+      "tests": [
+        "test/unit/cloud/attest.test.js"
+      ],
+      "sha256": "276269efbfa41edffd3fedcd6bc30dc4b12cacb922e34d10b613df330ca988f1",
+      "docSha256": "3c3b8270486de88aaa4beeac89c0000830a4235f6eefe14a7e2f86323e8ee2be"
     },
     {
       "path": "src/store/prompts.js",
@@ -1859,9 +1900,10 @@
       "phase": "F5",
       "tests": [
         "test/unit/sync/syncer.test.js",
-        "test/unit/cli/sync.test.js"
+        "test/unit/cli/sync.test.js",
+        "test/unit/sync/cloud-export.test.js"
       ],
-      "sha256": "bf7c630c209b8e87d3861e52408f3a40da06f5b8a8150c6eea3bdab0582fb35e",
+      "sha256": "fa9b5c2c3b13f21869033288b5708a94896a4c59c58f6fed182bc1fbda21214d",
       "docSha256": "0c95891a99e004c10b50657794bd4a5cc48ebf6cce90933d9dec7da44d220f33"
     },
     {

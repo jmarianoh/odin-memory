@@ -10,10 +10,12 @@ import { enrollProject, unenrollProject } from '../../store/enrollment.js';
 import { cloudSyncSummary, cloudTargetKeyForProject, getSyncState, isProjectEnrolled } from '../../store/sync-state.js';
 import { goTrim } from '../../store/text.js';
 import { CliExit, fatal, println } from '../runtime.js';
+import { cmdCloudAttestPromptSource } from './cloud-attest.js';
 import { cmdCloudBootstrap } from './cloud-bootstrap.js';
+import { cmdCloudUpgrade } from './cloud-upgrade.js';
 import { DEFAULT_PORT } from './serve.js';
 
-const SUBCOMMANDS = 'status, enroll, unenroll, config, serve, repair, bootstrap';
+const SUBCOMMANDS = 'status, enroll, unenroll, config, serve, upgrade, repair, bootstrap, attest-prompt-source';
 const DAEMON_PROBE_TIMEOUT_MS = 1000;
 
 /** Termina con el código 1 tras escribir el uso en el error estándar (sin el prefijo `odin:`). */
@@ -448,8 +450,10 @@ export async function cmdCloud(cli, config) {
     case 'unenroll': return cmdProjectEnrollment(cli, config, 'unenroll');
     case 'config': return cmdCloudConfig(cli, config);
     case 'serve': return cmdCloudServe(cli);
+    case 'upgrade': return cmdCloudUpgrade(cli, config);
     case 'repair': return cmdCloudRepair(cli);
     case 'bootstrap': return cmdCloudBootstrap(cli);
+    case 'attest-prompt-source': return cmdCloudAttestPromptSource(cli, config);
     default: return usageError(cli, `unknown cloud command: ${sub}`, `supported subcommands: ${SUBCOMMANDS}`);
   }
 }

@@ -12,13 +12,13 @@ const SERVER = 'https://nube.example';
 test('cloud sin subcomando, con ayuda o con uno desconocido', async (t) => {
   const w = cliWorld(t);
   const none = await w.odin(['cloud']);
-  assert.deepEqual([none.code, none.out, none.err], [1, '', 'usage: odin cloud <subcommand> [options]\nsupported subcommands: status, enroll, unenroll, config, serve, repair, bootstrap\n']);
+  assert.deepEqual([none.code, none.out, none.err], [1, '', 'usage: odin cloud <subcommand> [options]\nsupported subcommands: status, enroll, unenroll, config, serve, upgrade, repair, bootstrap, attest-prompt-source\n']);
   for (const flag of ['--help', '-h', 'help']) {
     const help = await w.odin(['cloud', flag]);
-    assert.deepEqual([help.code, help.out], [0, 'usage: odin cloud <subcommand> [options]\nsupported subcommands: status, enroll, unenroll, config, serve, repair, bootstrap\n']);
+    assert.deepEqual([help.code, help.out], [0, 'usage: odin cloud <subcommand> [options]\nsupported subcommands: status, enroll, unenroll, config, serve, upgrade, repair, bootstrap, attest-prompt-source\n']);
   }
-  const unknown = await w.odin(['cloud', 'upgrade']);
-  assert.deepEqual([unknown.code, unknown.err], [1, 'unknown cloud command: upgrade\nsupported subcommands: status, enroll, unenroll, config, serve, repair, bootstrap\n']);
+  const unknown = await w.odin(['cloud', 'wat']);
+  assert.deepEqual([unknown.code, unknown.err], [1, 'unknown cloud command: wat\nsupported subcommands: status, enroll, unenroll, config, serve, upgrade, repair, bootstrap, attest-prompt-source\n']);
   assert.match((await w.odin(['help'])).out, /cloud <subcommand> Cloud integration commands \(opt-in\)\n/);
 });
 

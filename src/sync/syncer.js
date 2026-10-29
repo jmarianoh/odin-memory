@@ -2,9 +2,11 @@ import { mkdirSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { normalizeProject } from '../project/canonical.js';
+import { canonicalizeForProject } from '../cloud/codec.js';
 import {
-  LOCAL_CHUNK_TARGET_KEY, applyPulledChunk, countDeferredAndDead, exportData, exportLocalDeleteTombstones, exportProject, exportRelationMutations,
-  exportReviewClearEvents, getSession, getSyncedChunksForTarget, hasProjectOwnedSessionsForProject, recordSyncedChunkForTarget, replayDeferredForScope,
+  LOCAL_CHUNK_TARGET_KEY, ackSyncMutationSeqs, applyPulledChunk, countDeferredAndDead, exportData, exportLocalDeleteTombstones, exportProject, exportRelationMutations,
+  ensureEnrolledProjectSyncMutations, exportReviewClearEvents, getSession, getSyncedChunksForTarget, hasProjectOwnedSessionsForProject, isProjectEnrolled, listPendingSyncMutationsAfterSeq,
+  markSyncBlocked, recordSyncedChunkForTarget, replayDeferredForScope,
 } from '../store/index.js';
 import { SYNC_ENTITY, SYNC_OP_DELETE, SYNC_OP_UPSERT } from '../store/journal.js';
 import { decodeSyncPayload } from '../store/sync-apply.js';
@@ -72,6 +74,44 @@ export function manifestSummary(manifest) {
 
 const stringKeys = (set) => new Set(set);
 
+/** Tamaño máximo, serializado, de un chunk de la nube: cada tanda cabe en el límite de subida del servidor. */
+export const CLOUD_EXPORT_MAX_CHUNK_BYTES = 4 << 20;
+const PER_MUTATION_OVERHEAD = 128;
+const canonicalProject = (project) => goTrim(normalizeProject(project ?? '').normalized);
+
+/** La fila del diario tal como viaja en un chunk (`store.SyncMutation`). */
+function journalMutationForChunk(row) {
+  const out = {
+    seq: Number(row.seq), target_key: row.target_key, entity: row.entity, entity_key: row.entity_key, op: row.op, payload: row.payload, source: row.source,
+    project: row.project, occurred_at: row.occurred_at,
+  };
+  if (row.acked_at != null) out.acked_at = row.acked_at;
+  out.disposition = row.disposition ?? 'pending';
+  if (goTrim(row.disposition_reason ?? '') !== '') out.disposition_reason = row.disposition_reason;
+  if (goTrim(row.disposition_evidence ?? '') !== '') out.disposition_evidence = row.disposition_evidence;
+  if (row.disposition_at != null) out.disposition_at = row.disposition_at;
+  return out;
+}
+
+/** Proyecto al que pertenece una mutación: el suyo, el de su carga o el de su sesión. */
+function resolveMutationProject(mutation, sessionProjectById) {
+  const own = canonicalProject(mutation.project);
+  if (own !== '') return own;
+  let payload;
+  try {
+    const first = JSON.parse(goTrim(mutation.payload ?? ''));
+    payload = typeof first === 'string' ? JSON.parse(first) : first;
+  } catch {
+    return '';
+  }
+  if (payload === null || typeof payload !== 'object') return '';
+  if (typeof payload.project === 'string') {
+    const fromPayload = canonicalProject(goTrim(payload.project));
+    if (fromPayload !== '') return fromPayload;
+  }
+  return canonicalProject(goTrim(sessionProjectById.get(typeof payload.session_id === 'string' ? payload.session_id : '') ?? ''));
+}
+
 /**
  * Sincronización por Git: exporta la memoria a chunks comprimidos e importa los de
  * otros. Cada exportación crea un chunk nuevo (nunca modifica uno anterior), de modo
@@ -86,9 +126,11 @@ export class Syncer {
    * @param {string} [options.project] ámbito de la reaplicación de diferidos
    * @param {(message: string) => void} [options.log]
    * @param {string} [options.targetKey] destino con el que se anotan los chunks (por defecto `local`; la nube usa `cloud:<proyecto>`)
+   * @param {boolean} [options.cloudMode] exporta lo pendiente del diario de mutaciones en lugar de los cambios desde el último chunk
    */
-  constructor(store, { syncDir = '', transport, project = '', log, targetKey = LOCAL_CHUNK_TARGET_KEY } = {}) {
+  constructor(store, { syncDir = '', transport, project = '', log, targetKey = LOCAL_CHUNK_TARGET_KEY, cloudMode = false } = {}) {
     this.store = store;
+    this.cloudMode = cloudMode;
     this.targetKey = targetKey;
     this.syncDir = syncDir;
     this.transport = transport ?? new FileTransport(syncDir);
@@ -112,6 +154,7 @@ export class Syncer {
    */
   async export(createdBy, project = '', { includePrompts = false } = {}) {
     const name = goTrim(normalizeProject(project).normalized);
+    this.#ensureCloudPreflight(name);
     if (this.syncDir !== '') {
       try {
         mkdirSync(join(this.syncDir, 'chunks'), { recursive: true, mode: 0o755 });
@@ -131,10 +174,15 @@ export class Syncer {
     } catch (err) {
       throw new Error(`export data: ${err.message}`, { cause: err });
     }
-    if (name !== '') data = { ...data, observations: data.observations.filter((o) => o.scope === 'project') };
+    if (name !== '' && !this.cloudMode) data = { ...data, observations: data.observations.filter((o) => o.scope === 'project') };
     if (projectOwned && manifest.version < OWNERSHIP_MODE_MANIFEST_VERSION) {
       manifest.version = OWNERSHIP_MODE_MANIFEST_VERSION;
       await this.transport.writeManifest(manifest);
+    }
+
+    if (this.cloudMode) {
+      const { chunk, seqs } = this.#filterByPendingMutations(data, name);
+      return this.#exportCloudMutationChunks(manifest, known, locallySynced, createdBy, name, chunk, seqs);
     }
 
     const relationMutations = exportRelationMutations(this.store, name);
@@ -217,6 +265,140 @@ export class Syncer {
       chunk_id: id, sessions_exported: chunk.sessions.length, observations_exported: chunk.observations.length, prompts_exported: chunk.prompts.length,
       mutations_exported: chunk.mutations.length, is_empty: false,
     };
+  }
+
+  /** En modo nube hace falta un proyecto explícito y que esté inscrito. */
+  #ensureCloudPreflight(project) {
+    if (!this.cloudMode) return;
+    const name = project !== '' ? project : this.project;
+    if (name === '') throw new Error('cloud sync requires an explicit --project scope; --all is not supported in cloud mode');
+    if (isProjectEnrolled(this.store, name)) return;
+    const message = `project ${JSON.stringify(name)} is not enrolled for cloud sync`;
+    try {
+      markSyncBlocked(this.store, this.targetKey, 'blocked_unenrolled', message);
+    } catch {
+      // El rechazo se informa aunque no se pueda anotar.
+    }
+    throw new Error(`cloud sync blocked_unenrolled: ${message}`);
+  }
+
+  /** Todas las mutaciones pendientes de salida, tras rellenar el diario de los proyectos inscritos. */
+  #listPendingMutationsForExport() {
+    try {
+      ensureEnrolledProjectSyncMutations(this.store);
+    } catch (err) {
+      throw new Error(`repair enrolled sync journal: ${err.message}`, { cause: err });
+    }
+    const pageSize = 5000;
+    const all = [];
+    let after = 0;
+    for (;;) {
+      const batch = listPendingSyncMutationsAfterSeq(this.store, 'cloud', after, pageSize);
+      if (batch.length === 0) break;
+      all.push(...batch);
+      const last = Number(batch.at(-1).seq);
+      if (last <= after) throw new Error(`pending mutation pagination did not advance (after_seq=${after}, last_seq=${last})`);
+      after = last;
+      if (batch.length < pageSize) break;
+    }
+    return all;
+  }
+
+  /** El chunk de lo que el diario tiene pendiente para el proyecto, con las sesiones que sus filas necesitan. */
+  #filterByPendingMutations(data, project) {
+    if (project === '') return { chunk: emptyChunk(), seqs: [] };
+    const mutations = this.#listPendingMutationsForExport();
+    const sessionProjectById = new Map(data.sessions.map((session) => [session.id, canonicalProject(session.project)]));
+    const availableSessions = new Set(data.sessions.map((s) => s.id));
+    const availableObservations = new Set(data.observations.map((o) => o.sync_id));
+    const availablePrompts = new Set(data.prompts.map((p) => p.sync_id));
+    const sessionKeys = new Set();
+    const observationIds = new Set();
+    const promptIds = new Set();
+    const seqs = [];
+    const selected = [];
+    for (const mutation of mutations) {
+      if (mutation.project === '' && mutation.entity === SYNC_ENTITY.session && mutation.op === SYNC_OP_UPSERT && sessionProjectById.get(mutation.entity_key) === project) {
+        throw new Error(`blank-project session mutation seq=${mutation.seq} entity_key=${JSON.stringify(mutation.entity_key)} requires cloud upgrade diagnosis and repair before export`);
+      }
+      const owner = resolveMutationProject(mutation, sessionProjectById);
+      if (owner !== project) {
+        if (owner !== '') continue;
+        const available = { [SYNC_ENTITY.session]: availableSessions, [SYNC_ENTITY.observation]: availableObservations, [SYNC_ENTITY.prompt]: availablePrompts }[mutation.entity];
+        if (!available || !available.has(mutation.entity_key)) continue;
+      }
+      if (mutation.project === '' && mutation.entity === SYNC_ENTITY.session && mutation.op === SYNC_OP_UPSERT) {
+        throw new Error(`blank-project session mutation seq=${mutation.seq} entity_key=${JSON.stringify(mutation.entity_key)} has no authoritative local session in project ${JSON.stringify(project)}; run cloud upgrade doctor`);
+      }
+      seqs.push(Number(mutation.seq));
+      selected.push(journalMutationForChunk(mutation));
+      if (mutation.entity === SYNC_ENTITY.session) sessionKeys.add(mutation.entity_key);
+      else if (mutation.entity === SYNC_ENTITY.observation) observationIds.add(mutation.entity_key);
+      else if (mutation.entity === SYNC_ENTITY.prompt) promptIds.add(mutation.entity_key);
+    }
+    const chunk = emptyChunk();
+    if (seqs.length === 0) return { chunk, seqs: [] };
+    const referenced = new Set();
+    for (const observation of data.observations) {
+      if (!observationIds.has(observation.sync_id)) continue;
+      chunk.observations.push(observation);
+      referenced.add(observation.session_id);
+    }
+    for (const prompt of data.prompts) {
+      if (!promptIds.has(prompt.sync_id)) continue;
+      chunk.prompts.push(prompt);
+      referenced.add(prompt.session_id);
+    }
+    for (const session of data.sessions) if (sessionKeys.has(session.id) || referenced.has(session.id)) chunk.sessions.push(session);
+    chunk.mutations = selected;
+    return { chunk, seqs };
+  }
+
+  /** Sube el chunk en tandas acotadas y acusa las mutaciones de cada tanda solo cuando ya está escrita. */
+  async #exportCloudMutationChunks(manifest, known, locallySynced, createdBy, project, chunk, seqs) {
+    const empty = { sessions_exported: 0, observations_exported: 0, prompts_exported: 0, mutations_exported: 0, chunks_exported: 0, is_empty: true };
+    if (chunk.sessions.length === 0 && chunk.observations.length === 0 && chunk.prompts.length === 0 && chunk.mutations.length === 0) {
+      if (seqs.length > 0) ackSyncMutationSeqs(this.store, 'cloud', seqs);
+      return empty;
+    }
+    const projectName = project !== '' ? project : this.project;
+    const result = { sessions_exported: 0, observations_exported: 0, prompts_exported: 0, mutations_exported: 0, chunks_exported: 0, is_empty: false };
+    const sessionsExported = new Set();
+    for (const part of splitCloudExportChunk(chunk, seqs, CLOUD_EXPORT_MAX_CHUNK_BYTES)) {
+      let json;
+      try {
+        json = canonicalizeForProject(chunkToJson(part.chunk), projectName);
+      } catch (err) {
+        throw new Error(`canonicalize cloud chunk: ${err.message}`, { cause: err });
+      }
+      const id = chunkId(json);
+      if (known.has(id)) {
+        if (!locallySynced.has(id)) recordSyncedChunkForTarget(this.store, this.targetKey, id);
+        if (part.seqs.length > 0) ackSyncMutationSeqs(this.store, 'cloud', part.seqs);
+        continue;
+      }
+      const entry = {
+        id, created_by: createdBy, created_at: nowRfc3339(), sessions: part.chunk.sessions.length, memories: part.chunk.observations.length, prompts: part.chunk.prompts.length,
+      };
+      try {
+        await this.transport.writeChunk(id, json, entry);
+      } catch (err) {
+        throw new Error(`write chunk: ${err.message}`, { cause: err });
+      }
+      manifest.chunks.push(entry);
+      await this.transport.writeManifest(manifest);
+      recordSyncedChunkForTarget(this.store, this.targetKey, id);
+      if (part.seqs.length > 0) ackSyncMutationSeqs(this.store, 'cloud', part.seqs);
+      known.add(id);
+      result.chunk_id = id;
+      result.chunks_exported++;
+      for (const session of part.chunk.sessions) sessionsExported.add(session.id);
+      result.observations_exported += part.chunk.observations.length;
+      result.prompts_exported += part.chunk.prompts.length;
+      result.mutations_exported += part.chunk.mutations.length;
+    }
+    result.sessions_exported = sessionsExported.size;
+    return result.chunks_exported === 0 ? empty : result;
   }
 
   #lastChunkTime(manifest) {
@@ -656,4 +838,92 @@ function importDependencyError(chunk, err) {
   const sessions = [...new Set([...referencedSessionProjects(buildImportMutations(chunk)).keys()])].sort();
   if (sessions.length === 0) return err;
   return new Error(`${err.message}; pending session dependencies: ${sessions.join(', ')}`, { cause: err });
+}
+
+const emptyChunk = () => ({ sessions: [], observations: [], prompts: [], mutations: [], review_clears: [], incremental: false });
+
+/** Tamaño, en bytes, de una entidad ya serializada. */
+const jsonSize = (value) => Buffer.byteLength(JSON.stringify(value));
+
+/**
+ * Parte un chunk respaldado por el diario en tandas acotadas y completas: las mutaciones conservan su orden y su
+ * alineación con `seqs`, y cada tanda lleva las sesiones que sus observaciones y prompts referencian.
+ * @returns {{ chunk: object, seqs: number[] }[]}
+ */
+export function splitCloudExportChunk(chunk, seqs, maxBytes) {
+  if (!chunk || chunk.mutations.length === 0) return [];
+  if (maxBytes <= 0 || seqs.length !== chunk.mutations.length) return [{ chunk, seqs }];
+  const sessionById = new Map(chunk.sessions.map((s) => [s.id, s]));
+  const sessionSize = new Map(chunk.sessions.map((s) => [s.id, jsonSize(s)]));
+  const observationById = new Map(chunk.observations.map((o) => [o.sync_id, o]));
+  const observationSize = new Map(chunk.observations.map((o) => [o.sync_id, jsonSize(o)]));
+  const promptById = new Map(chunk.prompts.map((p) => [p.sync_id, p]));
+  const promptSize = new Map(chunk.prompts.map((p) => [p.sync_id, jsonSize(p)]));
+
+  const parts = [];
+  let current = null;
+  let bytes = 0;
+  let sessions = new Set();
+  let observations = new Set();
+  let prompts = new Set();
+  const reset = () => {
+    current = { chunk: { ...emptyChunk() }, seqs: [] };
+    bytes = 0;
+    sessions = new Set();
+    observations = new Set();
+    prompts = new Set();
+  };
+  const plan = (mutation) => {
+    const add = { cost: Buffer.byteLength(mutation.payload) + PER_MUTATION_OVERHEAD, sessions: [], obsId: '', promptId: '' };
+    const needSession = (id) => {
+      if (id === '' || id == null || sessions.has(id) || add.sessions.includes(id)) return;
+      if (sessionSize.has(id)) {
+        add.cost += sessionSize.get(id);
+        add.sessions.push(id);
+      }
+    };
+    if (mutation.entity === SYNC_ENTITY.session) {
+      needSession(mutation.entity_key);
+    } else if (mutation.entity === SYNC_ENTITY.observation && observationById.has(mutation.entity_key)) {
+      if (!observations.has(mutation.entity_key)) {
+        add.cost += observationSize.get(mutation.entity_key);
+        add.obsId = mutation.entity_key;
+      }
+      needSession(observationById.get(mutation.entity_key).session_id);
+    } else if (mutation.entity === SYNC_ENTITY.prompt && promptById.has(mutation.entity_key)) {
+      if (!prompts.has(mutation.entity_key)) {
+        add.cost += promptSize.get(mutation.entity_key);
+        add.promptId = mutation.entity_key;
+      }
+      needSession(promptById.get(mutation.entity_key).session_id);
+    }
+    return add;
+  };
+
+  reset();
+  for (const [i, mutation] of chunk.mutations.entries()) {
+    let add = plan(mutation);
+    if (current.chunk.mutations.length > 0 && bytes + add.cost > maxBytes) {
+      parts.push(current);
+      reset();
+      add = plan(mutation);
+    }
+    current.chunk.mutations.push(mutation);
+    current.seqs.push(seqs[i]);
+    for (const id of add.sessions) {
+      current.chunk.sessions.push(sessionById.get(id));
+      sessions.add(id);
+    }
+    if (add.obsId !== '') {
+      current.chunk.observations.push(observationById.get(add.obsId));
+      observations.add(add.obsId);
+    }
+    if (add.promptId !== '') {
+      current.chunk.prompts.push(promptById.get(add.promptId));
+      prompts.add(add.promptId);
+    }
+    bytes += add.cost;
+  }
+  if (current.chunk.mutations.length > 0) parts.push(current);
+  return parts;
 }
