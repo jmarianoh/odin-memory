@@ -45,6 +45,21 @@ ENGRAM_SRC=../engram node --test "upstream/conformance/*.conformance.test.mjs"
 3. Anotar una entrada en `upstream/CHANGELOG.md`.
 4. Para el repositorio cerrado: copiar la carpeta `implementacion/` actualizada; el agente aplica `cambios/<versión>.md` (ver `implementacion/60-aplicar-actualizacion.md`).
 
+## 6. Validar en sala limpia (F10)
+
+Antes de entregar una versión de `implementacion/` al repositorio cerrado:
+
+```bash
+node upstream/scripts/clean-room-rebuild-check.mjs            # comprobaciones sobre una copia de implementacion/
+node upstream/scripts/clean-room-rebuild-check.mjs --rebuild  # además monta fuentes/ + src/, instala dependencias y corre la suite
+```
+
+El script copia **solo** `implementacion/` a un directorio vacío y verifica: ningún término prohibido, enlaces internos resueltos, manifiesto completo (módulos, documentos y tests existen; cada módulo se nombra en su documento), `fuentes/` con todos los tests y sin importar módulos no declarados, todas las variables `ODIN_*` y subcomandos del código documentados, dependencias coherentes con `03-entorno-dependencias.md` y `fuentes/` idéntico al repositorio. Con `--rebuild` reconstruye el árbol, hace `npm install` y ejecuta `check:clean-room`, `check:implementacion` y la suite completa.
+
+Resultado con la especificación 0.31.0: correcto (218 archivos, 200 módulos, 113 tests, 26 variables `ODIN_*`).
+
+Lo que el script no puede validar es que un agente **sin acceso al repositorio** reconstruya el producto leyendo solo los documentos. Se hizo una muestra con un agente nuevo sobre dos módulos (más las comprobaciones del script); señaló una laguna: las firmas de `errors.js` y `text.js` estaban repartidas por varios capítulos, lo que se corrigió con `implementacion/10-store/12-errores-y-texto.md`. Una reconstrucción completa por un agente (el criterio de aceptación definitivo del plan) debe hacerse en el entorno cerrado con el Nexus real; las lagunas que aparezcan se corrigen en la documentación y se anotan en `upstream/CHANGELOG.md`.
+
 ## Reglas
 
 - Los cambios de documentación, CI y las integraciones de otros agentes se ignoran (ver `port-map.json`).

@@ -14,6 +14,8 @@ El store es la capa de persistencia: una base SQLite con búsqueda de texto comp
 | 8 | `08-sesiones-de-runtime.md` | Registro de sesiones de runtime, continuación, concesiones, sesiones aisladas y finalización |
 | 9 | `09-procedencia.md` | Procedencia de captura de proyecto, prompts al guardar y metadatos de truncamiento |
 | 10 | `10-exportacion-importacion.md` | Copia directa: exportar e importar la base o un proyecto, y borrado de sesiones |
+| 11 | `11-conflictos-compatibilidad.md` | Conflictos, cola de diferidos, compatibilidad de formato y copia |
+| — | `12-errores-y-texto.md` | Referencia consolidada: clases y catálogo de errores del store, y firmas de las utilidades de texto |
 
 ## Reglas generales del store
 
