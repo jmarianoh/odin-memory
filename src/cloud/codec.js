@@ -134,13 +134,13 @@ const RELATION_FIELDS = [
   ['confidence', 'float', true], ['judgment_status', 'string'], ['marked_by_actor', 'ptr', true], ['marked_by_kind', 'ptr', true],
   ['marked_by_model', 'ptr', true], ['session_id', 'ptr', true], ['project', 'string'], ['created_at', 'string', true], ['updated_at', 'string', true],
 ];
-const MUTATION_FIELDS = [
+export const MUTATION_FIELDS = [
   ['seq', 'int'], ['target_key', 'string'], ['entity', 'string'], ['entity_key', 'string'], ['op', 'string'], ['payload', 'string'], ['source', 'string'],
   ['project', 'string'], ['occurred_at', 'string'], ['acked_at', 'ptr', true], ['disposition', 'string'], ['disposition_reason', 'string', true],
   ['disposition_evidence', 'string', true], ['disposition_at', 'ptr', true],
 ];
 
-const jsonKind = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v === 'object' ? 'object' : typeof v);
+export const jsonKind = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v === 'object' ? 'object' : typeof v);
 const GO_TYPE = { string: 'string', ptr: 'string', bool: 'bool', int: 'int', float: 'float64' };
 
 /** Valor de la clave, con la coincidencia exacta primero y luego sin distinguir mayúsculas, como el decodificador. */
@@ -153,7 +153,7 @@ function lookup(obj, name) {
 }
 
 /** Proyecta un objeto JSON sobre los campos de una estructura, validando los tipos. */
-function decodeFields(obj, fields, structName) {
+export function decodeFields(obj, fields, structName) {
   const out = {};
   for (const [name, kind] of fields) {
     const { found, value } = lookup(obj, name);
@@ -174,7 +174,7 @@ function decodeFields(obj, fields, structName) {
 }
 
 /** JSON de la estructura: campos en orden, los vacíos con `omit` fuera y `<`, `>`, `&` escapados. */
-function encodeFields(values, fields) {
+export function encodeFields(values, fields) {
   const parts = [];
   for (const [name, kind, omit] of fields) {
     const has = Object.hasOwn(values, name) && values[name] !== undefined;

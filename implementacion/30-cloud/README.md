@@ -7,11 +7,12 @@ Cloud replica la memoria de proyectos concretos en un servidor compartido con Po
 | Porción | Spec | Contenido | Estado |
 |---|---|---|---|
 | F9.1 | 0.24.0 | Sincronización **por chunks** con la nube: servidor `/sync/*`, `odin cloud …`, `odin sync --cloud`, estado del destino | hecha |
-| F9.2 | — | Sincronización por mutaciones (`/sync/mutations/*`), autosync, relleno del diario al inscribir, materialización de chunks en `cloud_mutations` | pendiente |
+| F9.2a | 0.25.0 | Servidor de mutaciones: `/sync/mutations/push` y `/sync/mutations/pull`, materialización en las dos direcciones entre `cloud_chunks` y `cloud_mutations`, `odin cloud repair materialize-mutations` | hecha |
+| F9.2b | — | Cliente de mutaciones, autosync, relleno del diario al inscribir | pendiente |
 | F9.3 | — | Panel web (SSR + htmx + Pico), sesión HMAC, administración | pendiente |
 | F9.4 | — | Pantallas de la TUI, reparaciones del diario, `rescue-ownership` sobre proyectos inscritos, Docker | pendiente |
 
-Fuera de alcance de F9.1 y sin fecha: principales y tokens gestionados, autoridad de sesión, reclamos de pares de prompts, atestación de origen de prompts y las órdenes `cloud upgrade|repair|bootstrap|attest-prompt-source`.
+Fuera de alcance de F9.1/F9.2a y sin fecha: principales y tokens gestionados, autoridad de sesión, reclamos de pares de prompts, atestación de origen de prompts y las órdenes `cloud upgrade|repair|bootstrap|attest-prompt-source`.
 
 ## Documentos
 
@@ -29,7 +30,8 @@ Fuera de alcance de F9.1 y sin fecha: principales y tokens gestionados, autorida
 | `src/cli/commands/cloud.js`, `src/cli/commands/sync.js` (rama `--cloud`) | 01 |
 | `src/store/enrollment.js`, `src/store/sync-state.js` (ciclo de vida), `src/store/journal.js` | 01 |
 | `src/cloud/server/{config,db,store,validate,server,index}.js` | 02 |
-| `src/cloud/codec.js` | 03 |
+| `src/cloud/codec.js`, `src/cloud/materialize.js` | 03 |
+| `src/cloud/server/mutations.js` | 02 |
 
 ## Dependencias nuevas
 
@@ -59,6 +61,6 @@ Fuera de alcance de F9.1 y sin fecha: principales y tokens gestionados, autorida
 
 ## Estrategia de pruebas
 
-- Pruebas de producto en `test/unit/cloud/` (`codec`, `config`, `client`, `remote`, `server`, `cli`, `e2e`) y `test/unit/store/sync-lifecycle.test.js`. Las que necesitan servidor arrancan un Postgres real con `test/unit/cloud/pg-helper.js` (no es una prueba): `startPostgres()` devuelve `createDatabase()` (DSN de una base nueva) y `stop()`.
+- Pruebas de producto en `test/unit/cloud/` (`codec`, `materialize`, `config`, `client`, `remote`, `server`, `cli`, `e2e`) y `test/unit/store/sync-lifecycle.test.js`. Las que necesitan servidor arrancan un Postgres real con `test/unit/cloud/pg-helper.js` (no es una prueba): `startPostgres()` devuelve `createDatabase()` (DSN de una base nueva) y `stop()`.
 - `e2e.test.js` conecta dos almacenes SQLite a un servidor real y comprueba el intercambio completo, el bloqueo por proyecto sin inscribir, por lista permitida y por pausa.
 - Todas las pruebas de red usan `http://127.0.0.1`: sin token (modo inseguro) porque el cliente solo envía tokens por HTTPS.

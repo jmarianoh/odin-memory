@@ -102,7 +102,7 @@ async function cloudPair({ token = TOKEN, allowed = 'proj-a,proj-b,proj-c' } = {
   await Promise.all([waitHealthy(refPort, refChild), waitHealthy(odinPort, odinChild)]);
   const [refPool, odinPool] = [new pg.Pool({ connectionString: refDsn }), new pg.Pool({ connectionString: odinDsn })];
   pools.push(refPool, odinPool);
-  return { dir, refPort, odinPort, refPool, odinPool, refUrl: `http://127.0.0.1:${refPort}`, odinUrl: `http://127.0.0.1:${odinPort}` };
+  return { dir, refDsn, odinDsn, refPort, odinPort, refPool, odinPool, refUrl: `http://127.0.0.1:${refPort}`, odinUrl: `http://127.0.0.1:${odinPort}` };
 }
 
 const bearer = { Authorization: `Bearer ${TOKEN}` };
@@ -277,6 +277,8 @@ test('subida: validaciones y chunk guardado idéntico', { skip }, async () => {
   }
   const rows = (pool) => pool.query('SELECT project_name, chunk_id, created_by, sessions_count, observations_count, prompts_count, payload::text AS payload FROM cloud_chunks ORDER BY chunk_id').then((r) => r.rows);
   assert.deepEqual(await rows(pair.odinPool), await rows(pair.refPool), 'las filas de cloud_chunks');
+  const journal = (pool) => pool.query('SELECT project, entity, entity_key, op, payload::text AS payload FROM cloud_mutations ORDER BY seq').then((r) => r.rows);
+  assert.deepEqual(await journal(pair.odinPool), await journal(pair.refPool), 'el diario de mutaciones que deja cada chunk');
   const sessions = (pool) => pool.query('SELECT project_name, session_id FROM cloud_project_sessions ORDER BY 1, 2').then((r) => r.rows);
   assert.deepEqual(await sessions(pair.odinPool), await sessions(pair.refPool), 'el índice de sesiones');
 });
@@ -295,6 +297,118 @@ test('proyecto en pausa: 409 y auditoría', { skip }, async () => {
   assert.equal(ref.length, 2);
   assert.deepEqual(odin, ref);
   await same(pair, 'GET', '/sync/pull?project=proj-b', () => ({ headers: bearer }));
+});
+
+// ─── Mutaciones ──────────────────────────────────────────────────────────────
+
+const entry = (project, entity, entity_key, op, payload) => ({ project, entity, entity_key, op, payload });
+const sessionPayload = (id, extra = {}) => JSON.stringify({ id, directory: '/work', started_at: '2026-01-01 00:00:00', ...extra });
+const observationPayload = (id, session, extra = {}) => JSON.stringify({ sync_id: id, session_id: session, type: 'note', title: `T ${id}`, content: 'c', scope: 'project', created_at: '2026-01-01 00:00:00', updated_at: '2026-01-01 00:00:00', ...extra });
+
+test('mutaciones: empuje, validaciones, lectura y diario idéntico', { skip }, async () => {
+  const pair = await cloudPair();
+  const h = { headers: bearer };
+  const relation = { sync_id: 'rel-1', source_id: 'obs-1', target_id: 'obs-2', relation: 'related', judgment_status: 'judged', marked_by_actor: 'ana', marked_by_kind: 'human' };
+  const push = (entries, extra = {}) => same(pair, 'POST', '/sync/mutations/push', () => ({ ...h, body: { entries, ...extra } }));
+
+  // Errores de forma: el texto del análisis lo da cada decodificador.
+  for (const raw of ['{', '[]', '{"entries":5}', '{"entries":[5]}', '{"entries":[{"project":5}]}']) {
+    const [ref, odin] = await Promise.all([send(pair.refPort, 'POST', '/sync/mutations/push', { headers: bearer, raw }), send(pair.odinPort, 'POST', '/sync/mutations/push', { headers: bearer, raw })]);
+    assert.equal(odin.status, ref.status, raw);
+    assert.equal(ref.status, 400, raw);
+  }
+  await push([]);
+  await same(pair, 'POST', '/sync/mutations/push', () => ({ ...h, raw: '{}' }));
+  await push(Array.from({ length: 101 }, (_, i) => entry('proj-a', 'prompt', `p${i}`, 'delete', JSON.stringify({ sync_id: `p${i}` }))));
+  await push([entry('', 'session', 's', 'upsert', sessionPayload('s'))]);
+  await push([entry('proj-a', 'session', 's', 'upsert', sessionPayload('s')), entry('ajeno', 'session', 's2', 'upsert', sessionPayload('s2'))]);
+  await same(pair, 'POST', '/sync/mutations/push', () => ({ body: { entries: [entry('proj-a', 'session', 's', 'upsert', sessionPayload('s'))] } }));
+  await same(pair, 'POST', '/sync/mutations/push', () => ({ headers: { Authorization: 'Bearer nope' }, body: { entries: [] } }));
+
+  // Entradas inválidas: la respuesta enumera cada una con su campo.
+  await push([
+    entry('proj-a', 'cosa', 'x', 'upsert', '{}'),
+    entry('proj-a', 'relation', 'r', 'upsert', { sync_id: 'r' }),
+    entry('proj-a', 'relation', 'r', 'upsert', relation),
+    entry('proj-a', 'prompt', 'p', 'upsert', '[1]'),
+    entry('proj-a', 'prompt', 'p', 'upsert'),
+    entry('proj-a', 'observation', 'o', 'delete', '"no es json"'),
+    entry('proj-a', 'session', 's', 'upsert', JSON.stringify({ id: 'otra', directory: '/x' })),
+    entry('proj-a', 'observation', 'o', 'upsert', JSON.stringify({ sync_id: 'o', title: 5 })),
+  ]);
+
+  // Altas completas, heredadas (campos que faltan) y bajas, en un lote y por proyectos distintos.
+  const first = await push([
+    entry('Proj-A', 'session', 's1', 'upsert', sessionPayload('s1')),
+    entry('proj-a', 'observation', 'obs-1', 'upsert', observationPayload('obs-1', 's1')),
+    entry('proj-a', 'observation', 'obs-2', 'upsert', observationPayload('obs-2', 's1', { review_after: '2027-01-01 00:00:00', tool_name: 'x' })),
+    entry('proj-a', 'prompt', 'pr-1', 'upsert', JSON.stringify({ sync_id: 'pr-1', session_id: 's1', content: ' hola ', created_at: '2026-01-01 00:00:00' })),
+    entry('proj-a', 'relation', 'rel-1', 'upsert', relation),
+    entry('proj-b', 'session', 's2', 'upsert', sessionPayload('s2', { ownership_mode: 'project_owned' })),
+  ]);
+  assert.equal(first.ref.status, 200, first.ref.text);
+  const second = await push([
+    entry('proj-a', 'session', 'solo-clave', 'upsert', '{}'),
+    entry('proj-a', 'observation', 'viejo', 'upsert', '{}'),
+    entry('proj-a', 'prompt', 'viejo-p', 'upsert', '{}'),
+    entry('proj-a', 'observation', 'obs-1', 'delete', JSON.stringify({ sync_id: 'obs-1', deleted: true, hard_delete: true })),
+    entry('proj-a', 'prompt', 'pr-1', 'delete', JSON.stringify({ sync_id: 'pr-1' })),
+    entry('proj-a', 'session', 's1', 'delete', JSON.stringify({ id: 's1', directory: '/x' })),
+  ]);
+
+  assert.equal(second.ref.status, 200, second.ref.text);
+
+  // Pausa por proyecto.
+  for (const pool of [pair.refPool, pair.odinPool]) await pool.query("INSERT INTO cloud_project_controls (project, sync_enabled) VALUES ('proj-c', false)");
+  const paused = await push([entry('proj-a', 'prompt', 'p9', 'delete', JSON.stringify({ sync_id: 'p9' })), entry('proj-c', 'prompt', 'p9', 'delete', JSON.stringify({ sync_id: 'p9' }))], { created_by: 'ana' });
+  assert.equal(paused.ref.status, 409);
+
+  // Lectura: filtros, páginas y proyecto principal.
+  for (const query of ['', '?since_seq=0', '?since_seq=3&limit=2', '?limit=1', '?limit=0', '?limit=500', '?since_seq=abc&limit=x', '?since_seq=999']) {
+    const r = await same(pair, 'GET', `/sync/mutations/pull${query}`, () => h);
+    assert.equal(r.ref.status, 200, query);
+  }
+  const all = (await send(pair.refPort, 'GET', '/sync/mutations/pull', h && { headers: bearer })).json;
+  assert.ok(all.mutations.length >= 10, 'hay mutaciones que leer');
+
+  // Estado guardado.
+  const journal = (pool) => pool.query('SELECT seq, project, entity, entity_key, op, payload::text AS payload FROM cloud_mutations ORDER BY seq').then((r) => r.rows);
+  assert.deepEqual(await journal(pair.odinPool), await journal(pair.refPool), 'cloud_mutations');
+  const chunks = (pool) => pool.query('SELECT project_name, chunk_id, created_by, sessions_count, observations_count, prompts_count, payload::text AS payload FROM cloud_chunks ORDER BY project_name, chunk_id').then((r) => r.rows);
+  assert.deepEqual(await chunks(pair.odinPool), await chunks(pair.refPool), 'los chunks que deja cada lote');
+  const sessions = (pool) => pool.query('SELECT project_name, session_id FROM cloud_project_sessions ORDER BY 1, 2').then((r) => r.rows);
+  assert.deepEqual(await sessions(pair.odinPool), await sessions(pair.refPool), 'el índice de sesiones');
+  const audit = (pool) => pool.query('SELECT contributor, project, action, outcome, entry_count, reason_code FROM cloud_sync_audit_log ORDER BY id').then((r) => r.rows);
+  assert.deepEqual(await audit(pair.odinPool), await audit(pair.refPool), 'la auditoría');
+});
+
+test('mutaciones: la lista de proyectos con comodín no filtra la lectura y la vacía no devuelve nada', { skip }, async () => {
+  for (const allowed of ['*', 'proj-b,proj-a']) {
+    const pair = await cloudPair({ allowed });
+    await same(pair, 'POST', '/sync/mutations/push', () => ({ headers: bearer, body: { entries: [entry('proj-b', 'session', 's', 'upsert', sessionPayload('s'))] } }));
+    await same(pair, 'GET', '/sync/mutations/pull', () => ({ headers: bearer }));
+  }
+});
+
+test('cloud repair materialize-mutations informa y repara igual', { skip }, async () => {
+  const pair = await cloudPair();
+  const bodies = [entry('proj-a', 'session', 's1', 'upsert', sessionPayload('s1')), entry('proj-a', 'observation', 'obs-1', 'upsert', observationPayload('obs-1', 's1'))];
+  await same(pair, 'POST', '/sync/mutations/push', () => ({ headers: bearer, body: { entries: bodies } }));
+  for (const pool of [pair.refPool, pair.odinPool]) await pool.query('DELETE FROM cloud_chunks');
+  const run = (side, args) => {
+    const common = { cwd: pair.dir, encoding: 'utf8', timeout: 60_000 };
+    return side === 'ref'
+      ? spawnSync(binary.bin, ['cloud', 'repair', ...args], { ...common, env: { ...process.env, ENGRAM_DATABASE_URL: pair.refDsn, ENGRAM_DATA_DIR: join(pair.dir, 'rr'), ENGRAM_NO_UPDATE_CHECK: '1', HOME: pair.dir } })
+      : spawnSync(process.execPath, ['--no-warnings', ODIN_BIN, 'cloud', 'repair', ...args], { ...common, env: { ...process.env, ODIN_DATABASE_URL: pair.odinDsn, ODIN_DATA_DIR: join(pair.dir, 'or'), HOME: pair.dir } });
+  };
+  for (const args of [['materialize-mutations', '--project', 'proj-a', '--dry-run'], ['materialize-mutations', '--project', 'Proj-A', '--apply'], ['materialize-mutations', '--project', 'proj-a', '--apply'], ['materialize-mutations', '--project', 'proj-a'], ['materialize-mutations', '--dry-run'], ['otra', '--project', 'x']]) {
+    const [ref, odin] = [run('ref', args), run('odin', args)];
+    assert.equal(odin.status, ref.status, `${args.join(' ')}\n${ref.stderr}\n${odin.stderr}`);
+    assert.equal(mask(odin.stdout), mask(ref.stdout), args.join(' '));
+    assert.equal(mask(odin.stderr).replace(/^engram: /, 'odin: '), mask(ref.stderr).replace(/^odin: /, 'odin: '), args.join(' '));
+  }
+  const chunks = (pool) => pool.query('SELECT project_name, chunk_id, created_by, payload::text AS payload FROM cloud_chunks ORDER BY chunk_id').then((r) => r.rows);
+  assert.deepEqual(await chunks(pair.odinPool), await chunks(pair.refPool));
 });
 
 // ─── Clientes cruzados ───────────────────────────────────────────────────────

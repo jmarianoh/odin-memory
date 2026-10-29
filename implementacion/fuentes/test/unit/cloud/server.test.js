@@ -227,9 +227,10 @@ test('el índice de sesiones recoge las filas y las altas por mutación', () => 
   const ids = collectSessionIds({
     sessions: [{ id: 'a' }, { id: ' ' }, {}],
     mutations: [
-      { entity: 'session', op: 'upsert', payload: JSON.stringify({ id: 'b' }) },
+      { entity: 'session', op: 'upsert', entity_key: 'b', payload: JSON.stringify({ id: 'b' }) },
+      { entity: 'session', op: 'upsert', payload: JSON.stringify({ id: 'sin-clave' }) },
       { entity: 'session', op: 'upsert', entity_key: 'c', payload: '{}' },
-      { entity: 'session', op: 'delete', payload: JSON.stringify({ id: 'd' }) },
+      { entity: 'session', op: 'delete', entity_key: 'd', payload: JSON.stringify({ id: 'd' }) },
       { entity: 'observation', op: 'upsert', payload: JSON.stringify({ id: 'e' }) },
       { entity: 'session', op: 'upsert', payload: '[' },
     ],
@@ -292,4 +293,205 @@ test('si otra subida inserta el mismo chunk entre la lectura y la escritura, se 
   blind(s.store);
   await assert.rejects(s.store.writeChunk('proj-a', 'abcd1234', 'ana', '', '{"sessions":[{"id":"distinta","directory":"/x"}]}'), ChunkConflictError);
   assert.equal((await s.store.readManifest('proj-a')).chunks.length, 1);
+});
+
+// ─── Mutaciones ──────────────────────────────────────────────────────────────
+
+const mut = (project, entity, entity_key, op, payload) => ({ project, entity, entity_key, op, payload });
+const sess = (id) => JSON.stringify({ id, directory: '/x', started_at: '2026-01-01 00:00:00' });
+const pushMutations = (base, entries, extra = {}, headers = {}) => call(base, 'POST', '/sync/mutations/push', { headers, body: { entries, ...extra } });
+
+test('el empuje de mutaciones valida el lote antes de guardar nada', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const err = async (status, pattern, response) => {
+    const r = await response;
+    assert.equal(r.status, status, r.text);
+    assert.match(r.text, pattern);
+    return r;
+  };
+  await err(400, /^invalid request body: /, call(s.url, 'POST', '/sync/mutations/push', { raw: '{' }));
+  await err(400, /^invalid request body: /, call(s.url, 'POST', '/sync/mutations/push', { raw: '[]' }));
+  await err(400, /^invalid request body: /, call(s.url, 'POST', '/sync/mutations/push', { raw: '{"entries":5}' }));
+  await err(400, /^invalid request body: /, call(s.url, 'POST', '/sync/mutations/push', { raw: '{"entries":[{"project":5}]}' }));
+  await err(400, /^invalid request body: /, call(s.url, 'POST', '/sync/mutations/push', { raw: '{"created_by":5}' }));
+  await err(400, /^batch too large: max 100 entries per request\n$/, pushMutations(s.url, Array.from({ length: 101 }, (_, i) => mut('proj-a', 'prompt', `p${i}`, 'delete', '{}'))));
+  const empty = await err(400, /empty_batch/, pushMutations(s.url, []));
+  assert.deepEqual(empty.json, { error: 'mutation batch must contain at least one entry', error_class: 'repairable', error_code: 'empty_batch' });
+  assert.equal((await call(s.url, 'POST', '/sync/mutations/push', { raw: '{}' })).json.error_code, 'empty_batch');
+  const noProject = await pushMutations(s.url, [mut('proj-a', 'session', 's', 'upsert', sess('s')), mut('  ', 'session', 's2', 'upsert', sess('s2'))]);
+  assert.deepEqual([noProject.status, noProject.json.error_class, noProject.json.error_code], [400, 'invalid_request', 'empty_project']);
+  const forbidden = await pushMutations(s.url, [mut('proj-a', 'session', 's', 'upsert', sess('s')), mut('ajeno', 'session', 's2', 'upsert', sess('s2'))]);
+  assert.deepEqual([forbidden.status, forbidden.json.error_code], [403, 'policy_forbidden']);
+  assert.deepEqual(await s.store.db.query('SELECT 1 FROM cloud_mutations'), [], 'un proyecto no permitido rechaza todo el lote');
+});
+
+test('un lote con entradas inválidas las enumera y no guarda ninguna', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const bad = await pushMutations(s.url, [
+    mut('proj-a', 'session', 's', 'upsert', sess('s')),
+    mut('proj-a', 'cosa', 'x', 'upsert', '{}'),
+    mut('proj-a', 'relation', 'r', 'upsert', { sync_id: 'r' }),
+    mut('proj-a', 'prompt', 'p', 'upsert', '[1]'),
+  ]);
+  assert.equal(bad.status, 400);
+  assert.deepEqual(bad.json, {
+    error: 'invalid mutation payload', error_class: 'repairable', error_code: 'upgrade_repairable_payload_invalid', reason_code: 'validation_error',
+    invalid: [{ entity: 'cosa', field: 'payload', index: 1 }, { entity: 'relation', field: 'source_id', index: 2 }, { entity: 'prompt', field: 'payload', index: 3 }],
+  });
+  assert.deepEqual(await s.store.db.query('SELECT 1 FROM cloud_mutations'), []);
+});
+
+test('el empuje guarda el diario, deja su chunk y se lee por páginas', async (t) => {
+  const s = await start({ token: 'tok' });
+  t.after(s.close);
+  const auth = { Authorization: 'Bearer tok' };
+  const relation = { sync_id: 'rel-1', source_id: 'o1', target_id: 'o2', relation: 'related', judgment_status: 'judged', marked_by_actor: 'ana', marked_by_kind: 'human' };
+  const ok = await pushMutations(s.url, [
+    mut('Proj-A', 'session', 's1', 'upsert', sess('s1')),
+    mut('proj-a', 'observation', 'o1', 'upsert', JSON.stringify({ sync_id: 'o1', session_id: 's1', type: 't', title: 'x', content: 'c', scope: 'project' })),
+    mut('proj-a', 'relation', 'rel-1', 'upsert', relation),
+    mut('proj-b', 'prompt', 'viejo', 'upsert', '{}'),
+  ], {}, auth);
+  assert.equal(ok.status, 200, ok.text);
+  assert.deepEqual(ok.json, { accepted_seqs: ok.json.accepted_seqs, project: 'proj-a', project_path: '', project_source: 'request_body' });
+  assert.equal(ok.json.accepted_seqs.length, 4);
+  assert.deepEqual(Object.keys(ok.json), ['accepted_seqs', 'project', 'project_path', 'project_source']);
+
+  const chunks = await s.store.db.query('SELECT project_name, created_by, sessions_count, observations_count, prompts_count FROM cloud_chunks ORDER BY project_name');
+  assert.deepEqual(chunks, [
+    { project_name: 'proj-a', created_by: 'LEGACY_SYNC', sessions_count: 1, observations_count: 1, prompts_count: 0 },
+    { project_name: 'proj-b', created_by: 'LEGACY_SYNC', sessions_count: 0, observations_count: 0, prompts_count: 1 },
+  ]);
+  assert.deepEqual([...(await s.store.knownSessionIds('proj-a'))], ['s1']);
+  const stored = await s.store.db.query("SELECT payload FROM cloud_mutations WHERE entity = 'prompt'");
+  assert.deepEqual(stored[0].payload, { content: 'viejo', project: 'proj-b', session_id: 'legacy-viejo', sync_id: 'viejo' });
+
+  const page1 = await call(s.url, 'GET', '/sync/mutations/pull?limit=3', { headers: auth });
+  assert.equal(page1.status, 200);
+  assert.deepEqual([page1.json.mutations.length, page1.json.has_more, page1.json.latest_seq, page1.json.project], [3, true, ok.json.accepted_seqs[2], 'proj-a']);
+  assert.deepEqual(Object.keys(page1.json.mutations[0]), ['seq', 'project', 'entity', 'entity_key', 'op', 'payload', 'occurred_at']);
+  const page2 = await call(s.url, 'GET', `/sync/mutations/pull?since_seq=${page1.json.latest_seq}&limit=3`, { headers: auth });
+  assert.deepEqual([page2.json.mutations.length, page2.json.has_more, page2.json.latest_seq], [1, false, ok.json.accepted_seqs[3]]);
+  const beyond = await call(s.url, 'GET', '/sync/mutations/pull?since_seq=99999', { headers: auth });
+  assert.deepEqual([beyond.json.mutations, beyond.json.has_more, beyond.json.latest_seq], [[], false, 0]);
+  assert.equal((await call(s.url, 'GET', '/sync/mutations/pull?limit=900', { headers: auth })).json.mutations.length, 4, 'el tope es 100');
+  assert.equal((await call(s.url, 'GET', '/sync/mutations/pull?limit=-2&since_seq=zz', { headers: auth })).json.mutations.length, 4, 'valores inválidos usan los defectos');
+  assert.equal((await call(s.url, 'GET', '/sync/mutations/pull')).status, 401);
+  assert.equal((await call(s.url, 'POST', '/sync/mutations/pull')).status, 405);
+});
+
+test('sin autenticación las escrituras se anotan como desconocidas y la lectura respeta la lista', async (t) => {
+  const s = await start({ token: '', allowedProjects: ['proj-a'] });
+  t.after(s.close);
+  assert.equal((await pushMutations(s.url, [mut('proj-a', 'session', 's1', 'upsert', sess('s1'))])).status, 200);
+  assert.equal((await s.store.db.query('SELECT created_by FROM cloud_chunks'))[0].created_by, 'unknown');
+  await s.store.db.query("INSERT INTO cloud_mutations (project, entity, entity_key, op) VALUES ('proj-ajeno', 'prompt', 'p', 'delete')");
+  const pull = await call(s.url, 'GET', '/sync/mutations/pull');
+  assert.deepEqual(pull.json.mutations.map((m) => m.project), ['proj-a'], 'otro proyecto no se ve');
+
+  const open = await start({ token: '', allowedProjects: ['*'] });
+  t.after(open.close);
+  await open.store.db.query("INSERT INTO cloud_mutations (project, entity, entity_key, op) VALUES ('cualquiera', 'prompt', 'p', 'delete')");
+  const all = await call(open.url, 'GET', '/sync/mutations/pull');
+  assert.deepEqual([all.json.mutations.map((m) => m.project), all.json.project], [['cualquiera'], ''], 'con comodín no hay filtro ni proyecto principal');
+
+  const none = await start({ token: '', allowedProjects: [] });
+  t.after(none.close);
+  await none.store.db.query("INSERT INTO cloud_mutations (project, entity, entity_key, op) VALUES ('x', 'prompt', 'p', 'delete')");
+  assert.deepEqual((await call(none.url, 'GET', '/sync/mutations/pull')).json.mutations, []);
+});
+
+test('un proyecto en pausa rechaza el lote entero y lo anota con el número de entradas', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  await s.store.setProjectSyncEnabled('proj-b', false);
+  const paused = await pushMutations(s.url, [mut('proj-a', 'session', 's', 'upsert', sess('s')), mut('proj-b', 'session', 's2', 'upsert', sess('s2'))], { created_by: 'ana' });
+  assert.equal(paused.status, 409);
+  assert.deepEqual(paused.json, { error: 'sync is paused for project "proj-b"', error_class: 'policy', error_code: 'sync-paused', project: 'proj-a', project_path: '', project_source: 'request_body' });
+  assert.deepEqual(await s.store.db.query('SELECT contributor, project, action, entry_count FROM cloud_sync_audit_log'), [{ contributor: 'ana', project: 'proj-b', action: 'mutation_push', entry_count: 2 }]);
+  assert.deepEqual(await s.store.db.query('SELECT 1 FROM cloud_mutations'), []);
+});
+
+test('un fallo al insertar una fila revierte el lote y no deja chunks', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  await s.store.db.query("ALTER TABLE cloud_mutations ADD CONSTRAINT sin_rel CHECK (entity <> 'relation')");
+  const relation = { sync_id: 'rel-1', source_id: 'o1', target_id: 'o2', relation: 'related', judgment_status: 'judged', marked_by_actor: 'ana', marked_by_kind: 'human' };
+  const failed = await pushMutations(s.url, [mut('proj-a', 'session', 's1', 'upsert', sess('s1')), mut('proj-a', 'relation', 'rel-1', 'upsert', relation)]);
+  assert.equal(failed.status, 500);
+  assert.equal(failed.text, 'insert mutations: batch_index=1 entity="relation" entity_key="rel-1"\n');
+  assert.deepEqual(await s.store.db.query('SELECT 1 FROM cloud_mutations'), []);
+  assert.deepEqual(await s.store.db.query('SELECT 1 FROM cloud_chunks'), []);
+});
+
+test('subir un chunk deja sus mutaciones en el diario y repetirlo no las duplica', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const data = { ...chunk(), mutations: [{ entity: 'prompt', entity_key: 'p1', op: 'delete', payload: JSON.stringify({ sync_id: 'p1' }) }] };
+  assert.equal((await push(s.url, data)).status, 200);
+  assert.equal((await push(s.url, data)).status, 200);
+  const rows = await s.store.db.query('SELECT entity, entity_key, op FROM cloud_mutations ORDER BY seq');
+  assert.deepEqual(rows, [
+    { entity: 'session', entity_key: 's1', op: 'upsert' }, { entity: 'observation', entity_key: 'obs-1', op: 'upsert' }, { entity: 'prompt', entity_key: 'p1', op: 'delete' },
+  ]);
+  const typed = await push(s.url, { ...chunk(), observations: [{ ...chunk().observations[0], title: 5 }] });
+  assert.equal(typed.status, 400);
+  assert.match(typed.json.error, /^invalid push payload: chunk schema: json: cannot unmarshal number into Go struct field Observation\.observations\.title of type string$/);
+});
+
+test('backfill materializa en chunks las mutaciones del diario que ninguno contiene', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  await pushMutations(s.url, [mut('proj-a', 'session', 's1', 'upsert', sess('s1')), mut('proj-a', 'prompt', 'p1', 'upsert', JSON.stringify({ sync_id: 'p1', session_id: 's1', content: 'hola' }))]);
+  await s.store.db.query("INSERT INTO cloud_mutations (project, entity, entity_key, op, payload) VALUES ('proj-a', 'prompt', 'roto', 'upsert', '[1]'), ('proj-a', 'cosa', 'x', 'upsert', '{}')");
+  assert.deepEqual(await s.store.backfillMutationChunks('proj-a', true), { project: 'proj-a', applied: true, candidate_mutations: 3, already_materialized: 2, invalid_mutations: 1, chunks_planned: 0, chunks_inserted: 0 });
+  await s.store.db.query('DELETE FROM cloud_chunks');
+  await s.store.db.query('DELETE FROM cloud_project_sessions');
+  const dry = await s.store.backfillMutationChunks('proj-a', false);
+  assert.deepEqual(dry, { project: 'proj-a', applied: false, candidate_mutations: 3, already_materialized: 0, invalid_mutations: 1, chunks_planned: 1, chunks_inserted: 0 });
+  assert.deepEqual(await s.store.db.query('SELECT 1 FROM cloud_chunks'), [], 'sin apply no escribe');
+  const applied = await s.store.backfillMutationChunks('proj-a', true);
+  assert.equal(applied.chunks_inserted, 1);
+  assert.deepEqual(await s.store.db.query('SELECT created_by, sessions_count, prompts_count FROM cloud_chunks'), [{ created_by: 'mutation-backfill', sessions_count: 1, prompts_count: 1 }]);
+  assert.deepEqual([...(await s.store.knownSessionIds('proj-a'))], ['s1']);
+  assert.equal((await s.store.backfillMutationChunks('proj-a', true)).chunks_inserted, 0, 'repetir no inserta');
+  await assert.rejects(s.store.backfillMutationChunks('  ', true), /project is required/);
+  assert.deepEqual(await s.store.backfillMutationChunks('otro', false), { project: 'otro', applied: false, candidate_mutations: 0, already_materialized: 0, invalid_mutations: 0, chunks_planned: 0, chunks_inserted: 0 });
+});
+
+test('el empuje de mutaciones respeta el tope de tamaño', async (t) => {
+  const s = await start({ maxPushBodyBytes: 512 });
+  t.after(s.close);
+  const big = await pushMutations(s.url, [mut('proj-a', 'prompt', 'p', 'upsert', JSON.stringify({ sync_id: 'p', session_id: 's', content: 'x'.repeat(2000) }))]);
+  assert.equal(big.status, 413);
+  assert.deepEqual([big.json.error_code, big.json.error], ['upgrade_repairable_payload_too_large', 'push payload too large (max 512 bytes)']);
+});
+
+test('la lectura de mutaciones pagina con los límites exactos', async (t) => {
+  const s = await start({ token: 'tok', adminToken: 'adm', allowedProjects: ['proj-b', 'proj-a'] });
+  t.after(s.close);
+  const auth = { Authorization: 'Bearer tok' };
+  await s.store.db.query("INSERT INTO cloud_mutations (project, entity, entity_key, op) SELECT 'proj-a', 'prompt', 'p' || g, 'delete' FROM generate_series(1, 120) g");
+  const first = await call(s.url, 'GET', '/sync/mutations/pull', { headers: auth });
+  assert.deepEqual([first.json.mutations.length, first.json.has_more, first.json.project], [100, true, 'proj-a'], 'por defecto 100 y el primer proyecto ordenado');
+  assert.equal((await call(s.url, 'GET', '/sync/mutations/pull?limit=-2', { headers: auth })).json.mutations.length, 100);
+  const exact = await call(s.url, 'GET', '/sync/mutations/pull?since_seq=117&limit=3', { headers: auth });
+  assert.deepEqual([exact.json.mutations.length, exact.json.has_more], [3, false], 'justo las que caben no es «hay más»');
+  assert.equal((await s.store.listMutationsSince(0, 500, null)).mutations.length, 100, 'el almacén también limita a 100');
+  assert.equal((await s.store.listMutationsSince(0, 0, ['proj-a'])).mutations.length, 100);
+  assert.deepEqual((await s.store.listMutationsSince(0, 5, [])), { mutations: [], has_more: false, latest_seq: 0 });
+});
+
+test('las escrituras se anotan con el nombre de quien las empuja y los lotes sin autor como desconocidas', async (t) => {
+  const s = await start({ token: 'tok', adminToken: 'adm' });
+  t.after(s.close);
+  const entry = (id) => mut('proj-a', 'prompt', id, 'delete', JSON.stringify({ sync_id: id }));
+  await pushMutations(s.url, [entry('p1')], {}, { Authorization: 'Bearer tok' });
+  await pushMutations(s.url, [entry('p2')], {}, { Authorization: 'Bearer adm' });
+  assert.deepEqual((await s.store.db.query('SELECT created_by FROM cloud_chunks ORDER BY created_at, chunk_id')).map((r) => r.created_by).sort(), ['LEGACY_SYNC', 'OPERATOR']);
+  await s.store.insertMutationBatch([{ project: 'proj-a', entity: 'prompt', entity_key: 'p3', op: 'delete', payload: '{"sync_id":"p3"}' }]);
+  assert.equal((await s.store.db.query("SELECT created_by FROM cloud_chunks WHERE created_by NOT IN ('LEGACY_SYNC', 'OPERATOR')"))[0].created_by, 'unknown');
+  assert.deepEqual(await s.store.insertMutationBatch([]), []);
 });

@@ -63,6 +63,7 @@ Commands:
                        unenroll   Stop future cloud sync for a project
                        config     Set cloud server URL (--server <url> | --clear)
                        serve      Run the cloud backend
+                       repair     Repair server data: repair materialize-mutations --project P (--dry-run|--apply)
   tui                Launch the interactive terminal UI
   test [suite] [--quick] [--json]
                      Run isolated local reliability and performance self-tests

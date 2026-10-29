@@ -1,5 +1,5 @@
 {
-  "version": "0.24.0",
+  "version": "0.25.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -41,8 +41,8 @@
         "test/unit/cloud/cli.test.js",
         "test/unit/cloud/e2e.test.js"
       ],
-      "sha256": "f92dbfc4f1b12ca546251b72e7ccf37d32afe62c46cc31f3f365b6b5fc63d0c7",
-      "docSha256": "659214a8765b328e59103426cd7cdce848362595dc851a0355986cae35b8d55e"
+      "sha256": "52341d4b9074903261180d0d07921acde7b65aab3b972293a71d29bfbe2ed71d",
+      "docSha256": "91ac4c820ce7e974974e84f64f22a68ec408238e5715a0cf71c3e40b680a9ae3"
     },
     {
       "path": "src/cli/commands/conflicts.js",
@@ -292,7 +292,7 @@
       "tests": [
         "test/unit/cli/dispatch.test.js"
       ],
-      "sha256": "82339cb7d24254188862e8c76177f00b7ff58d54a0fb2772c2a54b9b19beeec0",
+      "sha256": "70feadc66b36ca5116969231d514ee200b677f2a1e0f041a0973239f6b0479fa",
       "docSha256": "a75af43cafd7e638ec0e171e14cc0b28a24742959c0f6286c65cfab4621636c3"
     },
     {
@@ -304,7 +304,7 @@
         "test/unit/cloud/e2e.test.js"
       ],
       "sha256": "228c444c0f24da953f1358df7934aabda1472e8ed19acc76b99cd1e0bd8c14a6",
-      "docSha256": "659214a8765b328e59103426cd7cdce848362595dc851a0355986cae35b8d55e"
+      "docSha256": "91ac4c820ce7e974974e84f64f22a68ec408238e5715a0cf71c3e40b680a9ae3"
     },
     {
       "path": "src/cloud/codec.js",
@@ -314,8 +314,8 @@
         "test/unit/cloud/codec.test.js",
         "test/unit/cloud/server.test.js"
       ],
-      "sha256": "1ae0d936508b5386ef4bedce330d5ffcecfe725df4fdbcb3317d8107bc0039bb",
-      "docSha256": "ce41873294ba8b8fbed7fc0074680430db2dd24e76d8543115d3f0a1f033b8e6"
+      "sha256": "e2dd75b21b39696ca7c87763c1ea96a116a64641300fc6f4d10da5727f3d50fc",
+      "docSha256": "d817bf17aa577d1ae5dc21d0478e3b400463443e249cff604daafd7f61c8e212"
     },
     {
       "path": "src/cloud/config.js",
@@ -326,7 +326,7 @@
         "test/unit/cloud/cli.test.js"
       ],
       "sha256": "90d11b51f7e1e5b5f9f73af8129fe28139144792807616d744f839726ae4379a",
-      "docSha256": "659214a8765b328e59103426cd7cdce848362595dc851a0355986cae35b8d55e"
+      "docSha256": "91ac4c820ce7e974974e84f64f22a68ec408238e5715a0cf71c3e40b680a9ae3"
     },
     {
       "path": "src/cloud/constants.js",
@@ -337,7 +337,7 @@
         "test/unit/cloud/e2e.test.js"
       ],
       "sha256": "16028c4bef58cf618422105c2fa6729047fde764f9a52e6c84501f233ce25e29",
-      "docSha256": "659214a8765b328e59103426cd7cdce848362595dc851a0355986cae35b8d55e"
+      "docSha256": "91ac4c820ce7e974974e84f64f22a68ec408238e5715a0cf71c3e40b680a9ae3"
     },
     {
       "path": "src/cloud/guidance.js",
@@ -347,7 +347,18 @@
         "test/unit/cloud/client.test.js"
       ],
       "sha256": "3973eb9d5b1fe0b5eb6323e919003b19c38f28957a247e93da184b243ccd828d",
-      "docSha256": "659214a8765b328e59103426cd7cdce848362595dc851a0355986cae35b8d55e"
+      "docSha256": "91ac4c820ce7e974974e84f64f22a68ec408238e5715a0cf71c3e40b680a9ae3"
+    },
+    {
+      "path": "src/cloud/materialize.js",
+      "doc": "30-cloud/03-formato-de-chunks.md",
+      "phase": "F9.2",
+      "tests": [
+        "test/unit/cloud/materialize.test.js",
+        "test/unit/cloud/server.test.js"
+      ],
+      "sha256": "a5de8227c69fba9db01d0957d433cf59bbf94bd97211f712de56afd157b46d8e",
+      "docSha256": "d817bf17aa577d1ae5dc21d0478e3b400463443e249cff604daafd7f61c8e212"
     },
     {
       "path": "src/cloud/remote.js",
@@ -358,7 +369,7 @@
         "test/unit/cloud/e2e.test.js"
       ],
       "sha256": "5a377e291a1a885644facbd0aebbcf5a781c69ce5d7676b8571514216bdb32f7",
-      "docSha256": "659214a8765b328e59103426cd7cdce848362595dc851a0355986cae35b8d55e"
+      "docSha256": "91ac4c820ce7e974974e84f64f22a68ec408238e5715a0cf71c3e40b680a9ae3"
     },
     {
       "path": "src/cloud/server/config.js",
@@ -369,7 +380,7 @@
         "test/unit/cloud/cli.test.js"
       ],
       "sha256": "a3245523b0e2917864cb2248cf0fa910db2b9f4329fdf4f4732def0e0881daa3",
-      "docSha256": "c9f691ca1792eb6dccb0e146890a593d62279cc1e55af95e7b21d9b6c86716ef"
+      "docSha256": "36bee9a4307f16c78c5e6a8fc51b8d0214989da7fcd4e3bae602218106fd0724"
     },
     {
       "path": "src/cloud/server/db.js",
@@ -379,7 +390,7 @@
         "test/unit/cloud/server.test.js"
       ],
       "sha256": "d08a5454808374093be9184d0dcba01bffe5ca78906161f3314b4adc1ea81363",
-      "docSha256": "c9f691ca1792eb6dccb0e146890a593d62279cc1e55af95e7b21d9b6c86716ef"
+      "docSha256": "36bee9a4307f16c78c5e6a8fc51b8d0214989da7fcd4e3bae602218106fd0724"
     },
     {
       "path": "src/cloud/server/index.js",
@@ -388,8 +399,19 @@
       "tests": [
         "test/unit/cloud/server.test.js"
       ],
-      "sha256": "9a94e80ecd7c9dd36a80f1b3a1db7f9f410b0c1997ae2e26beef784e91486e2b",
-      "docSha256": "c9f691ca1792eb6dccb0e146890a593d62279cc1e55af95e7b21d9b6c86716ef"
+      "sha256": "a97501f8155589d4e8903d40e0e249341f28f7752cb34e704c91b71955d0a8e3",
+      "docSha256": "36bee9a4307f16c78c5e6a8fc51b8d0214989da7fcd4e3bae602218106fd0724"
+    },
+    {
+      "path": "src/cloud/server/mutations.js",
+      "doc": "30-cloud/02-servidor.md",
+      "phase": "F9.2",
+      "tests": [
+        "test/unit/cloud/materialize.test.js",
+        "test/unit/cloud/server.test.js"
+      ],
+      "sha256": "3e869fafc2b11ef6f28767926016ba3138f5bb4c95fa3d04e08ac33d4058ee2e",
+      "docSha256": "36bee9a4307f16c78c5e6a8fc51b8d0214989da7fcd4e3bae602218106fd0724"
     },
     {
       "path": "src/cloud/server/server.js",
@@ -399,8 +421,8 @@
         "test/unit/cloud/server.test.js",
         "test/unit/cloud/e2e.test.js"
       ],
-      "sha256": "024812aff9723ef56e497df47c3b1e8c7a6d4130e1d7228cb7f97e2fda2c5173",
-      "docSha256": "c9f691ca1792eb6dccb0e146890a593d62279cc1e55af95e7b21d9b6c86716ef"
+      "sha256": "c6f751c19b9cbefe15c2edebeb5a1e4e0627b6fa1462a3bccf1926f2843f7589",
+      "docSha256": "36bee9a4307f16c78c5e6a8fc51b8d0214989da7fcd4e3bae602218106fd0724"
     },
     {
       "path": "src/cloud/server/store.js",
@@ -409,8 +431,8 @@
       "tests": [
         "test/unit/cloud/server.test.js"
       ],
-      "sha256": "877169674d3ac7076d525e308c0268efc284addc431decd48b3a2de5a43e4130",
-      "docSha256": "c9f691ca1792eb6dccb0e146890a593d62279cc1e55af95e7b21d9b6c86716ef"
+      "sha256": "b08e5b726e053c252f50762adabe700c33d8a2b9845a5ebde7030b4571e20a08",
+      "docSha256": "36bee9a4307f16c78c5e6a8fc51b8d0214989da7fcd4e3bae602218106fd0724"
     },
     {
       "path": "src/cloud/server/validate.js",
@@ -420,7 +442,7 @@
         "test/unit/cloud/server.test.js"
       ],
       "sha256": "9d7532226200b17fd0761d0ac137eb178e9ff1e1c11fb8eebe50b771393ee54e",
-      "docSha256": "c9f691ca1792eb6dccb0e146890a593d62279cc1e55af95e7b21d9b6c86716ef"
+      "docSha256": "36bee9a4307f16c78c5e6a8fc51b8d0214989da7fcd4e3bae602218106fd0724"
     },
     {
       "path": "src/diagnostic/caller-binding.js",
@@ -1355,7 +1377,7 @@
         "test/unit/cloud/cli.test.js"
       ],
       "sha256": "10b56672e57e6fe0210a4de649459d932e8d410ab8b3729d6afeeb2be00ddd6d",
-      "docSha256": "659214a8765b328e59103426cd7cdce848362595dc851a0355986cae35b8d55e"
+      "docSha256": "91ac4c820ce7e974974e84f64f22a68ec408238e5715a0cf71c3e40b680a9ae3"
     },
     {
       "path": "src/store/errors.js",

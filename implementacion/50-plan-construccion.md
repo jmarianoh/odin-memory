@@ -364,6 +364,20 @@ npm run check:clean-room
 
 Las pruebas de la nube arrancan un Postgres embebido (unos segundos por archivo). Prueba manual: `ODIN_CLOUD_INSECURE_NO_AUTH=1 ODIN_CLOUD_ALLOWED_PROJECTS=demo ODIN_DATABASE_URL=… node bin/odin.js cloud serve` y, desde otro directorio de datos, `odin cloud config --server http://127.0.0.1:8080 && odin cloud enroll demo && odin sync --cloud --project demo`.
 
-### F9.2 a F9.4
+### F9.2a — Servidor de mutaciones (spec 0.25.0)
+
+1. Copiar de `fuentes/` los tests nuevos y modificados (`test/unit/cloud/{materialize,server,cli}.test.js`) y `src/cli/usage.js`.
+2. Crear `src/cloud/materialize.js` y `src/cloud/server/mutations.js` según `30-cloud/03-formato-de-chunks.md` y `02-servidor.md`; exportar de `codec.js` `MUTATION_FIELDS`, `decodeFields`, `encodeFields` y `jsonKind`.
+3. Ampliar `src/cloud/server/store.js` (`writeChunk` con diario, `insertMutationBatch`, `listMutationsSince`, `backfillMutationChunks`), `server.js` (rutas de mutaciones, chunk tipado, principal) y `src/cli/commands/cloud.js` (`repair`, respaldo al arrancar).
+
+Aceptación:
+```bash
+node --test "test/unit/cloud/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```
+
+### F9.2b a F9.4
 
 Se detallan en `30-cloud/` al completarse cada porción. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.

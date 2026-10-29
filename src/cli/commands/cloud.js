@@ -11,7 +11,7 @@ import { goTrim } from '../../store/text.js';
 import { CliExit, fatal, println } from '../runtime.js';
 import { DEFAULT_PORT } from './serve.js';
 
-const SUBCOMMANDS = 'status, enroll, unenroll, config, serve';
+const SUBCOMMANDS = 'status, enroll, unenroll, config, serve, repair';
 const DAEMON_PROBE_TIMEOUT_MS = 1000;
 
 /** Termina con el código 1 tras escribir el uso en el error estándar (sin el prefijo `odin:`). */
@@ -314,10 +314,47 @@ async function cmdCloudStatus(cli, config) {
   return undefined;
 }
 
+// ─── cloud repair ────────────────────────────────────────────────────────────
+
+const REPAIR_USAGE = 'usage: odin cloud repair materialize-mutations --project <name> (--dry-run|--apply)';
+
+async function cmdCloudRepair(cli) {
+  const args = cli.args.slice(2);
+  if (args.length === 0 || ['--help', '-h', 'help'].includes(args[0])) {
+    println(cli, REPAIR_USAGE);
+    println(cli, 'repairs existing cloud_mutations into compatible cloud_chunks without deleting remote data');
+    return undefined;
+  }
+  const command = goTrim(args[0]).toLowerCase();
+  if (command !== 'materialize-mutations') {
+    return usageError(cli, `unknown cloud repair command: ${command}`, 'supported cloud repair commands: materialize-mutations');
+  }
+  const rest = args.slice(1);
+  const at = rest.findIndex((arg) => goTrim(arg) === '--project');
+  const project = at === -1 || at + 1 >= rest.length ? '' : goTrim(normalizeProject(rest[at + 1]).normalized);
+  if (project === '') return usageError(cli, REPAIR_USAGE, 'error: --project is required');
+  const dryRun = rest.some((arg) => goTrim(arg) === '--dry-run');
+  const apply = rest.some((arg) => goTrim(arg) === '--apply');
+  if (dryRun === apply) return usageError(cli, REPAIR_USAGE, 'error: exactly one of --dry-run or --apply is required');
+  const { cloudServeConfigFromEnv } = await import('../../cloud/server/config.js');
+  const { CloudStore, Database } = await import('../../cloud/server/index.js');
+  const store = new CloudStore(Database.connect(cloudServeConfigFromEnv(cli.env).dsn));
+  try {
+    await store.migrate();
+    const report = await store.backfillMutationChunks(project, apply);
+    println(cli, JSON.stringify(report, null, 2));
+  } catch (err) {
+    return fatal(cli, err);
+  } finally {
+    await store.close().catch(() => {});
+  }
+  return undefined;
+}
+
 // ─── cloud serve ─────────────────────────────────────────────────────────────
 
 async function cmdCloudServe(cli) {
-  const { cloudServeConfigFromEnv, validateCloudServeAuthConfig } = await import('../../cloud/server/config.js');
+  const { cloudServeConfigFromEnv, normalizeAllowedProjects, validateCloudServeAuthConfig } = await import('../../cloud/server/config.js');
   try {
     validateCloudServeAuthConfig(cli.env, (message) => cli.err(`${message}\n`));
   } catch (err) {
@@ -335,6 +372,17 @@ async function cmdCloudServe(cli) {
   } catch (err) {
     await store?.close().catch(() => {});
     return fatal(cli, err);
+  }
+  try {
+    for (const project of normalizeAllowedProjects(cfg.allowedProjects)) {
+      const report = await store.backfillMutationChunks(project, true);
+      if (report.candidate_mutations > 0 || report.chunks_inserted > 0) {
+        cli.err(`odin cloud repair materialize-mutations: project=${report.project} candidates=${report.candidate_mutations} already_materialized=${report.already_materialized} chunks_planned=${report.chunks_planned} chunks_inserted=${report.chunks_inserted}\n`);
+      }
+    }
+  } catch (err) {
+    await store.close().catch(() => {});
+    return fatal(cli, new Error(`cloud repair materialize-mutations for project: ${err.message}`));
   }
   const server = new CloudServer(store, {
     allowedProjects: cfg.allowedProjects,
@@ -387,6 +435,7 @@ export async function cmdCloud(cli, config) {
     case 'unenroll': return cmdProjectEnrollment(cli, config, 'unenroll');
     case 'config': return cmdCloudConfig(cli, config);
     case 'serve': return cmdCloudServe(cli);
+    case 'repair': return cmdCloudRepair(cli);
     default: return usageError(cli, `unknown cloud command: ${sub}`, `supported subcommands: ${SUBCOMMANDS}`);
   }
 }

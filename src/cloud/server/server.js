@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { gzipSync } from 'node:zlib';
-import { normalizeProject } from '../../project/canonical.js';
+import { canonicalizeProjectName, normalizeProject } from '../../project/canonical.js';
 import { goTrim } from '../../store/text.js';
 import { BodyTooLargeError, sendJson, sendText } from '../../server/http.js';
 import { Router } from '../../server/router.js';
@@ -10,8 +10,10 @@ import {
   decodeCompressed, hasGzipMagic, isCompressedContentType, validateChunkSessionReferences,
 } from '../codec.js';
 import { MAX_DECODED_BYTES, REASON, UPGRADE_ERROR_CLASS, UPGRADE_ERROR_CODE } from '../constants.js';
+import { parseTypedChunk, validateRelationPayload } from '../materialize.js';
+import { canonicalMutationEntry } from './mutations.js';
 import { DEFAULT_MAX_PUSH_BODY_BYTES } from './config.js';
-import { AUDIT_ACTION_CHUNK_PUSH, AUDIT_OUTCOME_REJECTED_PROJECT_PAUSED, ChunkConflictError, ChunkNotFoundInCloud } from './store.js';
+import { AUDIT_ACTION_CHUNK_PUSH, AUDIT_ACTION_MUTATION_PUSH, AUDIT_OUTCOME_REJECTED_PROJECT_PAUSED, ChunkConflictError, ChunkNotFoundInCloud, MutationBatchEntryError } from './store.js';
 import { validateChunkRows } from './validate.js';
 
 const SERVICE_NAME = 'odin-cloud';
@@ -40,6 +42,11 @@ export class ProjectAllowlist {
     }
   }
 
+  /** Proyectos permitidos, ordenados; `null` si se admiten todos (sin filtro). */
+  enrolled() {
+    return this.all ? null : [...this.allowed].sort();
+  }
+
   /** @returns {boolean} */
   allows(project) {
     const name = goTrim(normalizeProject(project).normalized);
@@ -50,6 +57,9 @@ export class ProjectAllowlist {
 
 /** Respuesta JSON de un objeto libre: las claves salen por orden alfabético, como en un mapa. */
 const sendMap = (res, status, fields) => sendJson(res, status, Object.fromEntries(Object.entries(fields).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
+
+const MAX_MUTATION_BATCH = 100;
+const DEFAULT_PULL_LIMIT = 100;
 
 const actionable = (res, status, errorClass, errorCode, message) => sendMap(res, status, { error_class: errorClass, error_code: errorCode, error: goTrim(message) });
 
@@ -78,6 +88,32 @@ function readBuffer(req, limit) {
     req.on('error', (err) => finish(reject, err));
     req.on('aborted', () => finish(reject, new Error('unexpected EOF')));
   });
+}
+
+/**
+ * Entradas de un lote de mutaciones. Cada carga se conserva como el texto JSON recibido.
+ * @returns {{ entries: { project: string, entity: string, entity_key: string, op: string, payload: string }[], createdBy: string }}
+ */
+function parseMutationEnvelope(body) {
+  const doc = JSON.parse(body);
+  if (doc === null || typeof doc !== 'object' || Array.isArray(doc)) throw new Error('json: cannot unmarshal into Go value of type cloudserver.mutationPushEnvelope');
+  if (doc.created_by !== undefined && doc.created_by !== null && typeof doc.created_by !== 'string') throw new Error('json: cannot unmarshal into Go struct field mutationPushEnvelope.created_by of type string');
+  const createdBy = doc.created_by ?? '';
+  const list = doc.entries;
+  if (list === undefined || list === null) return { entries: [], createdBy };
+  if (!Array.isArray(list)) throw new Error('json: cannot unmarshal into Go struct field mutationPushEnvelope.entries of type []cloudstore.MutationEntry');
+  const entries = list.map((raw) => {
+    const row = raw ?? {};
+    if (typeof row !== 'object' || Array.isArray(row)) throw new Error('json: cannot unmarshal into Go struct field mutationPushEnvelope.entries of type cloudstore.MutationEntry');
+    for (const key of ['project', 'entity', 'entity_key', 'op']) {
+      if (row[key] !== undefined && row[key] !== null && typeof row[key] !== 'string') throw new Error(`json: cannot unmarshal into Go struct field MutationEntry.entries.${key} of type string`);
+    }
+    return {
+      project: row.project ?? '', entity: row.entity ?? '', entity_key: row.entity_key ?? '', op: row.op ?? '',
+      payload: row.payload === undefined ? '' : JSON.stringify(row.payload),
+    };
+  });
+  return { entries, createdBy };
 }
 
 /** Sobre de una subida: campos de texto opcionales y la carga `data`. */
@@ -119,6 +155,8 @@ export class CloudServer {
     this.router.add('GET /sync/pull', { handler: (c) => this.#pullManifest(c), auth: true });
     this.router.add('GET /sync/pull/{chunkID}', { handler: (c) => this.#pullChunk(c), auth: true });
     this.router.add('POST /sync/push', { handler: (c) => this.#pushChunk(c), auth: true });
+    this.router.add('POST /sync/mutations/push', { handler: (c) => this.#pushMutations(c), auth: true });
+    this.router.add('GET /sync/mutations/pull', { handler: (c) => this.#pullMutations(c), auth: true });
     this.http = createServer((req, res) => {
       this.#serve(req, res).catch((err) => {
         this.log(`[odin-cloud] unexpected request error: ${err?.stack ?? err}`);
@@ -148,15 +186,19 @@ export class CloudServer {
     });
   }
 
-  /** @returns {string|null} el motivo del rechazo, o `null` si la petición está autenticada */
-  #authFailure(req) {
-    if (this.token === '') return null;
+  /**
+   * @returns {{ failure: string|null, principal: string }} el motivo del rechazo (o `null` si la petición
+   * está autenticada) y el nombre con que se anotan sus escrituras
+   */
+  #authenticate(req) {
+    if (this.token === '') return { failure: null, principal: '' };
     const header = goTrim(req.headers.authorization ?? '');
-    if (header === '') return 'missing authorization header';
+    if (header === '') return { failure: 'missing authorization header', principal: '' };
     const fields = header.split(/\s+/);
-    if (fields.length !== 2 || fields[0].toLowerCase() !== 'bearer') return 'authorization must use Bearer token';
-    if (tokenEquals(fields[1], this.token) || tokenEquals(fields[1], this.adminToken)) return null;
-    return 'unknown token';
+    if (fields.length !== 2 || fields[0].toLowerCase() !== 'bearer') return { failure: 'authorization must use Bearer token', principal: '' };
+    if (tokenEquals(fields[1], this.token)) return { failure: null, principal: 'LEGACY_SYNC' };
+    if (tokenEquals(fields[1], this.adminToken)) return { failure: null, principal: 'OPERATOR' };
+    return { failure: 'unknown token', principal: '' };
   }
 
   async #serve(req, res) {
@@ -173,15 +215,17 @@ export class CloudServer {
       return;
     }
     const { handler, auth } = found.route.handler;
+    let principal = '';
     if (auth) {
-      const failure = this.#authFailure(req);
-      if (failure !== null) {
+      const outcome = this.#authenticate(req);
+      if (outcome.failure !== null) {
         req.resume();
-        sendText(res, 401, `unauthorized: ${failure}`);
+        sendText(res, 401, `unauthorized: ${outcome.failure}`);
         return;
       }
+      principal = outcome.principal;
     }
-    await handler({ req, res, query: url.searchParams, params: found.params });
+    await handler({ req, res, query: url.searchParams, params: found.params, principal });
   }
 
   #health({ res }) {
@@ -293,7 +337,15 @@ export class CloudServer {
     let chunk;
     try {
       normalized = canonicalizeForProject(JSON.stringify(request.data), project);
-      chunk = JSON.parse(normalized);
+    } catch (err) {
+      return invalid(`invalid push payload: ${err.message}`);
+    }
+    try {
+      chunk = parseTypedChunk(normalized);
+    } catch (err) {
+      return invalid(`invalid push payload: chunk schema: ${err.message}`);
+    }
+    try {
       validateChunkRows(chunk);
     } catch (err) {
       return invalid(`invalid push payload: ${err.message}`);
@@ -323,6 +375,133 @@ export class CloudServer {
       return actionable(res, 500, UPGRADE_ERROR_CLASS.blocked, UPGRADE_ERROR_CODE.internal, `write chunk: ${err.message}`);
     }
     sendMap(res, 200, { status: 'ok', chunk_id: computed });
+  }
+
+  // ─── Mutaciones ──────────────────────────────────────────────────────────
+
+  async #pushMutations({ req, res, principal }) {
+    const limit = this.maxPushBodyBytes;
+    let body;
+    try {
+      body = (await readBuffer(req, limit)).toString('utf8');
+    } catch (err) {
+      if (err instanceof BodyTooLargeError) {
+        actionable(res, 413, UPGRADE_ERROR_CLASS.repairable, UPGRADE_ERROR_CODE.payloadTooLarge, `push payload too large (max ${limit} bytes)`);
+        return;
+      }
+      sendText(res, 400, `invalid request body: ${err.message}`);
+      return;
+    }
+    let entries;
+    let envelopeCreatedBy;
+    try {
+      ({ entries, createdBy: envelopeCreatedBy } = parseMutationEnvelope(body));
+    } catch (err) {
+      sendText(res, 400, `invalid request body: ${err.message}`);
+      return;
+    }
+    if (entries.length > MAX_MUTATION_BATCH) {
+      sendText(res, 400, `batch too large: max ${MAX_MUTATION_BATCH} entries per request`);
+      return;
+    }
+    if (entries.length === 0) {
+      actionable(res, 400, UPGRADE_ERROR_CLASS.repairable, 'empty_batch', 'mutation batch must contain at least one entry');
+      return;
+    }
+    for (const entry of entries) {
+      if (goTrim(entry.project) === '') {
+        actionable(res, 400, 'invalid_request', 'empty_project', 'mutation entries must specify a project');
+        return;
+      }
+      entry.project = canonicalizeProjectName(entry.project);
+    }
+    const seen = new Set();
+    for (const entry of entries) {
+      if (seen.has(entry.project)) continue;
+      seen.add(entry.project);
+      if (!this.#authorizeProject(res, entry.project)) return;
+    }
+    const primary = entries[0].project;
+    for (const entry of entries) {
+      let enabled;
+      try {
+        enabled = await this.store.isProjectSyncEnabled(entry.project);
+      } catch (err) {
+        sendText(res, 500, `check project sync: ${err.message}`);
+        return;
+      }
+      if (enabled) continue;
+      await this.#audit({ contributor: goTrim(envelopeCreatedBy) || 'unknown', project: entry.project, action: AUDIT_ACTION_MUTATION_PUSH, entryCount: entries.length }, 'mutation push');
+      sendMap(res, 409, {
+        error_class: UPGRADE_ERROR_CLASS.policy, error_code: 'sync-paused', error: `sync is paused for project ${JSON.stringify(entry.project)}`,
+        project: primary, project_source: 'request_body', project_path: '',
+      });
+      return;
+    }
+    const createdBy = principal === '' ? 'unknown' : principal;
+    const invalidEntries = [];
+    const normalized = [];
+    entries.forEach((entry, index) => {
+      const entity = goTrim(entry.entity);
+      const bad = (field) => invalidEntries.push({ entity, field, index });
+      if (entity === 'relation') {
+        const { field, ok } = validateRelationPayload(entry.payload);
+        if (!ok) return bad(field);
+      }
+      try {
+        normalized.push({ ...canonicalMutationEntry(entry), created_by: createdBy });
+      } catch {
+        bad('payload');
+      }
+    });
+    if (invalidEntries.length > 0) {
+      sendMap(res, 400, {
+        error_class: UPGRADE_ERROR_CLASS.repairable, error_code: UPGRADE_ERROR_CODE.payloadInvalid, error: 'invalid mutation payload', reason_code: 'validation_error', invalid: invalidEntries,
+      });
+      return;
+    }
+    let seqs;
+    try {
+      seqs = await this.store.insertMutationBatch(normalized);
+    } catch (err) {
+      if (err instanceof MutationBatchEntryError) {
+        this.log(`cloudserver: mutation push rejected: batch_index=${err.batchIndex} entity=${JSON.stringify(err.entity.slice(0, 64))} entity_key=${JSON.stringify(err.entityKey.slice(0, 64))}`);
+        sendText(res, 500, `insert mutations: batch_index=${err.batchIndex} entity=${JSON.stringify(err.entity.slice(0, 64))} entity_key=${JSON.stringify(err.entityKey.slice(0, 64))}`);
+      } else {
+        this.log('cloudserver: mutation push rejected');
+        sendText(res, 500, 'insert mutations failed');
+      }
+      return;
+    }
+    sendMap(res, 200, { accepted_seqs: seqs, project: primary, project_source: 'request_body', project_path: '' });
+  }
+
+  async #pullMutations({ res, query }) {
+    const sinceRaw = goTrim(query.get('since_seq') ?? '');
+    let sinceSeq = 0;
+    if (sinceRaw !== '' && /^[+-]?\d+$/.test(sinceRaw)) sinceSeq = Number(sinceRaw);
+    const limitRaw = goTrim(query.get('limit') ?? '');
+    let limit = DEFAULT_PULL_LIMIT;
+    if (limitRaw !== '' && /^[+-]?\d+$/.test(limitRaw) && Number(limitRaw) > 0) limit = Math.min(Number(limitRaw), DEFAULT_PULL_LIMIT);
+    const allowed = this.allowlist.enrolled();
+    const primary = allowed !== null && allowed.length > 0 ? allowed[0] : '';
+    let page;
+    try {
+      page = await this.store.listMutationsSince(sinceSeq, limit, allowed);
+    } catch (err) {
+      sendText(res, 500, `list mutations: ${err.message}`);
+      return;
+    }
+    sendMap(res, 200, { mutations: page.mutations, has_more: page.has_more, latest_seq: page.latest_seq, project: primary, project_source: 'request_body', project_path: '' });
+  }
+
+  /** Anota una auditoría; un fallo solo se registra en el log. */
+  async #audit(entry, what) {
+    try {
+      await this.store.insertAuditEntry({ ...entry, outcome: AUDIT_OUTCOME_REJECTED_PROJECT_PAUSED, reasonCode: 'sync-paused' });
+    } catch (err) {
+      this.log(`[odin-cloud] audit insert failed (${what}): ${err.message}`);
+    }
   }
 
   async #rejectPaused(res, project, request) {

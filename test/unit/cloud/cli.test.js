@@ -12,13 +12,13 @@ const SERVER = 'https://nube.example';
 test('cloud sin subcomando, con ayuda o con uno desconocido', async (t) => {
   const w = cliWorld(t);
   const none = await w.odin(['cloud']);
-  assert.deepEqual([none.code, none.out, none.err], [1, '', 'usage: odin cloud <subcommand> [options]\nsupported subcommands: status, enroll, unenroll, config, serve\n']);
+  assert.deepEqual([none.code, none.out, none.err], [1, '', 'usage: odin cloud <subcommand> [options]\nsupported subcommands: status, enroll, unenroll, config, serve, repair\n']);
   for (const flag of ['--help', '-h', 'help']) {
     const help = await w.odin(['cloud', flag]);
-    assert.deepEqual([help.code, help.out], [0, 'usage: odin cloud <subcommand> [options]\nsupported subcommands: status, enroll, unenroll, config, serve\n']);
+    assert.deepEqual([help.code, help.out], [0, 'usage: odin cloud <subcommand> [options]\nsupported subcommands: status, enroll, unenroll, config, serve, repair\n']);
   }
   const unknown = await w.odin(['cloud', 'upgrade']);
-  assert.deepEqual([unknown.code, unknown.err], [1, 'unknown cloud command: upgrade\nsupported subcommands: status, enroll, unenroll, config, serve\n']);
+  assert.deepEqual([unknown.code, unknown.err], [1, 'unknown cloud command: upgrade\nsupported subcommands: status, enroll, unenroll, config, serve, repair\n']);
   assert.match((await w.odin(['help'])).out, /cloud <subcommand> Cloud integration commands \(opt-in\)\n/);
 });
 
@@ -181,4 +181,54 @@ test('cloud serve arranca, atiende y se detiene con la señal', async (t) => {
   assert.equal(result.code, 0, result.err);
   assert.match(result.out, /^Starting odin cloud server on port 0\n$/);
   assert.match(result.err, /warning: ODIN_CLOUD_INSECURE_NO_AUTH=1 disables cloud API authentication/);
+});
+
+test('cloud repair materialize-mutations valida sus argumentos, informa y repara', async (t) => {
+  const w = cliWorld(t);
+  const usage = 'usage: odin cloud repair materialize-mutations --project <name> (--dry-run|--apply)\n';
+  const help = await w.odin(['cloud', 'repair']);
+  assert.deepEqual([help.code, help.out], [0, `${usage}repairs existing cloud_mutations into compatible cloud_chunks without deleting remote data\n`]);
+  assert.equal((await w.odin(['cloud', 'repair', 'help'])).code, 0);
+  assert.deepEqual((await w.odin(['cloud', 'repair', 'otra'])).err, 'unknown cloud repair command: otra\nsupported cloud repair commands: materialize-mutations\n');
+  assert.equal((await w.odin(['cloud', 'repair', 'materialize-mutations', '--dry-run'])).err, `${usage}error: --project is required\n`);
+  assert.equal((await w.odin(['cloud', 'repair', 'materialize-mutations', '--project'])).err, `${usage}error: --project is required\n`);
+  assert.equal((await w.odin(['cloud', 'repair', 'materialize-mutations', '--project', 'a'])).err, `${usage}error: exactly one of --dry-run or --apply is required\n`);
+  assert.equal((await w.odin(['cloud', 'repair', 'materialize-mutations', '--project', 'a', '--dry-run', '--apply'])).err, `${usage}error: exactly one of --dry-run or --apply is required\n`);
+
+  const dsn = await pg.createDatabase();
+  const { CloudStore, Database } = await import('../../../src/cloud/server/index.js');
+  const store = new CloudStore(Database.connect(dsn));
+  await store.migrate();
+  await store.db.query(`INSERT INTO cloud_mutations (project, entity, entity_key, op, payload) VALUES ('demo', 'prompt', 'p1', 'delete', '{"sync_id":"p1"}')`);
+  const env = { ODIN_DATABASE_URL: dsn };
+  const dry = await w.odin(['cloud', 'repair', 'materialize-mutations', '--project', 'Demo', '--dry-run'], { env });
+  assert.deepEqual(JSON.parse(dry.out), { project: 'demo', applied: false, candidate_mutations: 1, already_materialized: 0, invalid_mutations: 0, chunks_planned: 1, chunks_inserted: 0 });
+  assert.equal(dry.out, `${JSON.stringify(JSON.parse(dry.out), null, 2)}\n`, 'JSON con sangría de dos espacios');
+  assert.equal(JSON.parse((await w.odin(['cloud', 'repair', 'materialize-mutations', '--project', 'demo', '--apply'], { env })).out).chunks_inserted, 1);
+  assert.equal((await store.db.query('SELECT 1 FROM cloud_chunks')).length, 1);
+  await store.close();
+});
+
+test('cloud serve repara al arrancar los proyectos de su lista', async (t) => {
+  const w = cliWorld(t);
+  const dsn = await pg.createDatabase();
+  const { CloudStore, Database } = await import('../../../src/cloud/server/index.js');
+  const seed = new CloudStore(Database.connect(dsn));
+  await seed.migrate();
+  await seed.db.query(`INSERT INTO cloud_mutations (project, entity, entity_key, op, payload) VALUES ('demo', 'prompt', 'p1', 'delete', '{"sync_id":"p1"}')`);
+  const controller = new AbortController();
+  let ready;
+  const started = new Promise((resolve) => { ready = resolve; });
+  const running = w.odin(['cloud', 'serve'], {
+    env: { ODIN_CLOUD_INSECURE_NO_AUTH: '1', ODIN_CLOUD_ALLOWED_PROJECTS: 'demo, otro', ODIN_DATABASE_URL: dsn },
+    overrides: { cloudServe: { port: 0, signal: controller.signal, ready, log: () => {} } },
+  });
+  await started;
+  controller.abort();
+  const result = await running;
+  assert.equal(result.code, 0, result.err);
+  assert.match(result.err, /odin cloud repair materialize-mutations: project=demo candidates=1 already_materialized=0 chunks_planned=1 chunks_inserted=1\n/);
+  assert.doesNotMatch(result.err, /project=otro/);
+  assert.equal((await seed.db.query('SELECT 1 FROM cloud_chunks')).length, 1);
+  await seed.close();
 });

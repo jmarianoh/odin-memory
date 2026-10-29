@@ -68,3 +68,34 @@ Reglas de normalización (mensajes literales):
 - Mutación de sesión `upsert` sin carga legible → `mutations[i] invalid payload: <detalle>`; sin id ni clave → `mutations[i].payload.id is required for session upsert`.
 - Observación o prompt sin `session_id` → `<clave>[i].session_id is required`; con una sesión inexistente → `<clave>[i] references missing session_id "<id>"`.
 - Mutación de observación o prompt: carga ilegible → `mutations[i] invalid payload: …`; solo en `upsert`: sin `session_id` → `mutations[i].payload.session_id is required for upsert`; inexistente → `mutations[i] references missing session_id "<id>"`.
+
+## Materialización (`src/cloud/materialize.js`)
+
+Convierte entre chunks y mutaciones; la usa el servidor en las dos direcciones.
+
+### Chunk con campos tipados (`parseTypedChunk`)
+
+Decodifica `sessions`, `observations`, `prompts` y `mutations` como lo haría un decodificador de estructuras: ausente o `null` = lista vacía; un elemento `null` = fila vacía; los campos desconocidos se descartan; un tipo erróneo lanza `json: cannot unmarshal <tipo> into Go struct field <Estructura>.<lista>.<campo> of type <tipo>` (p. ej. `Observation.observations.title`); un valor que no es lista o fila, `json: cannot unmarshal <tipo> into Go struct field ChunkData.<lista> of type []store.<Fila>`; la raíz no objeto, `json: cannot unmarshal <tipo> into Go value of type sync.ChunkData`. Una sesión `project_owned` con `directory` presente y no cadena lanza `sessions[i]: pulled session directory is invalid: directory must be a string`.
+
+Campos de cada fila (`~` = se omite si está vacío o es nulo): sesión `id`, `project`, `ownership_mode~`, `directory`, `started_at`, `ended_at~`, `summary~`; observación `id` (entero), `sync_id`, `session_id`, `type`, `title`, `content`, `tool_name~`, `project~`, `scope`, `topic_key~`, `revision_count` (entero), `duplicate_count` (entero), `last_seen_at~`, `review_after~`, `superseded_by_sync_id~`, `created_at`, `updated_at`, `deleted_at~`; prompt `source_inbox_id~`, `id` (entero), `sync_id`, `session_id`, `content`, `project~` (cadena), `created_at`; mutación, los de `SyncMutation`.
+
+### `materializeChunkMutation(project, mutation)`
+
+Devuelve `{ project, entity, entity_key, op, payload }` o `null`:
+
+1. Entidad recortada que no sea `session`, `observation`, `prompt` ni `relation` → `null`. Operación vacía = `upsert`; fuera de `upsert`/`delete` (salvo relaciones, que no se filtran) → `null`.
+2. Clave de entidad (`mutationEntityKey`: la de una sesión tal cual, las demás recortadas) en blanco → `entity_key is required for <entidad>`.
+3. Carga recortada (vacía = `{}`). Relación: `validateRelationPayload` debe pasar (`payload.<campo> is required for relation`).
+4. Un `upsert`, o un `delete` de sesión, se valida: carga `null` → `payload must be a JSON object`; la identidad de la carga (sesión: `id`, o la clave si falta; observación y prompt: `sync_id` recortado) debe coincidir con la clave si no está vacía (`payload.<campo> "<id>" does not match entity_key "<clave>"`); una carga de observación o prompt que no sea un objeto lanza `json: cannot unmarshal <tipo> into Go value of type store.<Fila>`. Los errores se envuelven como `invalid <entidad> <operación> payload: <detalle>`.
+
+### Mutaciones de un chunk subido (`chunkMaterializedMutations`)
+
+Por orden: un alta por cada sesión (clave = `id`, que no puede estar en blanco), observación (clave = `sync_id` recortado) y prompt del chunk, con la fila tipada como carga; después las de la lista `mutations` que se materializan, **sin repetir** un alta (`upsert`) cuya entidad y clave ya salieron de las listas (las bajas se conservan, así que van detrás y ganan al reproducir). Errores: `cloudstore: materialize chunk: <lista>[i].<campo> is required` o `…: mutations[i].<detalle>`.
+
+### Chunk de un lote de mutaciones (`mutationBatchChunks`)
+
+Agrupa por proyecto (orden de aparición; proyecto en blanco → `cloudstore: materialize mutation batch: entries[i].project is required`). Por cada grupo: materializa cada entrada (una que no viaja se omite; error → `cloudstore: materialize mutation batch entry <i>: <detalle>`), añade a `mutations` las que viajan y, para los `upsert`, la fila tipada a `sessions`, `observations` o `prompts` (sin `sync_id`, toma la clave). Sin mutaciones no hay chunk. El documento `{ sessions, observations, prompts, mutations }` (mutaciones con todos los campos de `SyncMutation`, `disposition` vacía) se canonicaliza para el proyecto; el identificador es el de esa carga, los contadores son las longitudes de las tres listas y `created_by` el de la primera entrada del grupo.
+
+### Firmas (`mutationSignature`, `entrySignature`)
+
+`mutationSignature(m)` = proyecto, entidad, clave, operación y carga normalizada (`normalizeJson` + `canonicalJson`) unidos con `\0`; una carga que no es JSON → `payload is not valid JSON`. `entrySignature(fila)` primero pasa la fila por la canonicalización de chunks (proyecto vacío → `project is required`) y firma la mutación resultante. Sirven para saber qué filas del diario ya están en algún chunk.
