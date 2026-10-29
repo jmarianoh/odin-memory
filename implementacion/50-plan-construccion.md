@@ -446,6 +446,15 @@ npm run check:implementacion
 npm run check:clean-room
 ```
 
-### F9.4
+### F9.4b — Pantallas de la nube en la TUI (spec 0.31.0)
 
-Se detallan en `30-cloud/` al completarse cada porción. Este documento recibe, por fase, la lista ordenada de archivos a crear y los comandos de aceptación `npm test -- test/<área>`.
+1. Copiar de `fuentes/` los tests nuevos y modificados (`test/unit/tui/{cloud,cloud-model,cloud-app,model,app,format}.test.js`).
+2. Según `19-tui.md` (sección «Sincronización con la nube»): crear `src/tui/cloud.js`; ampliar `src/tui/model.js` (pantallas, estado, `Cloud sync settings` en `DASHBOARD_MENU`, manejadores y generación de peticiones), `src/tui/commands.js` (seis comandos), `src/tui/view.js` (cuatro pantallas) y `src/tui/keys.js` (`shift+tab`).
+
+Aceptación:
+```bash
+node --test "test/unit/tui/*.test.js"
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```

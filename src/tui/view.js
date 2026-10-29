@@ -5,9 +5,10 @@ import { observationState } from '../store/observations.js';
 import { COLORS, LOGO_GRADIENT } from './palette.js';
 import { localTime, truncateStr } from './format.js';
 import {
-  DASHBOARD_MENU, DELETE_STATE, SCREEN, detailContentLines, detailLayout, detailMetadata, timelineRows, timelineViewport, visibleItems,
+  CLOUD_CONFIG_ACTIONS, CLOUD_CONFIG_FOCUS, CLOUD_SETTINGS_MENU, DASHBOARD_MENU, DELETE_STATE, SCREEN, detailContentLines, detailLayout, detailMetadata, timelineRows, timelineViewport, visibleItems,
 } from './model.js';
 import { inputView } from './text-input.js';
+import { ENV_CLOUD_TOKEN, SOURCE_LABEL } from '../cloud/config.js';
 
 const html = htm.bind(createElement);
 
@@ -293,6 +294,75 @@ function Setup({ s }) {
     <//>`;
 }
 
+// ─── Nube ────────────────────────────────────────────────────────────────────
+
+const orElse = (value, fallback) => (value === '' ? fallback : value);
+
+function CloudSettings({ s }) {
+  return html`
+    <${Box} flexDirection="column">
+      <${Header} title="  Cloud sync settings" />
+      <${Menu} items=${CLOUD_SETTINGS_MENU} cursor=${s.cursor} />
+      <${Help} text="  j/k navigate • enter select • esc/q back" />
+    <//>`;
+}
+
+function CloudConfig({ s }) {
+  const v = inputView(s.cloudConfigInput);
+  const focused = s.cloudConfigFocus === CLOUD_CONFIG_FOCUS.input;
+  return html`
+    <${Box} flexDirection="column">
+      <${Header} title="  Configure cloud server" />
+      <${Box}>
+        <${Text} color=${COLORS.subtext}>${'  Server URL: '.padEnd(18)}<//>
+        <${Box} borderStyle="single" borderColor=${focused ? COLORS.accent : COLORS.overlay} paddingX=${1}>
+          <${Text}>${v.placeholder && !s.cloudConfigInput.focused ? html`<${Text} color=${COLORS.subtext}>${v.after}<//>` : html`<${Fragment}>${v.before}<${Text} inverse=${s.cloudConfigInput.focused}>${v.cursor}<//>${v.after}<//>`}<//>
+        <//>
+      <//>
+      <${Text}><${Text} color=${COLORS.subtext}>${'  Token source: '.padEnd(18)}<//><${Text}>${orElse(s.cloudConfigTokenSource, 'not set')}<//><//>
+      ${s.cloudConfigTokenSource === SOURCE_LABEL.env ? null : html`<${Muted}>  Set ${ENV_CLOUD_TOKEN} to override cloud.json.token<//>`}
+      <${Box} flexDirection="column" marginTop=${1}>
+        ${CLOUD_CONFIG_ACTIONS.map((item, i) => html`
+          <${Text} key=${item} bold=${s.cloudConfigFocus === i + 1} color=${s.cloudConfigFocus === i + 1 ? COLORS.accent : COLORS.text}>${s.cloudConfigFocus === i + 1 ? '▸ ' : '  '}${item}<//>`)}
+      <//>
+      ${s.cloudConfigSaving ? html`<${Muted}>  Checking server...<//>` : null}
+      ${s.cloudConfigPingStatus === '' ? null : html`<${Text}><${Text} color=${COLORS.subtext}>  Connection: <//><${Text}>${s.cloudConfigPingStatus}<//><//>`}
+      ${s.cloudConfigError === '' ? null : html`<${Text} bold color=${COLORS.red}>  Error: ${s.cloudConfigError}<//>`}
+      <${Help} text="  j/k navigate • i edit URL • enter select • esc/q back" />
+    <//>`;
+}
+
+function CloudStatus({ s }) {
+  const rows = [
+    ['Server URL', orElse(s.cloudStatusServerUrl, 'not configured')],
+    ['Connection health', orElse(s.cloudStatusHealth, 'not checked')],
+    ['Last successful sync', orElse(s.cloudStatusLastSync, 'never')],
+    ['Pending mutations', String(s.cloudStatusPending)],
+    ['Last error', orElse(s.cloudStatusHealthError || s.cloudStatusLastError, 'none')],
+  ];
+  return html`
+    <${Box} flexDirection="column">
+      <${Header} title="  Cloud status" />
+      ${s.cloudStatusLoading ? html`<${Muted}>  Loading cloud status...<//>` : null}
+      ${rows.map(([label, value]) => html`<${Text} key=${label}><${Text} color=${COLORS.subtext}>${`  ${label}: `.padEnd(22)}<//><${Text}>${value}<//><//>`)}
+      <${Help} text="  r refresh • esc/q back" />
+    <//>`;
+}
+
+function CloudEnrollment({ s }) {
+  const items = s.cloudEnrollmentItems;
+  return html`
+    <${Box} flexDirection="column">
+      <${Header} title="  Enroll projects for cloud sync" />
+      ${s.cloudEnrollmentLoading ? html`<${Muted}>  Loading projects...<//>` : null}
+      ${items.length === 0 && !s.cloudEnrollmentLoading ? html`<${Muted}>  No local projects found.<//>` : null}
+      ${items.map((item, i) => html`
+        <${Text} key=${item.project} bold=${i === s.cursor} color=${i === s.cursor ? COLORS.accent : COLORS.text}>${i === s.cursor ? '▸ ' : '  '}${item.enrolled ? '[x]' : '[ ]'} ${item.project}<//>`)}
+      ${s.cloudEnrollmentError === '' ? null : html`<${Text} bold color=${COLORS.red}>  Error: ${s.cloudEnrollmentError}<//>`}
+      <${Help} text="  j/k navigate • enter toggle • r refresh • esc/q back" />
+    <//>`;
+}
+
 const SCREENS = {
   [SCREEN.dashboard]: Dashboard,
   [SCREEN.search]: Search,
@@ -303,6 +373,10 @@ const SCREENS = {
   [SCREEN.sessions]: Sessions,
   [SCREEN.sessionDetail]: SessionDetail,
   [SCREEN.setup]: Setup,
+  [SCREEN.cloudSettings]: CloudSettings,
+  [SCREEN.cloudConfig]: CloudConfig,
+  [SCREEN.cloudStatus]: CloudStatus,
+  [SCREEN.cloudEnrollment]: CloudEnrollment,
 };
 
 /** Árbol de Ink de la pantalla actual, con el error y el aviso de copia debajo. */

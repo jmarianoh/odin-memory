@@ -27,7 +27,7 @@ test('estado inicial y comandos de arranque', () => {
   const s = initialState({ version: '9' });
   assert.deepEqual([s.screen, s.version, s.cursor, s.stats, s.searchInput.placeholder, s.searchInput.charLimit], ['dashboard', '9', 0, null, 'Search memories...', 256]);
   assert.deepEqual(initialCommands(), [{ type: 'load-stats' }, { type: 'check-update' }]);
-  assert.deepEqual(DASHBOARD_MENU, ['Search memories', 'Recent observations', 'Browse sessions', 'Set up Copilot', 'Quit']);
+  assert.deepEqual(DASHBOARD_MENU, ['Search memories', 'Recent observations', 'Browse sessions', 'Set up Copilot', 'Cloud sync settings', 'Quit']);
 });
 
 test('ctrl+c sale desde cualquier pantalla, incluso con el campo de búsqueda activo', () => {
@@ -38,8 +38,8 @@ test('ctrl+c sale desde cualquier pantalla, incluso con el campo de búsqueda ac
 });
 
 test('panel: navegación, selección y atajos', () => {
-  let { state } = run(at(SCREEN.dashboard), 'j', 'j', 'j', 'j', 'j', 'j');
-  assert.equal(state.cursor, 4, 'no pasa del último');
+  let { state } = run(at(SCREEN.dashboard), 'j', 'j', 'j', 'j', 'j', 'j', 'j');
+  assert.equal(state.cursor, 5, 'no pasa del último');
   assert.equal(run(state, 'k', 'k', 'k', 'k', 'k', 'up').state.cursor, 0);
   assert.deepEqual(run(state, 'enter').cmds, [{ type: 'quit' }]);
   assert.deepEqual(run(at(SCREEN.dashboard), 'q').cmds, [{ type: 'quit' }]);
@@ -49,6 +49,8 @@ test('panel: navegación, selección y atajos', () => {
   assert.deepEqual([sessions.state.screen, sessions.cmds], ['sessions', [{ type: 'load-sessions' }]]);
   const setup = run(at(SCREEN.dashboard, { cursor: 3, setupDone: true, setupError: 'x' }), 'enter');
   assert.deepEqual([setup.state.screen, setup.state.setupAgents, setup.state.setupDone, setup.state.setupError], ['setup', AGENTS, false, '']);
+  const cloud = run(at(SCREEN.dashboard, { cursor: 4 }), 'enter');
+  assert.deepEqual([cloud.state.screen, cloud.state.cursor, cloud.state.prevScreen, cloud.cmds], ['cloud-settings', 0, 'dashboard', []]);
   for (const key of ['s', '/']) {
     const search = run(at(SCREEN.dashboard), key);
     assert.deepEqual([search.state.screen, search.state.prevScreen, search.state.searchInput.focused, inputValue(search.state.searchInput)], ['search', 'dashboard', true, '']);

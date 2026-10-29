@@ -3,6 +3,10 @@ import {
 } from '../store/index.js';
 import { SLUGS, setupClient, targets } from '../setup/install.js';
 import { checkLatest } from '../version/check.js';
+import { effectiveToken } from '../cloud/config.js';
+import {
+  listCloudEnrollment, loadCloudSettings, loadCloudStatus, pingCloudServer, saveCloudServerUrl, toggleCloudEnrollment,
+} from './cloud.js';
 import { osc52Sequence } from './format.js';
 
 /** Cuántos resultados trae cada lista. */
@@ -25,6 +29,15 @@ export function setupAgents(ctx) {
     description: DESCRIPTIONS[name],
     installDir: targets(name, { env: ctx.env, home: ctx.home, cwd: ctx.cwd(), platform: ctx.platform ?? process.platform }).mcp,
   }));
+}
+
+/** Ejecuta una operación de la nube y devuelve su resultado (o el error) como mensaje `type`. */
+function cloudResult(type, extra, fn) {
+  try {
+    return { type, ...extra, ...fn() };
+  } catch (error) {
+    return failure(type, error, extra);
+  }
 }
 
 const failure = (type, error, extra = {}) => ({ type, error: error instanceof Error ? error : new Error(String(error)), ...extra });
@@ -61,6 +74,17 @@ export function executeCommand(cmd, ctx) {
       case 'install': {
         const changes = setupClient(cmd.agent, { env: ctx.env, home: ctx.home, cwd: ctx.cwd(), platform: ctx.platform ?? process.platform });
         return { type: 'setup-installed', result: { agent: cmd.agent, changes } };
+      }
+      case 'load-cloud-config': return cloudResult('cloud-config-loaded', { generation: cmd.generation }, () => loadCloudSettings(store.dataDir, ctx.env));
+      case 'load-cloud-status': return cloudResult('cloud-status-loaded', { generation: cmd.generation }, () => loadCloudStatus(store, ctx.env));
+      case 'load-cloud-enrollment': return cloudResult('cloud-enrollment-loaded', {}, () => ({ items: listCloudEnrollment(store) }));
+      case 'toggle-cloud-enrollment': return cloudResult('cloud-enrollment-toggled', {}, () => toggleCloudEnrollment(store, cmd.item));
+      case 'save-cloud-url': return cloudResult('cloud-url-saved', {}, () => saveCloudServerUrl(store.dataDir, cmd.serverUrl));
+      case 'ping-cloud': {
+        const { token } = effectiveToken(store.dataDir, ctx.env);
+        return pingCloudServer(cmd.serverUrl, token, ctx.fetch).then(({ status, error }) => ({
+          type: 'cloud-ping', origin: cmd.origin, generation: cmd.generation, serverUrl: cmd.serverUrl, status, error,
+        }));
       }
       case 'copy': return { type: 'clipboard-copied', sequence: osc52Sequence(cmd.content) };
       default: return null;

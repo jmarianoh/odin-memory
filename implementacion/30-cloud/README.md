@@ -13,9 +13,9 @@ Cloud replica la memoria de proyectos concretos en un servidor compartido con Po
 | F9.2c-2 | 0.29.0 | Exportación de la nube respaldada por el diario, `cloud upgrade doctor|repair|bootstrap|remirror|status|rollback`, `cloud attest-prompt-source`, Docker del servidor | hecha |
 | F9.4a | 0.30.0 | Reparaciones del diario de `doctor` (campos requeridos con cuarentena, destinos ajenos, sustitución de identidad), `doctor discard-empty-prompt`, rescate de propiedad sobre proyectos inscritos | hecha |
 | F9.3 | 0.28.0 | Panel web (HTML en servidor + htmx + Pico): acceso con token y sesión firmada, navegador de memoria, proyectos, contribuidores, administración, controles de sincronización, usuarios gestionados y registro de rechazos | hecha |
-| F9.4 | — | Pantallas de la TUI, reparaciones del diario, `rescue-ownership` sobre proyectos inscritos, Docker | pendiente |
+| F9.4b | 0.31.0 | Pantallas de la TUI: menú de la nube, configuración del servidor con comprobación de conexión, estado e inscripción de proyectos (ver `../19-tui.md`) | hecha |
 
-Pendiente tras 0.30.0: las pantallas de nube de la TUI.
+Con 0.31.0 el alcance de F9 queda completo.
 
 ## Documentos
 

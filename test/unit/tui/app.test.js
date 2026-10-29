@@ -185,7 +185,7 @@ test('salir con q, con Ctrl+C y con la opción Quit', async (t) => {
   await ctrl.tui.press(KEYS.ctrlC);
   await ctrl.tui.exited;
   const menu = world(t);
-  await menu.tui.press('j', 'j', 'j', 'j', KEYS.enter);
+  await menu.tui.press('j', 'j', 'j', 'j', 'j', KEYS.enter);
   await menu.tui.exited;
 });
 

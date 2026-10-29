@@ -1,4 +1,6 @@
+import { validateServerUrl } from '../cloud/config.js';
 import { observationState } from '../store/observations.js';
+import { goTrim } from '../store/text.js';
 import { formatReviewDate, localTime, wrapLines } from './format.js';
 import { blur, focus, inputValue, newTextInput, setValue, updateTextInput } from './text-input.js';
 
@@ -18,11 +20,20 @@ export const SCREEN = Object.freeze({
   sessions: 'sessions',
   sessionDetail: 'session-detail',
   setup: 'setup',
+  cloudSettings: 'cloud-settings',
+  cloudConfig: 'cloud-config',
+  cloudStatus: 'cloud-status',
+  cloudEnrollment: 'cloud-enrollment',
 });
+
+/** Opciones del menú de la nube y elementos del formulario de configuración (en orden de foco). */
+export const CLOUD_SETTINGS_MENU = Object.freeze(['Configure server', 'View status', 'Enroll projects', 'Back']);
+export const CLOUD_CONFIG_FOCUS = Object.freeze({ input: 0, test: 1, save: 2, cancel: 3 });
+export const CLOUD_CONFIG_ACTIONS = Object.freeze(['Test connection', 'Save server', 'Cancel']);
 
 export const DELETE_STATE = Object.freeze({ none: 'none', prompt: 'prompt', deleting: 'deleting' });
 
-export const DASHBOARD_MENU = Object.freeze(['Search memories', 'Recent observations', 'Browse sessions', 'Set up Copilot', 'Quit']);
+export const DASHBOARD_MENU = Object.freeze(['Search memories', 'Recent observations', 'Browse sessions', 'Set up Copilot', 'Cloud sync settings', 'Quit']);
 
 /** Líneas fijas alrededor del contenido en la vista de detalle (ver `detailLayout`). */
 const DETAIL_CHROME = 10;
@@ -63,6 +74,24 @@ export function initialState({ version = '' } = {}) {
     setupInstalling: false,
     setupInstallingName: '',
     spinnerFrame: 0,
+    cloudGeneration: 0,
+    cloudConfigInput: newTextInput({ placeholder: 'https://odin.example.com', charLimit: 512, width: 60 }),
+    cloudConfigTokenSource: '',
+    cloudConfigError: '',
+    cloudConfigFocus: CLOUD_CONFIG_FOCUS.input,
+    cloudConfigPingStatus: '',
+    cloudConfigSaving: false,
+    cloudConfigTest: false,
+    cloudStatusServerUrl: '',
+    cloudStatusHealth: '',
+    cloudStatusLastSync: '',
+    cloudStatusPending: 0,
+    cloudStatusLastError: '',
+    cloudStatusHealthError: '',
+    cloudStatusLoading: false,
+    cloudEnrollmentItems: [],
+    cloudEnrollmentError: '',
+    cloudEnrollmentLoading: false,
   };
 }
 
@@ -223,6 +252,9 @@ export function update(state, msg, deps = {}) {
     case 'setup-installed':
       if (msg.error) return result({ ...state, setupInstalling: false, setupDone: true, setupError: msg.error.message });
       return result({ ...state, setupInstalling: false, setupResult: msg.result, setupError: '', setupDone: true });
+    case 'cloud-config-loaded': case 'cloud-status-loaded': case 'cloud-enrollment-loaded': case 'cloud-enrollment-toggled':
+    case 'cloud-ping': case 'cloud-url-saved':
+      return onCloudResult(state, msg);
     case 'clipboard-copied':
       return result({ ...state, copyFeedback: '✓ Copied!' }, { type: 'print', text: msg.sequence }, { type: 'clear-feedback', ms: 2000 });
     case 'clipboard-clear':
@@ -242,6 +274,7 @@ function clampViewport(state) {
 function onKey(state, msg, deps) {
   if (msg.key === 'ctrl+c') return result(state, { type: 'quit' });
   if (state.screen === SCREEN.search && state.searchInput.focused) return onSearchInput(state, msg);
+  if (state.screen === SCREEN.cloudConfig && state.cloudConfigInput.focused) return onCloudConfigInput(state, msg);
   return onKeyPress({ ...state, errorMsg: '' }, msg.key, deps);
 }
 
@@ -256,6 +289,10 @@ function onKeyPress(state, key, deps) {
     case SCREEN.sessions: return onSessions(state, key);
     case SCREEN.sessionDetail: return onSessionDetail(state, key);
     case SCREEN.setup: return onSetup(state, key);
+    case SCREEN.cloudSettings: return onCloudSettings(state, key);
+    case SCREEN.cloudConfig: return onCloudConfig(state, key);
+    case SCREEN.cloudStatus: return onCloudStatus(state, key);
+    case SCREEN.cloudEnrollment: return onCloudEnrollment(state, key);
     default: return result(state);
   }
 }
@@ -287,7 +324,8 @@ function selectDashboard(state, deps) {
       return result({
         ...go, screen: SCREEN.setup, setupAgents: deps.agents ? deps.agents() : [], setupResult: null, setupError: '', setupDone: false, setupInstalling: false, setupInstallingName: '',
       });
-    case 4: return result(state, { type: 'quit' });
+    case 4: return result({ ...go, screen: SCREEN.cloudSettings });
+    case 5: return result(state, { type: 'quit' });
     default: return result(state);
   }
 }
@@ -438,6 +476,164 @@ function onSetup(state, key) {
     case 'esc': case 'q': return result({ ...state, screen: SCREEN.dashboard, cursor: 0 }, { type: 'load-stats' });
     default: return result(state);
   }
+}
+
+// ─── Sincronización con la nube ──────────────────────────────────────────────
+
+const backToDashboard = (state) => result({ ...state, screen: SCREEN.dashboard, cursor: 0 }, { type: 'load-stats' });
+const backToCloudSettings = (state, cursor) => result({ ...state, screen: SCREEN.cloudSettings, cursor });
+const nextFocus = (focus) => (focus >= CLOUD_CONFIG_FOCUS.cancel ? CLOUD_CONFIG_FOCUS.input : focus + 1);
+const previousFocus = (focus) => (focus <= CLOUD_CONFIG_FOCUS.input ? CLOUD_CONFIG_FOCUS.cancel : focus - 1);
+
+function onCloudSettings(state, key) {
+  switch (key) {
+    case 'up': case 'k': return result(state.cursor > 0 ? { ...state, cursor: state.cursor - 1 } : state);
+    case 'down': case 'j': return result(state.cursor < CLOUD_SETTINGS_MENU.length - 1 ? { ...state, cursor: state.cursor + 1 } : state);
+    case 'enter': case ' ': return selectCloudSettings(state);
+    case 'esc': case 'q': return backToDashboard(state);
+    default: return result(state);
+  }
+}
+
+function selectCloudSettings(state) {
+  const generation = state.cloudGeneration + 1;
+  switch (state.cursor) {
+    case 0:
+      return result(
+        { ...state, screen: SCREEN.cloudConfig, cloudConfigError: '', cloudConfigPingStatus: '', cloudConfigFocus: CLOUD_CONFIG_FOCUS.input, cloudConfigSaving: false, cloudGeneration: generation },
+        { type: 'load-cloud-config', generation },
+      );
+    case 1:
+      return result(
+        { ...state, screen: SCREEN.cloudStatus, cloudGeneration: generation, cloudStatusLoading: true, cloudStatusLastError: '', cloudStatusHealthError: '' },
+        { type: 'load-cloud-status', generation },
+      );
+    case 2:
+      return result({ ...state, screen: SCREEN.cloudEnrollment, cursor: 0, cloudEnrollmentLoading: true, cloudEnrollmentError: '' }, { type: 'load-cloud-enrollment' });
+    case 3: return backToDashboard(state);
+    default: return result(state);
+  }
+}
+
+/** Teclas con el campo de la URL enfocado: edita el texto y solo reserva tab, enter y esc. */
+function onCloudConfigInput(state, msg) {
+  const input = blur(state.cloudConfigInput);
+  switch (msg.key) {
+    case 'tab': return result({ ...state, cloudConfigInput: input, cloudConfigFocus: nextFocus(state.cloudConfigFocus) });
+    case 'shift+tab': {
+      const cloudConfigFocus = previousFocus(state.cloudConfigFocus);
+      return result({ ...state, cloudConfigInput: cloudConfigFocus === CLOUD_CONFIG_FOCUS.input ? focus(input) : input, cloudConfigFocus });
+    }
+    case 'enter': return result({ ...state, cloudConfigInput: input, cloudConfigFocus: CLOUD_CONFIG_FOCUS.test });
+    case 'esc': return backToCloudSettings({ ...state, cloudConfigInput: input }, 0);
+    default: return result({ ...state, cloudConfigInput: updateTextInput(state.cloudConfigInput, msg.key, msg.input ?? '') });
+  }
+}
+
+function onCloudConfig(state, key) {
+  if (state.cloudConfigSaving) return result(state);
+  const at = state.cloudConfigFocus;
+  switch (key) {
+    case 'tab': case 'down': case 'j': return result({ ...state, cloudConfigFocus: nextFocus(at) });
+    case 'shift+tab': case 'up': case 'k': return result({ ...state, cloudConfigFocus: previousFocus(at) });
+    case 'i': return result({ ...state, cloudConfigFocus: CLOUD_CONFIG_FOCUS.input, cloudConfigInput: focus(state.cloudConfigInput) });
+    case 'esc': case 'q': return backToCloudSettings({ ...state, cloudConfigInput: blur(state.cloudConfigInput) }, 0);
+    case 'enter': case ' ':
+      if (at === CLOUD_CONFIG_FOCUS.input) return result({ ...state, cloudConfigInput: focus(state.cloudConfigInput) });
+      if (at === CLOUD_CONFIG_FOCUS.cancel) return backToCloudSettings(state, 0);
+      return checkCloudServer(state);
+    default: return result(state);
+  }
+}
+
+/** «Test connection» y «Save server» validan la URL y comprueban el servidor; guardar sigue en `onCloudPing`. */
+function checkCloudServer(state) {
+  let serverUrl;
+  try {
+    serverUrl = validateServerUrl(inputValue(state.cloudConfigInput));
+  } catch (error) {
+    return result({ ...state, cloudConfigError: error.message });
+  }
+  const generation = state.cloudGeneration + 1;
+  return result(
+    { ...state, cloudConfigError: '', cloudConfigPingStatus: 'checking', cloudConfigTest: state.cloudConfigFocus === CLOUD_CONFIG_FOCUS.test, cloudConfigSaving: true, cloudGeneration: generation },
+    { type: 'ping-cloud', origin: 'config', generation, serverUrl },
+  );
+}
+
+function onCloudStatus(state, key) {
+  switch (key) {
+    case 'r': {
+      const generation = state.cloudGeneration + 1;
+      return result({ ...state, cloudGeneration: generation, cloudStatusLoading: true, cloudStatusHealthError: '' }, { type: 'load-cloud-status', generation });
+    }
+    case 'esc': case 'q': return backToCloudSettings(state, 1);
+    default: return result(state);
+  }
+}
+
+function onCloudEnrollment(state, key) {
+  const items = state.cloudEnrollmentItems;
+  switch (key) {
+    case 'up': case 'k': return result(state.cursor > 0 ? { ...state, cursor: state.cursor - 1 } : state);
+    case 'down': case 'j': return result(state.cursor < items.length - 1 ? { ...state, cursor: state.cursor + 1 } : state);
+    case 'enter': case ' ':
+      if (state.cloudEnrollmentLoading || state.cursor >= items.length) return result(state);
+      return result({ ...state, cloudEnrollmentLoading: true }, { type: 'toggle-cloud-enrollment', item: items[state.cursor] });
+    case 'r': return result({ ...state, cloudEnrollmentLoading: true }, { type: 'load-cloud-enrollment' });
+    case 'esc': case 'q': return backToCloudSettings(state, 2);
+    default: return result(state);
+  }
+}
+
+/** Resultados de las órdenes de la nube; los que llevan `generation` se ignoran si ya hay otra petición más reciente. */
+function onCloudResult(state, msg) {
+  const stale = msg.generation !== state.cloudGeneration;
+  switch (msg.type) {
+    case 'cloud-config-loaded':
+      if (stale || state.screen !== SCREEN.cloudConfig) return result(state);
+      if (msg.error) return result({ ...state, cloudConfigError: msg.error.message });
+      return result({ ...state, cloudConfigTokenSource: msg.tokenSource, cloudConfigInput: focus(setValue(state.cloudConfigInput, msg.serverUrl)) });
+    case 'cloud-status-loaded': {
+      if (stale || state.screen !== SCREEN.cloudStatus) return result(state);
+      if (msg.error) return result({ ...state, cloudStatusLoading: false, cloudStatusLastError: msg.error.message, cloudStatusHealthError: '' });
+      const next = {
+        ...state, cloudStatusLoading: false, cloudStatusServerUrl: msg.serverUrl, cloudStatusLastSync: msg.lastSync, cloudStatusPending: msg.pendingCount,
+        cloudStatusLastError: msg.lastError, cloudStatusHealthError: '',
+      };
+      return msg.serverUrl === '' ? result(next) : result(next, { type: 'ping-cloud', origin: 'status', generation: msg.generation, serverUrl: msg.serverUrl });
+    }
+    case 'cloud-enrollment-loaded': {
+      if (msg.error) return result({ ...state, cloudEnrollmentLoading: false, cloudEnrollmentError: msg.error.message });
+      const next = { ...state, cloudEnrollmentLoading: false, cloudEnrollmentItems: msg.items, cloudEnrollmentError: '' };
+      if (state.screen === SCREEN.cloudEnrollment) next.cursor = Math.max(0, Math.min(state.cursor, msg.items.length - 1));
+      return result(next);
+    }
+    case 'cloud-enrollment-toggled':
+      if (msg.error) return result({ ...state, cloudEnrollmentLoading: false, cloudEnrollmentError: msg.error.message });
+      return result({ ...state, cloudEnrollmentLoading: true }, { type: 'load-cloud-enrollment' });
+    case 'cloud-ping': return stale ? result(state) : onCloudPing(state, msg);
+    default: return onCloudUrlSaved(state, msg);
+  }
+}
+
+function onCloudPing(state, msg) {
+  if (msg.origin === 'status') {
+    if (state.screen !== SCREEN.cloudStatus || msg.serverUrl !== state.cloudStatusServerUrl) return result(state);
+    return result({ ...state, cloudStatusHealth: msg.status, cloudStatusHealthError: msg.error ? msg.error.message : '' });
+  }
+  if (state.screen !== SCREEN.cloudConfig || msg.serverUrl !== goTrim(inputValue(state.cloudConfigInput))) return result(state);
+  const next = { ...state, cloudConfigSaving: false, cloudConfigPingStatus: msg.status };
+  if (msg.error) return result({ ...next, cloudConfigError: msg.error.message });
+  if (state.cloudConfigTest) return result(next);
+  if (msg.status !== 'reachable' && msg.status !== 'unauthorized') return result({ ...next, cloudConfigError: 'server is unreachable' });
+  return result(next, { type: 'save-cloud-url', serverUrl: msg.serverUrl });
+}
+
+function onCloudUrlSaved(state, msg) {
+  if (state.screen !== SCREEN.cloudConfig) return result(state);
+  if (msg.error) return result({ ...state, cloudConfigError: msg.error.message });
+  return result({ ...state, cloudConfigFocus: CLOUD_CONFIG_FOCUS.save, cloudConfigInput: blur(state.cloudConfigInput) });
 }
 
 export { visibleItems };

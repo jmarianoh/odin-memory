@@ -1,6 +1,6 @@
 /**
  * Traduce el evento de Ink (`input`, `key`) al nombre de tecla que entiende `model.js`:
- * `up`, `down`, `left`, `right`, `enter`, `esc`, `backspace`, `delete`, `tab`, `home`, `end`,
+ * `up`, `down`, `left`, `right`, `enter`, `esc`, `backspace`, `delete`, `tab`, `home`, `end`, `shift+tab`,
  * `ctrl+<letra>`, `alt+<letra>` o, para texto, el propio carácter (o los caracteres pegados).
  * @param {string} input
  * @param {Record<string, boolean>} key
@@ -15,7 +15,7 @@ export function keyName(input, key) {
   if (key.escape) return 'esc';
   if (key.backspace) return 'backspace';
   if (key.delete) return 'delete';
-  if (key.tab) return 'tab';
+  if (key.tab) return key.shift ? 'shift+tab' : 'tab';
   if (key.home) return 'home';
   if (key.end) return 'end';
   if (key.ctrl && input) return `ctrl+${input.toLowerCase()}`;

@@ -2,7 +2,7 @@
 
 ## Qué cubre este capítulo
 
-`odin tui` abre una interfaz de terminal para buscar, leer y administrar la memoria sin recordar comandos. La entrega F8 (spec 0.23.0) trae nueve pantallas: panel, búsqueda, resultados, recientes, detalle de observación, cronología, sesiones, detalle de sesión y preparación de Copilot. Las pantallas de la nube llegan con F9.4 y se añadirán como entradas del panel.
+`odin tui` abre una interfaz de terminal para buscar, leer y administrar la memoria sin recordar comandos. La entrega F8 (spec 0.23.0) trajo nueve pantallas: panel, búsqueda, resultados, recientes, detalle de observación, cronología, sesiones, detalle de sesión y preparación de Copilot. La entrega F9.4 (spec 0.31.0) añade cuatro de sincronización con la nube: menú de la nube, configuración del servidor, estado e inscripción de proyectos (sección «Sincronización con la nube»).
 
 La TUI se construye con **Ink** (React para terminal) y **htm** (plantillas sin JSX) y sigue la arquitectura de Elm: toda la lógica vive en una función pura `update(estado, mensaje)` que se prueba sin terminal; la vista y la ejecución de comandos son capas finas.
 
@@ -20,10 +20,11 @@ Se instalan con `npm install --save-exact ink@8.0.0 react@19.3.1 htm@3.1.1` (en 
 
 | Archivo | Contenido |
 |---|---|
-| `model.js` | `SCREEN`, `initialState`, `initialCommands`, `update`, `DASHBOARD_MENU`, `detailMetadata`, `detailContentLines`, `detailLayout`, `timelineRows`, `timelineViewport`, `visibleItems`, `sessionDeleteErrorMessage` |
+| `model.js` | `SCREEN`, `initialState`, `initialCommands`, `update`, `DASHBOARD_MENU`, `CLOUD_SETTINGS_MENU`, `CLOUD_CONFIG_FOCUS`, `CLOUD_CONFIG_ACTIONS`, `detailMetadata`, `detailContentLines`, `detailLayout`, `timelineRows`, `timelineViewport`, `visibleItems`, `sessionDeleteErrorMessage` |
 | `text-input.js` | Campo de texto inmutable: `newTextInput`, `updateTextInput`, `inputView`, `setValue`, `focus`/`blur`, `inputValue`, `sanitizeInput` |
 | `format.js` | `truncateStr`, `formatReviewDate`, `localTime`, `wrapLines`, `osc52Sequence` |
 | `commands.js` | `executeCommand(cmd, ctx)`, `setupAgents(ctx)`, `LIST_LIMIT` |
+| `cloud.js` | `pingCloudServer`, `loadCloudSettings`, `saveCloudServerUrl`, `loadCloudStatus`, `listCloudEnrollment`, `toggleCloudEnrollment`, `PING_STATUS`, `CLOUD_HEALTH_PATH`, `CLOUD_PING_TIMEOUT_MS` |
 | `keys.js` | `keyName(input, key)`: evento de Ink → nombre de tecla |
 | `palette.js` | `COLORS` y `LOGO_GRADIENT` |
 | `view.js` | `View({ state })`: un componente por pantalla |
@@ -38,7 +39,7 @@ Se instalan con `npm install --save-exact ink@8.0.0 react@19.3.1 htm@3.1.1` (en 
 
 ## Mensajes y comandos
 
-`update(estado, mensaje, deps)` devuelve `{ state, cmds }`. Los **mensajes** son `{ type: 'key', key, input }`, `size`, y los resultados `stats`, `search-results`, `recent-observations`, `observation-detail`, `timeline`, `recent-sessions`, `session-observations`, `session-deleted`, `setup-installed`, `update-check`, `clipboard-copied`, `clipboard-clear`, `spinner-tick`. Los resultados con `error` solo ponen `errorMsg` (la pantalla no cambia). Cualquier tecla limpia `errorMsg`.
+`update(estado, mensaje, deps)` devuelve `{ state, cmds }`. Los **mensajes** son `{ type: 'key', key, input }`, `size`, y los resultados `stats`, `search-results`, `recent-observations`, `observation-detail`, `timeline`, `recent-sessions`, `session-observations`, `session-deleted`, `setup-installed`, `cloud-config-loaded`, `cloud-status-loaded`, `cloud-enrollment-loaded`, `cloud-enrollment-toggled`, `cloud-ping`, `cloud-url-saved`, `update-check`, `clipboard-copied`, `clipboard-clear`, `spinner-tick`. Los resultados con `error` solo ponen `errorMsg` (la pantalla no cambia). Cualquier tecla limpia `errorMsg`.
 
 Los **comandos** son descripciones que ejecuta `app.js`: `quit`, `print` (escribe en la salida), `clear-feedback` (temporizador), y los de `commands.js`:
 
@@ -54,13 +55,19 @@ Los **comandos** son descripciones que ejecuta `app.js`: `quit`, `print` (escrib
 | `load-session-observations` | `sessionObservations(id, 200)` | `session-observations` |
 | `delete-session` | `deleteSession(id)` | `session-deleted` (con `error` si falla) |
 | `install` | `setupClient(destino, …)` (ver `21-copilot-vscode.md`) | `setup-installed` (`{ agent, changes }`) |
+| `load-cloud-config` (`generation`) | `loadCloudSettings(datos, env)` | `cloud-config-loaded` (`serverUrl`, `tokenSource`) |
+| `load-cloud-status` (`generation`) | `loadCloudStatus(almacén, env)` | `cloud-status-loaded` (`serverUrl`, `lastSync`, `pendingCount`, `lastError`) |
+| `load-cloud-enrollment` | `listCloudEnrollment(almacén)` | `cloud-enrollment-loaded` (`items`) |
+| `toggle-cloud-enrollment` (`item`) | `toggleCloudEnrollment(almacén, item)` | `cloud-enrollment-toggled` |
+| `save-cloud-url` (`serverUrl`) | `saveCloudServerUrl(datos, url)` | `cloud-url-saved` |
+| `ping-cloud` (`origin`, `generation`, `serverUrl`) | `pingCloudServer(url, token, ctx.fetch)` con el token efectivo | `cloud-ping` (`origin`, `generation`, `serverUrl`, `status`, `error`) |
 | `copy` | `osc52Sequence(contenido)` | `clipboard-copied` |
 
 Todo error del almacén vuelve como mensaje con `error`, nunca se propaga. Al arrancar se lanzan `load-stats` y `check-update`; `App` pide el tamaño del terminal y lo actualiza con el evento `resize`.
 
 ## Teclas
 
-`keyName` produce `up`, `down`, `left`, `right`, `enter`, `esc`, `backspace`, `delete`, `tab`, `home`, `end`, `ctrl+<letra>`, `alt+<letra>` o el propio texto (varios caracteres si se pegó). `ctrl+c` sale desde cualquier pantalla, también con el campo de búsqueda activo.
+`keyName` produce `up`, `down`, `left`, `right`, `enter`, `esc`, `backspace`, `delete`, `tab`, `shift+tab`, `home`, `end`, `ctrl+<letra>`, `alt+<letra>` o el propio texto (varios caracteres si se pegó). `ctrl+c` sale desde cualquier pantalla, también con el campo de búsqueda activo.
 
 | Pantalla | Teclas |
 |---|---|
@@ -73,6 +80,11 @@ Todo error del almacén vuelve como mensaje con `error`, nunca se propaga. Al ar
 | Cronología | `j`/`k` desplazan (acotado); `esc`/`q` vuelven al origen recargándolo |
 | Sesiones | `j`/`k`; `enter` abre; `d` pide confirmar; con la confirmación: `y`/`Y` borra, `n`/`N`/`esc` cancela (el resto se ignora); mientras borra se ignoran las teclas; `esc`/`q` vuelven al panel |
 | Detalle de sesión | como una lista; `esc`/`q` vuelven a la lista con la sesión elegida seleccionada |
+| Menú de la nube | `j`/`k`/flechas; `enter`/espacio eligen (`Configure server`, `View status`, `Enroll projects`, `Back`); `esc`/`q` vuelven al panel recargando las estadísticas |
+| Configuración (campo activo) | texto y edición como en la búsqueda (`q`, `j`… se escriben); `tab` pasa a «Test connection», `shift+tab` a «Cancel»; `enter` pasa a «Test connection»; `esc` vuelve al menú sin descartar lo escrito |
+| Configuración (campo inactivo) | `tab`/`j`/`↓` siguiente y `shift+tab`/`k`/`↑` anterior (cíclico: campo → probar → guardar → cancelar); `i` activa el campo; `enter`/espacio: sobre el campo lo activa, sobre «Cancel» vuelve, sobre «Test connection»/«Save server» comprueba; `esc`/`q` vuelven; mientras comprueba se ignora todo |
+| Estado de la nube | `r` actualiza; `esc`/`q` vuelven al menú (con el cursor en `View status`) |
+| Inscripción | `j`/`k`; `enter`/espacio alterna el proyecto (ignorado mientras carga); `r` recarga; `esc`/`q` vuelven al menú (cursor en `Enroll projects`) |
 | Preparación | `j`/`k`; `enter` instala el destino elegido; mientras instala se ignora todo; al terminar `enter`/`esc`/`q` vuelven al panel; `esc`/`q` vuelven antes de elegir |
 
 ### Listas y ventanas
@@ -100,6 +112,36 @@ Paleta propia (`palette.js`): texto `#e6e8ef`, atenuado `#8b93a7`, bordes `#4b52
 ## Preparación de Copilot
 
 Lista los destinos de `21-copilot-vscode.md` y `22-copilot-cli.md` (`VS Code Copilot — MCP server, instructions and hooks` y `Copilot CLI — …`), con la ruta de su configuración MCP. Al instalar muestra un giro (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`, un fotograma cada 80 ms mientras dura) y después `✓ Registered <destino>`, una fila por pieza (`MCP server`, `Instructions`, `Hooks` con su acción y ruta) y `Next Steps` (recargar VS Code o reiniciar el CLI). Un fallo muestra `✗ Installation failed: <causa>`.
+
+## Sincronización con la nube
+
+El panel gana la opción `Cloud sync settings` (índice 4, antes de `Quit`, que pasa al 5). Abre un menú con cuatro opciones.
+
+### Configuración del servidor
+
+Muestra el campo `Server URL:` (texto de ayuda `https://odin.example.com`, hasta 512 caracteres), `Token source:` (`not set`, `read from cloud.json` o `set via ODIN_CLOUD_TOKEN`; si no viene del entorno añade la pista `Set ODIN_CLOUD_TOKEN to override cloud.json.token`) y tres acciones (`Test connection`, `Save server`, `Cancel`). Al abrirla se limpian avisos y foco y se lanza `load-cloud-config`: al llegar rellena el campo con la URL efectiva (`ODIN_CLOUD_SERVER` sustituye a la guardada) y lo activa.
+
+«Test connection» y «Save server» validan la URL con la misma regla que `odin cloud config` (`server URL is required`, `scheme must be http or https`, …; el error se muestra como `Error: <mensaje>` y no se comprueba nada) y lanzan `ping-cloud` con `origin: 'config'`; mientras responde se muestra `Checking server...` y `Connection: checking`. Resultado:
+
+- Siempre se muestra `Connection: <estado>` y, si hay `error`, `Error: <causa>`.
+- Probar no guarda nada.
+- Guardar solo guarda si el estado es `reachable` o `unauthorized` (un 401 prueba que el servidor existe); en otro caso `Error: server is unreachable`. Al guardar (`save-cloud-url`) se reescribe **solo** `server_url` de `cloud.json` conservando el token; después el foco queda en «Save server» y el campo inactivo. Un `cloud.json` ilegible no se pisa (el error se muestra).
+
+### Comprobación de conexión
+
+`pingCloudServer(url, token, fetch)` valida la URL (error → `unreachable` con la causa), hace `GET <url sin barras finales>/health` con `Authorization: Bearer <token>` si hay token, con 3 s de límite, y clasifica: 2xx → `reachable`; 401 → `unauthorized`; cualquier otro código → `unreachable` con `unexpected status <código>`; un fallo de red → `unreachable` con la causa del error de red (`error.cause.message` si existe). La redirección la sigue `fetch`. `ctx.fetch` permite sustituirlo en pruebas.
+
+### Generación de peticiones
+
+`cloudGeneration` sube al abrir la configuración, al abrir o refrescar el estado y al comprobar. Las respuestas de `cloud-config-loaded`, `cloud-status-loaded` y `cloud-ping` que traen otra generación se descartan; además se descartan si ya no se está en su pantalla, y los `cloud-ping` cuya URL ya no coincide con el campo (sin espacios sobrantes) o con la del estado. Así una respuesta tardía no pisa lo que el usuario ve ahora.
+
+### Estado
+
+Abre con `Loading cloud status...` y `load-cloud-status`; al llegar muestra, con las etiquetas alineadas: `Server URL` (`not configured`), `Connection health` (`not checked` hasta que responde el ping), `Last successful sync` (`never`), `Pending mutations` y `Last error` (`none`). Si hay URL se lanza un ping con `origin: 'status'` y el mismo `generation`. `Last error` muestra el error del ping si lo hay y, si no, el último error de sincronización guardado. Los datos salen de `cloudSyncSummary` (destinos `cloud:<proyecto>`, ver `30-cloud/`): última sincronización con éxito, último error y mutaciones pendientes de proyectos inscritos. `r` repite la carga.
+
+### Inscripción
+
+Lista, en orden de bytes, los proyectos locales normalizados que salen de observaciones no borradas, sesiones, prompts e inscripciones, con `[x]` si están inscritos y `[ ]` si no (`No local projects found.` si no hay ninguno). `enter` alterna: inscribe con `enrollProject` o desinscribe con `unenrollProject` (mismas reglas que `odin cloud enroll`/`unenroll`) y recarga; mientras carga se ignora. Tras recargar el cursor se acota a la lista. Un error se muestra como `Error: <mensaje>` bajo la lista.
 
 ## Criterios de aceptación
 

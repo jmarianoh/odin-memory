@@ -1,5 +1,5 @@
 {
-  "version": "0.30.0",
+  "version": "0.31.0",
   "files": [
     {
       "path": "bin/odin.js",
@@ -281,7 +281,7 @@
         "test/unit/cli/tui.test.js"
       ],
       "sha256": "54ba338f6a14bf5115486e7f492abd15454f3404bdb2b01200bafd0e3ebbb5ab",
-      "docSha256": "760555b9daeac80523cd3a537967c70ac33dc9d6db86de3d74ec54c82b40aff6"
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
     },
     {
       "path": "src/cli/config.js",
@@ -1974,17 +1974,29 @@
         "test/unit/tui/app.test.js"
       ],
       "sha256": "33670676e9ccfbc7b03604f81c1e2ff5fc2c0329401970510915e83660d1571f",
-      "docSha256": "760555b9daeac80523cd3a537967c70ac33dc9d6db86de3d74ec54c82b40aff6"
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
+    },
+    {
+      "path": "src/tui/cloud.js",
+      "doc": "19-tui.md",
+      "phase": "F9",
+      "tests": [
+        "test/unit/tui/cloud.test.js",
+        "test/unit/tui/cloud-app.test.js"
+      ],
+      "sha256": "fdca92abf1144516e8a148a538f7d2f38a6eaf8951e75ac6c69ef7482399423c",
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
     },
     {
       "path": "src/tui/commands.js",
       "doc": "19-tui.md",
       "phase": "F8",
       "tests": [
-        "test/unit/tui/commands.test.js"
+        "test/unit/tui/commands.test.js",
+        "test/unit/tui/cloud.test.js"
       ],
-      "sha256": "e100efaf7f3ef64212a83bf6e538c02582f2dcf9bec1ea9cc9299a37bf63b952",
-      "docSha256": "760555b9daeac80523cd3a537967c70ac33dc9d6db86de3d74ec54c82b40aff6"
+      "sha256": "b9ea2a6317d6dcbc771f088985128444bd7c133351c98fc7407f7b4bbeb3685a",
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
     },
     {
       "path": "src/tui/format.js",
@@ -1994,7 +2006,7 @@
         "test/unit/tui/format.test.js"
       ],
       "sha256": "6312d5c9dde56e34827465bff3de7b792ea8c9271e8455ef629045c8abccdbdd",
-      "docSha256": "760555b9daeac80523cd3a537967c70ac33dc9d6db86de3d74ec54c82b40aff6"
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
     },
     {
       "path": "src/tui/keys.js",
@@ -2003,8 +2015,8 @@
       "tests": [
         "test/unit/tui/format.test.js"
       ],
-      "sha256": "07c28304f5ea58c8bb40ca214acd89d403afa6e20c11b94523b4b278a8bd659b",
-      "docSha256": "760555b9daeac80523cd3a537967c70ac33dc9d6db86de3d74ec54c82b40aff6"
+      "sha256": "fd03bf642403614e0638212ca28a2c69ea95db8ba83ccf0b5aac6413ad25dc2a",
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
     },
     {
       "path": "src/tui/model.js",
@@ -2012,10 +2024,12 @@
       "phase": "F8",
       "tests": [
         "test/unit/tui/model.test.js",
-        "test/unit/tui/app.test.js"
+        "test/unit/tui/app.test.js",
+        "test/unit/tui/cloud-model.test.js",
+        "test/unit/tui/cloud-app.test.js"
       ],
-      "sha256": "7f9f88343b8b4a381c1f80c86489aeb0721e2e336179bd5685b9e3f4b05f33a9",
-      "docSha256": "760555b9daeac80523cd3a537967c70ac33dc9d6db86de3d74ec54c82b40aff6"
+      "sha256": "d79921acb3e401c28a507ae5d6dd58f5204621a677a575529e531c334f23fd92",
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
     },
     {
       "path": "src/tui/palette.js",
@@ -2025,7 +2039,7 @@
         "test/unit/tui/app.test.js"
       ],
       "sha256": "3252f8dc32fad058b73aee0686c852d107b871d8c968ebf227499294aec14012",
-      "docSha256": "760555b9daeac80523cd3a537967c70ac33dc9d6db86de3d74ec54c82b40aff6"
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
     },
     {
       "path": "src/tui/text-input.js",
@@ -2035,17 +2049,18 @@
         "test/unit/tui/format.test.js"
       ],
       "sha256": "62eed9fcf491e32e2145ac496299904a3e10bf348f4d4e6492e24c6bf963fa13",
-      "docSha256": "760555b9daeac80523cd3a537967c70ac33dc9d6db86de3d74ec54c82b40aff6"
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
     },
     {
       "path": "src/tui/view.js",
       "doc": "19-tui.md",
       "phase": "F8",
       "tests": [
-        "test/unit/tui/app.test.js"
+        "test/unit/tui/app.test.js",
+        "test/unit/tui/cloud-app.test.js"
       ],
-      "sha256": "796926085b07f958c4ffa086d08be8410c74179071db45569c2c1ccbf8cf7352",
-      "docSha256": "760555b9daeac80523cd3a537967c70ac33dc9d6db86de3d74ec54c82b40aff6"
+      "sha256": "1c423a0caef7f898401a358fb0a047161d721a30e4743c49eec3749039a1cf1a",
+      "docSha256": "a531ac7f25b8eb1fe0dc57de7a2a77cb89b49a9991d442b969c83303a7855d0c"
     },
     {
       "path": "src/version/check.js",

@@ -48,6 +48,7 @@ test('keyName traduce los eventos de Ink', () => {
   assert.equal(keyName('', { backspace: true }), 'backspace');
   assert.equal(keyName('', { delete: true }), 'delete');
   assert.equal(keyName('', { tab: true }), 'tab');
+  assert.equal(keyName('', { tab: true, shift: true }), 'shift+tab');
   assert.equal(keyName('', { home: true }), 'home');
   assert.equal(keyName('', { end: true }), 'end');
   assert.equal(keyName('C', { ctrl: true }), 'ctrl+c');
