@@ -1,0 +1,424 @@
+<title>Flujos de sdd-dev-process</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: identidad de plano técnico de las guías SDD; hojas apiladas, cada flujo como un riel de pasos con su agente y su pausa. */
+:root {
+  --paper: #E9EDF2; --sheet: #FAFBFC; --ink: #132036; --muted: #566378; --line: #C5CEDA; --grid: #E3E8EE;
+  --accent: #1F4FD1; --accent-soft: #E2E9FB; --gate: #A85A06; --gate-soft: #FAEDD9; --ok: #1E7A4C; --ok-soft: #DDF1E6;
+  --f-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0A0F17; --sheet: #111924; --ink: #E3E9F2; --muted: #97A3B6; --line: #2B394C; --grid: #19222F;
+    --accent: #84A6FF; --accent-soft: #1A2849; --gate: #EFA14A; --gate-soft: #372714; --ok: #5FD39A; --ok-soft: #12301F; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0A0F17; --sheet: #111924; --ink: #E3E9F2; --muted: #97A3B6; --line: #2B394C; --grid: #19222F;
+  --accent: #84A6FF; --accent-soft: #1A2849; --gate: #EFA14A; --gate-soft: #372714; --ok: #5FD39A; --ok-soft: #12301F; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 64px;
+}
+.doc { max-width: 1120px; margin: 0 auto; display: grid; gap: 24px; }
+.sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: 4px; padding: clamp(20px, 4vw, 44px); display: grid; gap: 22px; scroll-margin-top: 16px; min-width: 0; }
+.sheet > * { min-width: 0; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+h1, h2 { font-family: var(--f-display); font-stretch: 82%; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; margin: 0; }
+h2 { font-size: clamp(28px, 3.3vw, 40px); line-height: 1.06; }
+h3 { font-family: var(--f-display); font-stretch: 90%; font-size: 19px; font-weight: 650; line-height: 1.25; margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 70ch; }
+.lead { color: var(--muted); font-size: 17px; max-width: 68ch; margin: 10px 0 0; }
+.small { font-size: 14px; color: var(--muted); }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+code { font-family: var(--f-mono); font-size: .88em; background: var(--grid); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+pre { margin: 0; font-family: var(--f-mono); font-size: 13px; line-height: 1.6; background: var(--paper); border: 1px solid var(--line); border-radius: 3px; padding: 14px 16px; overflow-x: auto; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+.cajetin { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; border-top: 1px solid var(--line); padding-top: 10px; font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cajetin b { color: var(--ink); font-weight: 500; }
+
+/* portada */
+.cover { background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 32px 32px; background-color: var(--sheet); }
+.cover-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 32px; align-items: end; }
+@media (max-width: 820px) { .cover-grid { grid-template-columns: 1fr; } }
+.cover h1 { font-size: clamp(42px, 7vw, 88px); line-height: .94; }
+.cover .sub { font-family: var(--f-mono); font-size: 14px; color: var(--muted); margin: 16px 0 0; }
+.index { list-style: none; margin: 0; padding: 14px 18px; background: var(--sheet); border: 1px solid var(--line); border-radius: 3px; display: grid; gap: 2px; font-size: 14.5px; }
+.index li { display: flex; gap: 10px; padding: 3px 0; }
+.index li span { font-family: var(--f-mono); color: var(--muted); font-size: 12px; padding-top: 2px; font-variant-numeric: tabular-nums; }
+.index a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+.index a:hover, .index a:focus-visible { border-color: var(--accent); color: var(--accent); }
+
+/* tablas */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14.5px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+thead th { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--paper); }
+tbody tr:last-child > * { border-bottom: 0; }
+tbody th { font-weight: 600; }
+td code { white-space: nowrap; overflow-wrap: normal; }
+
+/* chips de agente y de pausa */
+.ag { display: inline-block; font-family: var(--f-mono); font-size: 12px; font-weight: 500; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 3px; padding: 1px 7px; white-space: nowrap; }
+.ag.dev { color: var(--ink); background: var(--grid); border-color: var(--line); }
+.pausa { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .04em; color: var(--gate); }
+.pausa::before { content: ""; width: 9px; height: 9px; border: 2px solid var(--gate); border-radius: 50%; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13.5px; color: var(--muted); align-items: center; }
+
+/* riel de pasos */
+.rail { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: paso; }
+.rail > li { counter-increment: paso; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0 14px; position: relative; padding-bottom: 18px; }
+.rail > li::before {
+  content: counter(paso); grid-row: 1 / span 2; width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--accent);
+  background: var(--sheet); color: var(--accent); font: 600 14px var(--f-mono); display: grid; place-items: center; position: relative; z-index: 1;
+}
+.rail > li::after { content: ""; position: absolute; left: 15.5px; top: 32px; bottom: 0; width: 1.5px; background: var(--line); }
+.rail > li:last-child { padding-bottom: 0; }
+.rail > li:last-child::after { display: none; }
+.rail > li.fin::before { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+.step-h { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; padding-top: 4px; }
+.step-h b { font-weight: 600; }
+.step-b { display: grid; gap: 4px; font-size: 14.5px; color: var(--muted); padding-top: 4px; }
+.step-b p { max-width: 74ch; }
+.step-b code { color: var(--ink); }
+.out { font-family: var(--f-mono); font-size: 12px; color: var(--ok); }
+
+/* tarjetas de agente */
+.agents { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 0 32px; }
+.agent { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-block: 14px; align-content: start; }
+.agent .meta { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+
+/* recuadros */
+.rule { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px; padding: 18px 20px; display: grid; gap: 10px; }
+.rule h3 { color: var(--accent); }
+.gate { background: var(--gate-soft); border: 1px solid var(--gate); border-radius: 4px; padding: 18px 20px; display: grid; gap: 8px; }
+.gate h3 { color: var(--gate); }
+.rule ul, .gate ul, .plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 78ch; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px 32px; }
+.two > div { display: grid; gap: 10px; align-content: start; min-width: 0; }
+</style>
+
+<main class="doc">
+
+  <section class="sheet cover" aria-labelledby="titulo">
+    <div class="cover-grid">
+      <div>
+        <p class="eyebrow">Guía · sdd-dev-process 0.1.0</p>
+        <h1 id="titulo">Flujos de sdd-dev-process</h1>
+        <p class="sub">FUID · MAU · FDT · N0 · certificación — con GitHub Copilot, Spec Kit y GitLab CE</p>
+        <p class="lead">Cómo se lleva un pedido de Jira dentro de un repo de capa: qué agente actúa en cada paso, qué deja en el repo y dónde se detiene para que el desarrollador revise.</p>
+      </div>
+      <ol class="index" aria-label="Hojas">
+        <li><span>02</span><a href="#empezar">Cómo se empieza</a></li>
+        <li><span>03</span><a href="#agentes">Los seis agentes</a></li>
+        <li><span>04</span><a href="#clasificar">Clasificar el pedido</a></li>
+        <li><span>05</span><a href="#fuid">FUID · funcionalidad</a></li>
+        <li><span>06</span><a href="#mau">MAU · incidente</a></li>
+        <li><span>07</span><a href="#fdt">FDT · cambio puntual y N0</a></li>
+        <li><span>08</span><a href="#qa">Certificación y defectos</a></li>
+        <li><span>09</span><a href="#reglas">Reglas que valen siempre</a></li>
+        <li><span>10</span><a href="#arquetipos">Arquetipos y skills</a></li>
+        <li><span>11</span><a href="#repo">Dónde queda cada cosa</a></li>
+      </ol>
+    </div>
+    <div class="cajetin"><span>Hoja <b>01</b> / 11</span><span>Fuente: agentes y skills de sdd-dev-process</span><span>Rev. <b>04-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="empezar" aria-labelledby="h-empezar">
+    <div>
+      <p class="eyebrow">Inicio</p>
+      <h2 id="h-empezar">Cómo se empieza</h2>
+      <p class="lead">Todo pedido parte en el chat de Copilot con el agente SDD Orquestador y la clave de la historia de Jira. En Jira, una épica es un pedido FUID, FDT o MAU de una funcionalidad nueva o existente, y se divide en historias: el tipo sale de la épica. El Orquestador lee el repo, dice en qué paso va y ofrece el botón del agente que sigue.</p>
+    </div>
+<pre><code>@SDD Orquestador  WCAP-104 empezar
+@SDD Orquestador  WCAP-301 ¿en qué paso vamos?</code></pre>
+    <p>La respuesta empieza con una línea de estado:</p>
+<pre><code>🧭 FUID WCAP-104 (épica WCAP-100) · boton-pago-generico · Paso 5 de 10 · Tests de la fase 2 | sigue: SDD Tester | arquetipo: Personas/web/nest</code></pre>
+    <div class="legend">
+      <span><span class="ag">SDD Planner</span> agente que actúa</span>
+      <span><span class="ag dev">Desarrollador</span> lo hace una persona</span>
+      <span class="pausa">pausa: botón de handoff, el desarrollador decide cuándo seguir</span>
+    </div>
+    <ul class="plain">
+      <li>No hay un archivo de progreso aparte: el estado se lee de lo que ya existe en el repo (carpetas de Spec Kit, casillas de <code>tasks.md</code>, reportes de MAU y FDT, commits <code>[tester]</code> e <code>[implementer]</code>).</li>
+      <li>Cada handoff es una pausa. Ningún agente avanza dos pasos seguidos.</li>
+      <li>Una ventana de VS Code por pedido y un chat nuevo por cada fase de implementación.</li>
+      <li>La memoria <b>odin-memory</b> une esos chats: cada agente lee <code>sdd/&lt;CLAVE&gt;/…</code> al empezar y guarda su parte antes del handoff (el porqué de las decisiones, lo que quedó en rojo, lo pendiente). Si la memoria y el repo no coinciden, manda el repo.</li>
+    </ul>
+    <div class="cajetin"><span>Hoja <b>02</b> / 11</span><span>Cómo se empieza</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="agentes" aria-labelledby="h-agentes">
+    <div>
+      <p class="eyebrow">Roles</p>
+      <h2 id="h-agentes">Los seis agentes</h2>
+      <p class="lead">Cada agente tiene herramientas limitadas a su rol. El que escribe los tests no es el que escribe el código, y dos hooks lo hacen cumplir.</p>
+    </div>
+    <div class="agents">
+      <div class="agent"><h3>SDD Orquestador</h3><p>Clasifica el pedido, detecta el paso leyendo el repo y deriva.</p><span class="meta">Puede editar: nada</span></div>
+      <div class="agent"><h3>SDD Planner</h3><p>specify, clarify, plan, tasks y analyze; diagnóstico de MAU y evaluación de FDT.</p><span class="meta">Puede editar: specs/, .specify/, jira/</span></div>
+      <div class="agent"><h3>SDD Tester</h3><p>Tests antes del código: tareas [tester], test que reproduce un MAU, ajuste de tests de un FDT.</p><span class="meta">Puede editar: solo tests y planes JMeter (perf/)</span></div>
+      <div class="agent"><h3>SDD Implementer</h3><p>Código por fases y converge; corrección de MAU y aplicación de FDT.</p><span class="meta">Puede editar: código · hook tests-intactos le bloquea los tests</span></div>
+      <div class="agent"><h3>SDD Reviewer</h3><p>Revisión de solo lectura contra spec, contrato, tasks, stack, calidad y controles.</p><span class="meta">Puede editar: nada</span></div>
+      <div class="agent"><h3>SDD Seguridad</h3><p>Superficie sensible: auth, datos personales, pagos, endpoint público con efecto.</p><span class="meta">Puede editar: solo seguridad.md · hook solo-informe</span></div>
+    </div>
+    <div class="cajetin"><span>Hoja <b>03</b> / 11</span><span>Los seis agentes</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="clasificar" aria-labelledby="h-clasificar">
+    <div>
+      <p class="eyebrow">Antes del primer paso</p>
+      <h2 id="h-clasificar">Clasificar el pedido</h2>
+      <p class="lead">El Orquestador usa la skill sdd-clasificar. El tipo lo decide el PO en Jira; el nivel y la superficie sensible los determina el agente y los muestra con su motivo.</p>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th scope="col">Nivel</th><th scope="col">Criterio</th><th scope="col">Qué cambia</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">N0</th><td>Un archivo, cambio mecánico, reversible, sin lógica, sin contrato y sin superficie sensible</td><td>Sin plan ni tasks. El Implementer edita, muestra el diff real y corre build y tests</td></tr>
+          <tr><th scope="row">N1</th><td>Hasta 5 criterios de aceptación, sin superficie sensible ni integración externa nueva</td><td>Camino completo del tipo de pedido</td></tr>
+          <tr><th scope="row">N2</th><td>6 o más criterios, lógica de negocio, integración externa nueva o superficie sensible</td><td>Camino completo, más SDD Seguridad si hay superficie sensible</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="gate">
+      <h3>Superficie sensible</h3>
+      <ul>
+        <li>Autenticación y autorización, bypass de auth, datos personales, pagos y dinero, endpoint público nuevo con efecto, secretos, configuración de despliegue, acceso a datos y rutas marcadas por el líder técnico.</li>
+        <li>En Personas, Empresas y Adquirencia casi todo lo que mueve dinero o identifica a un cliente cuenta: pagos, montos, nóminas, comercios, tarjetas, RUT.</li>
+        <li>Con superficie sensible el pedido nunca es N0, y SDD Seguridad revisa antes del MR. Ante la duda, cuenta como sensible.</li>
+      </ul>
+    </div>
+    <div class="cajetin"><span>Hoja <b>04</b> / 11</span><span>Clasificar el pedido</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="fuid" aria-labelledby="h-fuid">
+    <div>
+      <p class="eyebrow">Camino 1</p>
+      <h2 id="h-fuid">FUID · funcionalidad</h2>
+      <p class="lead">Cada historia del FUID es una spec. Rama <code>feature/NNN-nombre</code> desde <code>Desarrollo-CI</code>, la misma en cada repo de capa que toca.</p>
+    </div>
+    <ol class="rail" style="counter-reset: paso -1">
+      <li><div class="step-h"><b>Spec de la historia</b><span class="ag">SDD Planner</span><span class="pausa">pausa</span></div><div class="step-b"><p>Antes, en el repo de la célula: <code>/speckit-specify</code> con el número de <code>ci/siguiente-spec.sh</code> (único en la célula), <code>/speckit-clarify</code>, <code>/speckit-sdd-impacto</code> y <code>/speckit-sdd-resumen-po</code>. El PO aprueba en Jira.</p><span class="out">deja funcionalidades/&lt;funcionalidad&gt;/specs/NNN-nombre/</span></div></li>
+      <li><div class="step-h"><b>Especificar</b><span class="ag">SDD Planner</span></div><div class="step-b"><p><code>/speckit-specify</code> con la historia de Jira, la spec de la historia del repo de la célula (<code>funcionalidades/&lt;funcionalidad&gt;/specs/</code>, número único de la célula) y el contrato.</p><span class="out">deja specs/NNN-nombre/spec.md</span></div></li>
+      <li><div class="step-h"><b>Aclarar</b><span class="ag">SDD Planner</span></div><div class="step-b"><p><code>/speckit-clarify</code>. Las dudas del PO van como comentario en la historia; la respuesta queda en la spec.</p></div></li>
+      <li><div class="step-h"><b>Planificar</b><span class="ag">SDD Planner</span></div><div class="step-b"><p><code>/speckit-plan</code> con la skill del stack, el arquetipo y la calidad de código. Marca la superficie sensible si aplica.</p><span class="out">deja plan.md</span></div></li>
+      <li><div class="step-h"><b>Tareas y análisis</b><span class="ag">SDD Planner</span><span class="pausa">pausa</span></div><div class="step-b"><p><code>/speckit-tasks</code> y <code>/speckit-analyze</code> sin problemas CRITICAL. Tareas con rol <code>[tester]</code> o <code>[implementer]</code>; en BFF, API y MS, la fase del plan JMeter; y la tarea E2E al final.</p><span class="out">deja tasks.md</span></div></li>
+      <li><div class="step-h"><b>Tests de la fase</b><span class="ag">SDD Tester</span><span class="pausa">pausa</span></div><div class="step-b"><p>Tareas <code>[tester]</code> de la fase. Los tests quedan en rojo por la razón correcta.</p><span class="out">commit [tester] CLAVE fase N</span></div></li>
+      <li><div class="step-h"><b>Implementar la fase</b><span class="ag">SDD Implementer</span><span class="pausa">pausa</span></div><div class="step-b"><p>Tareas <code>[implementer]</code> hasta verde, en un chat nuevo. Los pasos 5 y 6 se repiten por cada fase.</p><span class="out">commit [implementer] CLAVE fase N</span></div></li>
+      <li><div class="step-h"><b>Converger</b><span class="ag">SDD Implementer</span></div><div class="step-b"><p><code>/speckit-converge</code> hasta que reporte "Converged".</p></div></li>
+      <li><div class="step-h"><b>Revisar</b><span class="ag">SDD Reviewer</span><span class="pausa">pausa</span></div><div class="step-b"><p>Checklist de 11 puntos. Veredicto: listo para MR o requiere cambios.</p></div></li>
+      <li><div class="step-h"><b>Seguridad, si aplica</b><span class="ag">SDD Seguridad</span><span class="pausa">pausa</span></div><div class="step-b"><p>Checklist por superficie y por stack, más el comando de dependencias.</p><span class="out">deja seguridad.md con veredicto</span></div></li>
+      <li><div class="step-h"><b>Controles y MR</b><span class="ag dev">Desarrollador</span></div><div class="step-b"><p><code>sh ci/sdd-checks.sh "&lt;título del MR&gt;"</code> y MR a <code>Desarrollo-CI</code> con la clave al inicio del título. Con todas las capas en QA corre el E2E de la spec.</p></div></li>
+      <li><div class="step-h"><b>Certificación de QA</b><span class="ag dev">QA</span><span class="pausa">pausa</span></div><div class="step-b"><p>QA certifica la historia en Jira. Con el OK queda en "Lista para producción", dentro de la versión del próximo pase. Si encuentra algo, abre un defecto enlazado (hoja 08).</p></div></li>
+      <li><div class="step-h"><b>Performance de la versión</b><span class="ag dev">Área de performance</span><span class="pausa">pausa</span></div><div class="step-b"><p>Con el OK de QA de la versión, en el ambiente de QA, ejecuta los planes JMeter de BFF, API y MS (<code>perf/NNN-nombre/</code>) con la carga y los umbrales que define el arquitecto.</p></div></li>
+      <li><div class="step-h"><b>Ethical hacking de la versión</b><span class="ag dev">Área de ethical hacking</span><span class="pausa">pausa</span></div><div class="step-b"><p>En el ambiente de QA, prueba la seguridad de la versión completa, con los <code>seguridad.md</code> como insumo.</p></div></li>
+      <li class="fin"><div class="step-h"><b>Pase a producción</b><span class="ag dev">Pase</span></div><div class="step-b"><p>MS → API → BFF → app y luego el flag. <b>Sin los OK de QA, performance y ethical hacking no hay pase.</b></p></div></li>
+    </ol>
+    <div class="cajetin"><span>Hoja <b>05</b> / 11</span><span>FUID · funcionalidad</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="mau" aria-labelledby="h-mau">
+    <div>
+      <p class="eyebrow">Camino 3</p>
+      <h2 id="h-mau">MAU · incidente en producción</h2>
+      <p class="lead">Extensión <code>bug</code> de Spec Kit con Prove-It: primero un test que reproduce el incidente. Rama <code>feature/mau-&lt;CLAVE&gt;-&lt;slug&gt;</code>, reportes en <code>.specify/bugs/&lt;slug&gt;/</code>.</p>
+    </div>
+    <ol class="rail">
+      <li><div class="step-h"><b>Diagnosticar</b><span class="ag">SDD Planner</span><span class="pausa">pausa</span></div><div class="step-b"><p><code>/speckit-bug-assess</code> con síntoma, pasos y comportamiento esperado. No toca código. Si el origen está en otra capa, el MAU se trabaja en ese repo.</p><span class="out">deja assessment.md</span></div></li>
+      <li><div class="step-h"><b>Reproducir</b><span class="ag">SDD Tester</span><span class="pausa">pausa</span></div><div class="step-b"><p>Test que hoy falla con el síntoma reportado (por ejemplo, espera 422 y recibe 500). Si es E2E, con <code>@spec-NNN</code>, <code>@mau</code> y la clave.</p></div></li>
+      <li><div class="step-h"><b>Corregir</b><span class="ag">SDD Implementer</span></div><div class="step-b"><p><code>/speckit-bug-fix</code> hasta que el test pase sin romper los demás.</p><span class="out">deja fix.md</span></div></li>
+      <li><div class="step-h"><b>Verificar</b><span class="ag">SDD Implementer</span><span class="pausa">pausa</span></div><div class="step-b"><p><code>/speckit-bug-test</code>.</p><span class="out">deja test.md con veredicto</span></div></li>
+      <li class="fin"><div class="step-h"><b>Revisar y cerrar</b><span class="ag">SDD Reviewer</span><span class="ag">SDD Seguridad</span><span class="ag dev">Desarrollador</span></div><div class="step-b"><p>Revisión, seguridad si aplica, controles y MR. QA verifica la corrección antes del pase. La causa raíz se registra en Jira; si faltaba un escenario, se agrega a la spec.</p></div></li>
+    </ol>
+    <div class="cajetin"><span>Hoja <b>06</b> / 11</span><span>MAU · incidente</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="fdt" aria-labelledby="h-fdt">
+    <div>
+      <p class="eyebrow">Camino 2</p>
+      <h2 id="h-fdt">FDT · cambio puntual y N0</h2>
+      <p class="lead">Extensión <code>fdt</code> con la regla de oro. Rama <code>feature/fdt-&lt;CLAVE&gt;-&lt;slug&gt;</code>, reportes en <code>.specify/fdt/&lt;slug&gt;/</code>.</p>
+    </div>
+    <div class="rule">
+      <h3>Regla de oro</h3>
+      <ul>
+        <li>Si toca un contrato, primero el dueño del contrato publica la nueva versión.</li>
+        <li>Si cambia un comportamiento descrito en una spec, primero se actualiza <code>spec.md</code> en "Cambios posteriores" y después el código.</li>
+        <li>Si es solo técnico (runtime, librerías), regresión completa.</li>
+      </ul>
+    </div>
+    <ol class="rail">
+      <li><div class="step-h"><b>Evaluar</b><span class="ag">SDD Planner</span><span class="pausa">pausa</span></div><div class="step-b"><p><code>/speckit-fdt-assess</code>: clasifica con la regla de oro y lista las specs, contratos y pruebas afectadas. Si es una funcionalidad nueva, vuelve al PO como FUID.</p><span class="out">deja assessment.md</span></div></li>
+      <li><div class="step-h"><b>Ajustar tests, si cambia comportamiento</b><span class="ag">SDD Tester</span><span class="pausa">pausa</span></div><div class="step-b"><p>Los tests afectados quedan en rojo con el comportamiento nuevo.</p></div></li>
+      <li><div class="step-h"><b>Aplicar</b><span class="ag">SDD Implementer</span></div><div class="step-b"><p><code>/speckit-fdt-apply</code>, registrando cualquier desvío del alcance evaluado.</p><span class="out">deja apply.md</span></div></li>
+      <li><div class="step-h"><b>Probar</b><span class="ag">SDD Implementer</span><span class="pausa">pausa</span></div><div class="step-b"><p><code>/speckit-fdt-test</code> con las pruebas que definió la evaluación.</p><span class="out">deja test.md con veredicto</span></div></li>
+      <li class="fin"><div class="step-h"><b>Revisar y cerrar</b><span class="ag">SDD Reviewer</span><span class="ag dev">Desarrollador</span></div><div class="step-b"><p>Revisión, controles y MR.</p></div></li>
+    </ol>
+    <div class="gate">
+      <h3>N0</h3>
+      <ul>
+        <li>Igual lleva rama <code>feature/fdt-*</code> y clave de Jira. El Orquestador deriva directo al SDD Implementer, que muestra el diff real y corre build y tests.</li>
+        <li>Si el alcance crece (más archivos, lógica, contrato o superficie sensible), se detiene y sube a N1.</li>
+      </ul>
+    </div>
+    <div class="cajetin"><span>Hoja <b>07</b> / 11</span><span>FDT · cambio puntual y N0</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="qa" aria-labelledby="h-qa">
+    <div>
+      <p class="eyebrow">Certificación</p>
+      <h2 id="h-qa">Certificación y defectos</h2>
+      <p class="lead">Antes del pase hay tres certificaciones en Jira, en este orden: QA (cada historia y la versión), performance (planes JMeter de BFF, API y MS sobre la versión completa) y ethical hacking (la versión completa). Las dos últimas corren en el ambiente de QA. Lo que encuentran no es un pedido nuevo: es un defecto enlazado a la historia ("bloquea a WCAP-104") que se corrige dentro del mismo pedido.</p>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th scope="col">El hallazgo es…</th><th scope="col">Qué se hace</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">QA · el código no cumple la spec</th><td>Prove-It, en los pasos de abajo</td></tr>
+          <tr><th scope="row">La spec no lo dice</th><td>Regla de oro: decide el PO. Si lo acepta, primero se actualiza <code>spec.md</code> y después el código; si es alcance nuevo, va como otra historia o FDT</td></tr>
+          <tr><th scope="row">El caso de QA no calza con la spec</th><td>Gana la spec aprobada: se responde en el defecto con el escenario y QA ajusta su caso</td></tr>
+          <tr><th scope="row">Diferencia entre capas</th><td>El contrato manda: se corrige la capa que no lo cumple, o primero el contrato si está mal</td></tr>
+          <tr><th scope="row">Ambiente o datos</th><td>Sin cambio de código: se resuelve con quien opera QA y se vuelve a probar</td></tr>
+          <tr><th scope="row">Performance · no cumple el umbral</th><td>El SDD Implementer optimiza; el plan JMeter con su umbral es la prueba</td></tr>
+          <tr><th scope="row">Performance · el plan está mal</th><td>El SDD Tester corrige el plan JMeter; sin cambio de código</td></tr>
+          <tr><th scope="row">Ethical hacking · vulnerabilidad</th><td>Crítica y alta bloquean el pase. Corrección con revisión del SDD Seguridad, y el control nuevo entra a la checklist de <code>sdd-seguridad</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ol class="rail">
+      <li><div class="step-h"><b>Clasificar</b><span class="ag">SDD Orquestador</span><span class="pausa">pausa</span></div><div class="step-b"><p>Compara el hallazgo con la spec y el contrato, y deja el texto del comentario para el defecto en Jira.</p></div></li>
+      <li><div class="step-h"><b>Reproducir</b><span class="ag">SDD Tester</span><span class="pausa">pausa</span></div><div class="step-b"><p>Rama <code>feature/NNN-&lt;qa|perf|eh&gt;-&lt;CLAVE&gt;-&lt;slug&gt;</code> desde <code>Desarrollo-CI</code>, con el número de la spec. Test (o plan JMeter) que hoy falla con lo que se encontró, con <code>@spec-NNN</code> y la clave del defecto.</p></div></li>
+      <li><div class="step-h"><b>Corregir</b><span class="ag">SDD Implementer</span></div><div class="step-b"><p>Hasta verde, sin tocar el test.</p></div></li>
+      <li><div class="step-h"><b>Revisar y MR</b><span class="ag">SDD Reviewer</span><span class="ag">SDD Seguridad</span><span class="ag dev">Desarrollador</span></div><div class="step-b"><p>Seguridad si aplica. MR con la clave del defecto en el título, enlazado a la historia.</p></div></li>
+      <li class="fin"><div class="step-h"><b>Volver a certificar</b><span class="ag dev">QA</span></div><div class="step-b"><p>En QA corre el E2E de la spec, ahora con el test nuevo como regresión. El área que lo encontró verifica el defecto y lo cierra.</p></div></li>
+    </ol>
+    <div class="gate">
+      <h3>Sin los tres OK no hay pase</h3>
+      <ul>
+        <li>Una historia con defectos abiertos no pasa a "Lista para producción". Si un defecto no bloquea, el PO decide si sale igual con el defecto registrado; la corrección pasa a un FDT.</li>
+        <li>Antes de cada pase, QA certifica la versión completa de <code>Desarrollo-CI</code>. Lo que no está certificado va con su feature flag apagado.</li>
+      </ul>
+    </div>
+    <div class="cajetin"><span>Hoja <b>08</b> / 11</span><span>Certificación y defectos</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="reglas" aria-labelledby="h-reglas">
+    <div>
+      <p class="eyebrow">Transversal</p>
+      <h2 id="h-reglas">Reglas que valen siempre</h2>
+    </div>
+    <div class="two">
+      <div>
+        <h3>Comportamiento de los agentes</h3>
+        <ul class="plain">
+          <li>Si llenan un hueco, lo escriben en un bloque "Supuestos que estoy tomando" (máximo 4).</li>
+          <li>Un "sí" cubre solo lo que se preguntó.</li>
+          <li>Push, MR, merge y borrar siempre con confirmación explícita.</li>
+          <li>No tocan nada fuera de lo pedido y discrepan si ven un problema técnico.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Evidencia</h3>
+        <ul class="plain">
+          <li>Sin comando ejecutado no hay verde.</li>
+          <li>En el chat va el resumen de la salida; si algo falla, la parte relevante con su traducción.</li>
+          <li>Un veredicto sin evidencia concreta no se acepta.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Git</h3>
+        <ul class="plain">
+          <li>Commits <code>[tester] CLAVE …</code> e <code>[implementer] CLAVE …</code>.</li>
+          <li>Título de MR <code>CLAVE resumen · capa</code>, nunca <code>Closes</code>.</li>
+          <li>Ramas siempre desde <code>Desarrollo-CI</code> actualizada.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Prioridad de las fuentes</h3>
+        <ul class="plain">
+          <li>1. Template y knowledge del arquetipo de la subgerencia.</li>
+          <li>2. Skill del stack (oficial o de comunidad revisada).</li>
+          <li>3. Documentación oficial del framework.</li>
+        </ul>
+      </div>
+    </div>
+        <div class="gate">
+      <h3>Memoria entre chats (odin-memory, skill sdd-memoria)</h3>
+      <ul>
+        <li>El repo manda: la memoria guarda el porqué, los supuestos y lo pendiente, nunca decide el paso.</li>
+        <li>Cada agente guarda su artefacto antes del botón de handoff (<code>sdd/&lt;CLAVE&gt;/estado</code>, <code>decisiones</code>, <code>tests-fase-N</code>, <code>avance-fase-N</code>, <code>revision</code>, <code>seguridad</code>).</li>
+        <li>Nunca secretos, tokens, RUT, tarjetas, montos o datos de clientes, ni el detalle de un hallazgo de seguridad.</li>
+        <li>Es local de cada desarrollador y opcional: sin odin-memory, el proceso sigue igual.</li>
+      </ul>
+    </div>
+<div class="cajetin"><span>Hoja <b>09</b> / 11</span><span>Reglas que valen siempre</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="arquetipos" aria-labelledby="h-arquetipos">
+    <div>
+      <p class="eyebrow">Stack</p>
+      <h2 id="h-arquetipos">Arquetipos y skills</h2>
+      <p class="lead">Tres subgerencias, dos canales y tres templates por canal: 18 arquetipos. Cada repo instala la skill de su stack y el knowledge de su arquetipo.</p>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th scope="col">Subgerencia</th><th scope="col">Web</th><th scope="col">App</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Personas</th><td>express · nest · angular</td><td>express · nest · flutter</td></tr>
+          <tr><th scope="row">Empresas</th><td>express · nest · angular</td><td>express · nest · flutter</td></tr>
+          <tr><th scope="row">Adquirencia</th><td>express · nest · angular</td><td>express · nest · flutter</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th scope="col">Stack</th><th scope="col">Skill</th><th scope="col">Origen</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Angular</th><td><code>angular-developer</code></td><td>Oficial del equipo de Angular</td></tr>
+          <tr><th scope="row">Flutter</th><td><code>flutter</code></td><td>Agrupa 14 skills oficiales de Flutter y Dart</td></tr>
+          <tr><th scope="row">NestJS</th><td><code>nestjs-best-practices</code></td><td>Comunidad, la más instalada</td></tr>
+          <tr><th scope="row">Express</th><td><code>node-express</code></td><td>Propia, desde las guías oficiales de Express y Node.js</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small">El id del arquetipo es <code>&lt;subgerencia&gt;-&lt;canal&gt;-&lt;stack&gt;</code>, por ejemplo <code>personas-web-nest</code> o <code>adquirencia-app-flutter</code>.</p>
+    <div class="cajetin"><span>Hoja <b>10</b> / 11</span><span>Arquetipos y skills</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+  <section class="sheet" id="repo" aria-labelledby="h-repo">
+    <div>
+      <p class="eyebrow">Instalación</p>
+      <h2 id="h-repo">Dónde queda cada cosa</h2>
+    </div>
+<pre><code>sh sdd-plataforma/scripts/sdd-instalar.sh &lt;repo&gt; capa
+sh sdd-dev-process/scripts/instalar.sh &lt;repo&gt; &lt;arquetipo&gt;</code></pre>
+<pre><code>.github/
+├── agents/          los seis agentes
+├── hooks/           tests-intactos.mjs, solo-informe.mjs
+├── skills/          sdd-clasificar, sdd-tdd, sdd-seguridad, sdd-memoria, sdd-jmeter (BFF, API, MS), skill del stack, speckit-*
+├── instructions/    sdd-dev-process, arquetipo, stack (+ las de sdd-plataforma)
+├── knowledge/       esta guía, glosario, arquitectura, calidad y el arquetipo del repo
+└── sdd-dev-process.json</code></pre>
+    <ul class="plain">
+      <li>En BFF, API y MS, los planes JMeter viven en <code>perf/NNN-nombre/</code>; los ejecuta el área de performance antes del pase.</li>
+      <li>La spec de la historia, los contratos y los E2E viven en el repo de la célula (<code>celula-&lt;célula&gt;/funcionalidades/&lt;funcionalidad&gt;/</code>; los contratos de los API y MS compartidos, en <code>servicios/&lt;repo&gt;/</code>), no en el knowledge.</li>
+      <li><code>.github/copilot-instructions.md</code> y <code>knowledge/integraciones/</code> y <code>operacion/</code> son del repo: el instalador los crea si faltan y no los vuelve a tocar.</li>
+      <li>En VS Code: activar <code>chat.useAgentSkills</code> y <code>chat.useHooks</code>.</li>
+      <li>Memoria entre chats (opcional, en la máquina de cada desarrollador, no en el repo): <code>npm install -g odin-memory</code> desde el Nexus y <code>odin setup vscode-copilot</code>; después, recargar VS Code.</li>
+    </ul>
+    <div class="cajetin"><span>Hoja <b>11</b> / 11</span><span>Dónde queda cada cosa</span><span>Rev. <b>03-11-2026</b></span></div>
+  </section>
+
+</main>

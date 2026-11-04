@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>sdd-dev-process</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+@page { size: 420mm 297mm; margin: 0; }
+:root {
+  --ink: #1B1F24; --muted: #555E69; --line: #CBD0D6; --paper: #F2F3F5; --sheet: #FFFFFF;
+  --brand: #EA580C; --brand-deep: #9A3412; --brand-soft: #FDEDE3;
+  --gate: #374151; --gate-soft: #E8EAEE;
+  --ok: #15803D; --ok-soft: #DCF3E4;
+  --qa: #7A3E9E; --qa-soft: #F1E6F7;
+  --perf: #0B7268; --perf-soft: #DDF1EE;
+  --eh: #B42345; --eh-soft: #FBE4E9;
+  --jira: #1F4FA3; --jira-soft: #E4ECF8;
+  --f-d: "Archivo", "Arial Narrow", sans-serif;
+  --f-b: "IBM Plex Sans", system-ui, sans-serif;
+  --f-m: "IBM Plex Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1587px; height: 1123px; }
+body { background: var(--sheet); color: var(--ink); font: 400 14px/1.42 var(--f-b); overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 1587px; height: 1123px; padding: 44px 56px 34px; display: grid; grid-template-rows: auto 1fr; gap: 26px; position: relative; }
+.page::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 10px; background: linear-gradient(90deg, var(--brand) 0 62%, var(--gate) 62% 100%); }
+
+.head { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: end; }
+h1 { font: 760 54px/0.98 var(--f-d); font-stretch: 78%; letter-spacing: -.015em; max-width: 40ch; }
+.lead { margin-top: 12px; font-size: 17px; color: var(--muted); max-width: 90ch; }
+.lead b { color: var(--ink); font-weight: 600; }
+.meta { text-align: right; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.meta strong { display: block; font: 700 18px/1.1 var(--f-d); font-stretch: 88%; color: var(--ink); }
+
+.body { display: grid; grid-template-columns: 1fr 380px; gap: 30px; min-height: 0; }
+.main { display: grid; grid-template-rows: auto auto 1fr; gap: 26px; min-height: 0; }
+h2 { font: 720 22px/1.1 var(--f-d); font-stretch: 84%; padding-bottom: 8px; border-bottom: 2px solid var(--ink); margin-bottom: 12px; }
+h2 span { font: 400 14px var(--f-b); color: var(--muted); margin-left: 8px; }
+
+/* relevo de agentes */
+.relay-wrap { background: var(--paper); border-radius: 6px; padding: 22px 20px 18px; }
+.relay { display: grid; grid-template-columns: 1fr 22px 1fr 22px 1fr 22px 1fr 22px 1fr 22px 1fr 22px 92px; align-items: stretch; }
+.ag { background: var(--sheet); border-radius: 5px; border-top: 6px solid var(--c); padding: 12px 12px 12px; display: grid; grid-template-rows: auto auto 1fr auto; gap: 6px; box-shadow: 0 0 0 1px var(--line); }
+.ag .n { font: 800 13px var(--f-d); color: var(--c); }
+.ag h3 { font: 760 20px/1.05 var(--f-d); font-stretch: 84%; }
+.ag p { font-size: 13.6px; color: #333A44; line-height: 1.38; }
+.ag .can { font-size: 11.5px; padding: 4px 7px; border-radius: 3px; background: var(--cs); color: var(--c); font-weight: 500; }
+.a1 { --c: var(--gate); --cs: var(--gate-soft); }
+.a2 { --c: var(--jira); --cs: var(--jira-soft); }
+.a3 { --c: var(--perf); --cs: var(--perf-soft); }
+.a4 { --c: var(--brand-deep); --cs: var(--brand-soft); }
+.a5 { --c: var(--qa); --cs: var(--qa-soft); }
+.a6 { --c: var(--eh); --cs: var(--eh-soft); }
+.pause { display: grid; place-items: center; }
+.pause i { width: 14px; height: 14px; background: var(--brand); transform: rotate(45deg); border-radius: 2px; box-shadow: 0 0 0 4px var(--paper), 0 0 0 5px var(--brand); }
+.mr { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--ink); color: #fff; border-radius: 5px; font: 700 16px/1.15 var(--f-d); font-stretch: 86%; padding: 8px; }
+.mr small { display: block; font: 400 11.5px/1.3 var(--f-b); color: #C9CDD3; margin-top: 4px; }
+.relay-notes { display: flex; gap: 22px; margin-top: 12px; font-size: 13px; align-items: center; color: #333A44; }
+.relay-notes .k { display: inline-flex; align-items: center; gap: 8px; }
+.relay-notes .k i { width: 11px; height: 11px; background: var(--brand); transform: rotate(45deg); border-radius: 1px; display: inline-block; }
+.loop { position: relative; display: grid; grid-template-columns: 1fr 22px 1fr 22px 1fr 22px 1fr 22px 1fr 22px 1fr 22px 92px; margin-top: 8px; height: 26px; }
+.loop span { grid-column: 5 / 8; border: 2px solid var(--perf); border-top: 0; border-radius: 0 0 8px 8px; font-size: 12px; font-weight: 600; color: var(--perf); text-align: center; padding-top: 3px; background: none; }
+
+/* caminos cortos */
+.lanes { display: grid; gap: 11px; }
+.lane { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; }
+.tag { font: 800 15px/1 var(--f-d); font-stretch: 90%; text-align: center; padding: 8px 0; border-radius: 4px; color: #fff; }
+.t-fdt { background: var(--gate); } .t-mau { background: var(--eh); } .t-def { background: var(--qa); font-size: 12.5px; }
+.chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.chain .c { padding: 4px 9px; border-radius: 3px; background: var(--paper); box-shadow: inset 3px 0 0 var(--cc); }
+.chain .c b { font-weight: 600; }
+.chain .ar { color: var(--muted); }
+.c1 { --cc: var(--gate); } .c2 { --cc: var(--jira); } .c3 { --cc: var(--perf); } .c4 { --cc: var(--brand-deep); } .c5 { --cc: var(--qa); } .c6 { --cc: var(--eh); }
+
+.end { margin-top: 14px; padding: 11px 16px; border-left: 4px solid var(--ok); background: var(--ok-soft); font-size: 14px; border-radius: 0 4px 4px 0; }
+.end b { font-weight: 600; }
+/* abajo de la columna principal */
+.bottom { display: grid; grid-template-columns: 1.15fr 1fr; gap: 26px; min-height: 0; align-self: end; }
+.term { background: var(--ink); color: #E6E8EB; border-radius: 6px; padding: 14px 16px; font: 400 13.5px/1.6 var(--f-m); }
+.term .u { color: #FDBA74; }
+.term .st { color: #fff; font-weight: 500; }
+.term .dim { color: #9AA3AE; }
+.cap { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.arch { display: grid; grid-template-columns: 96px 1fr 1fr; gap: 5px; font-size: 12.5px; }
+.arch .h { font: 650 13px var(--f-d); color: var(--muted); padding: 2px 0; }
+.arch .s { font: 650 14px var(--f-d); font-stretch: 92%; align-self: center; }
+.arch .cell { display: flex; gap: 4px; }
+.arch .cell span { flex: 1; text-align: center; padding: 7px 0; border-radius: 3px; background: var(--brand-soft); color: var(--brand-deep); font-weight: 500; }
+.arch .cell.app span { background: var(--gate-soft); color: var(--gate); }
+
+/* principios */
+.side { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+.pr { display: grid; gap: 14px; align-content: start; }
+.p { display: grid; grid-template-columns: 34px 1fr; gap: 12px; }
+.p svg { width: 34px; height: 34px; }
+.p h4 { font: 700 16px/1.15 var(--f-d); font-stretch: 88%; margin-bottom: 3px; }
+.p p { font-size: 13px; color: #333A44; }
+.side .status { align-self: end; margin-top: 18px; background: var(--brand-soft); border-radius: 6px; padding: 14px 16px; font-size: 13px; }
+.side .status h4 { font: 700 16px var(--f-d); font-stretch: 88%; color: var(--brand-deep); margin-bottom: 4px; }
+.side .status ul { list-style: none; margin-top: 6px; display: grid; gap: 3px; }
+.side .status li { padding-left: 14px; position: relative; }
+.side .status li::before { content: ""; position: absolute; left: 0; top: 7px; width: 6px; height: 6px; border: 1.5px solid var(--brand-deep); border-radius: 50%; }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="head">
+    <div>
+      <h1>Seis agentes de IA con roles separados; el desarrollador decide cada paso</h1>
+      <p class="lead"><b>sdd-dev-process</b> es la forma de trabajo de cada desarrollador con GitHub Copilot: lleva una historia de Jira desde la spec hasta el MR en GitLab, <b>con los mismos pasos y controles en todas las células</b>.</p>
+    </div>
+    <div class="meta"><strong>Gerencia de Canales Digitales</strong>Forma de trabajo con agentes · noviembre 2026<br>Fase 1 del SDD · piloto en la célula Hades</div>
+  </header>
+
+  <div class="body">
+    <div class="main">
+      <section>
+        <h2>Una historia nueva (FUID), de la clave de Jira al MR <span>cada agente entrega y se detiene</span></h2>
+        <div class="relay-wrap">
+          <div class="relay">
+            <div class="ag a1"><span class="n">1</span><h3>Orquestador</h3><p>Recibe la clave de Jira, clasifica el pedido según su riesgo y dice en qué paso va.</p><span class="can">No edita nada</span></div>
+            <div class="pause"><i></i></div>
+            <div class="ag a2"><span class="n">2</span><h3>Planner</h3><p>Escribe la spec, resuelve dudas con el PO y arma el plan y las tareas.</p><span class="can">Solo la spec y el plan</span></div>
+            <div class="pause"><i></i></div>
+            <div class="ag a3"><span class="n">3</span><h3>Tester</h3><p>Escribe las pruebas antes que el código, a partir de la spec. Deben fallar.</p><span class="can">Solo pruebas</span></div>
+            <div class="pause"><i></i></div>
+            <div class="ag a4"><span class="n">4</span><h3>Implementer</h3><p>Escribe el código hasta que las pruebas pasan y la spec se cumple.</p><span class="can">Código, nunca pruebas</span></div>
+            <div class="pause"><i></i></div>
+            <div class="ag a5"><span class="n">5</span><h3>Reviewer</h3><p>Revisa contra la spec, la calidad de la gerencia y las reglas del stack.</p><span class="can">Solo lectura</span></div>
+            <div class="pause"><i></i></div>
+            <div class="ag a6"><span class="n">6</span><h3>Seguridad</h3><p>Obligatorio en pagos, autenticación y datos personales; su informe llega a ethical hacking.</p><span class="can">Solo su informe</span></div>
+            <div class="pause"><i></i></div>
+            <div class="mr">MR en GitLab<small>controles del pipeline</small></div>
+          </div>
+          <div class="loop"><span>se repite por cada fase del plan</span></div>
+          <div class="relay-notes">
+            <span class="k"><i></i>Pausa: el desarrollador revisa lo entregado y decide cuándo seguir</span>
+            <span>Cada paso queda en el repo, así cualquier persona de la célula retoma la historia</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Los otros pedidos recorren un camino más corto</h2>
+        <div class="lanes">
+          <div class="lane"><span class="tag t-fdt">FDT</span><div class="chain"><span class="c c1"><b>Orquestador</b></span><span class="ar">→</span><span class="c c2"><b>Planner</b> evalúa el impacto con la regla de oro</span><span class="ar">→</span><span class="c c3"><b>Tester</b> solo si cambia el comportamiento</span><span class="ar">→</span><span class="c c4"><b>Implementer</b> aplica y prueba</span><span class="ar">→</span><span class="c c5"><b>Reviewer</b></span></div></div>
+          <div class="lane"><span class="tag t-mau">MAU</span><div class="chain"><span class="c c1"><b>Orquestador</b></span><span class="ar">→</span><span class="c c2"><b>Planner</b> diagnostica</span><span class="ar">→</span><span class="c c3"><b>Tester</b> reproduce el error</span><span class="ar">→</span><span class="c c4"><b>Implementer</b> corrige y verifica</span><span class="ar">→</span><span class="c c5"><b>Reviewer</b></span><span class="ar">→</span><span class="c c6"><b>Seguridad</b> si aplica</span></div></div>
+          <div class="lane"><span class="tag t-def">Defecto</span><div class="chain"><span class="c c1"><b>Orquestador</b> lo clasifica contra la spec, el umbral o la severidad</span><span class="ar">→</span><span class="c c3"><b>Tester</b></span><span class="ar">→</span><span class="c c4"><b>Implementer</b></span><span class="ar">→</span><span class="c c5"><b>Reviewer</b></span><span class="ar">→</span><span>el área que lo abrió vuelve a certificar</span></div></div>
+        </div>
+        <p class="end">Todos los caminos terminan igual: <b>controles del pipeline</b>, <b>pruebas de punta a punta</b> y las tres certificaciones (<b>QA</b>, <b>performance</b> y <b>ethical hacking</b>) antes del pase a producción.</p>
+      </section>
+
+      <section class="bottom">
+        <div>
+          <h2>Lo que ve el desarrollador</h2>
+          <div class="term"><span class="u">dev</span> › @SDD Orquestador WCAP-104 ¿en qué paso vamos?<br><span class="st">🧭 FUID WCAP-104 (épica WCAP-100) · boton-pago-generico</span><br><span class="st">&nbsp;&nbsp;&nbsp;Paso 5 de 10 · Tests de la fase 2</span><br><span class="dim">&nbsp;&nbsp;&nbsp;sigue: SDD Tester · arquetipo: Personas/web/nest</span></div>
+          <p class="cap">Autorización del pago, Botón Pago Genérico. El estado se lee del repo, no del chat.</p>
+        </div>
+        <div>
+          <h2>18 arquetipos, un mismo proceso</h2>
+          <div class="arch">
+            <span class="h"></span><span class="h">Web</span><span class="h">App</span>
+            <span class="s">Personas</span><div class="cell"><span>Express</span><span>NestJS</span><span>Angular</span></div><div class="cell app"><span>Express</span><span>NestJS</span><span>Flutter</span></div>
+            <span class="s">Empresas</span><div class="cell"><span>Express</span><span>NestJS</span><span>Angular</span></div><div class="cell app"><span>Express</span><span>NestJS</span><span>Flutter</span></div>
+            <span class="s">Adquirencia</span><div class="cell"><span>Express</span><span>NestJS</span><span>Angular</span></div><div class="cell app"><span>Express</span><span>NestJS</span><span>Flutter</span></div>
+          </div>
+          <p class="cap">Cada repo recibe el conocimiento de su arquetipo y la guía oficial de su tecnología.</p>
+        </div>
+      </section>
+    </div>
+
+    <aside class="side">
+      <section>
+        <h2>Reglas que no se negocian</h2>
+        <div class="pr">
+          <div class="p"><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="2" y="2" width="30" height="30" rx="6" fill="#DDF1EE"/><path d="M10 12h14M10 17h9M10 22h11" stroke="#0B7268" stroke-width="2.4" stroke-linecap="round"/><path d="M24 20l5 5M29 20l-5 5" stroke="#B42345" stroke-width="2.4" stroke-linecap="round"/></svg><div><h4>Quien escribe las pruebas no escribe el código</h4><p>El editor y el pipeline bloquean que el código cambie sus propias pruebas.</p></div></div>
+          <div class="p"><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="2" y="2" width="30" height="30" rx="6" fill="#FDEDE3"/><rect x="11" y="10" width="4" height="14" rx="1.5" fill="#EA580C"/><rect x="19" y="10" width="4" height="14" rx="1.5" fill="#EA580C"/></svg><div><h4>Una persona aprueba cada paso</h4><p>Ningún agente avanza solo: cada uno entrega y espera al desarrollador.</p></div></div>
+          <div class="p"><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="2" y="2" width="30" height="30" rx="6" fill="#E4ECF8"/><path d="M11 8h9l5 5v13H11z" fill="none" stroke="#1F4FA3" stroke-width="2.2" stroke-linejoin="round"/><path d="M14 18l3 3 5-6" fill="none" stroke="#1F4FA3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><h4>La spec manda</h4><p>Si el código y la spec no coinciden, se corrige uno de los dos antes del MR.</p></div></div>
+          <div class="p"><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="2" y="2" width="30" height="30" rx="6" fill="#FBE4E9"/><path d="M17 8l8 3v6c0 5-3.5 8-8 9.5C12.5 25 9 22 9 17v-6z" fill="none" stroke="#B42345" stroke-width="2.2" stroke-linejoin="round"/></svg><div><h4>Más control donde hay más riesgo</h4><p>Un ajuste menor recorre menos pasos; pagos o datos personales exigen revisión de seguridad.</p></div></div>
+          <div class="p"><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="2" y="2" width="30" height="30" rx="6" fill="#E8EAEE"/><ellipse cx="17" cy="11" rx="8" ry="3" fill="none" stroke="#374151" stroke-width="2.2"/><path d="M9 11v12c0 1.7 3.6 3 8 3s8-1.3 8-3V11M9 17c0 1.7 3.6 3 8 3s8-1.3 8-3" fill="none" stroke="#374151" stroke-width="2.2"/></svg><div><h4>Memoria entre sesiones</h4><p>odin-memory, solución propia de la gerencia, guarda decisiones y pendientes de cada historia. Nunca datos de clientes ni secretos.</p></div></div>
+        </div>
+      </section>
+      <div class="status">
+        <h4>Piloto en la célula Hades</h4>
+        Botón Pago Genérico, Autorizar y Consultar Otros Comercios, botón de pago SII y nóminas. Por definir con la gerencia:
+        <ul>
+          <li>el template de cada arquetipo</li>
+          <li>los umbrales de calidad</li>
+          <li>odin-memory en el repositorio interno de paquetes</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</main>
+</body>
+</html>

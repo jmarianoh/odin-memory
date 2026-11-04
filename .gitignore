@@ -1,8 +1,0 @@
-node_modules/
-.env
-*.db
-*.db-wal
-*.db-shm
-.odin-memory/chunks/
-.DS_Store
-coverage/

@@ -1,0 +1,5 @@
+# Origen de las skills de terceros. Lo actualiza scripts/actualizar-skills.sh; no editar a mano.
+# skill	repo	ruta	commit	copiado	licencia	tipo
+angular-developer	angular/skills	angular-developer	10846d4476c75646d2b6967d402bef5f95e106ab	2026-11-03	MIT	oficial (equipo de Angular, Google)
+nestjs-best-practices	Kadajett/agent-nestjs-skills	skills/nestjs-best-practices	3986e0cede33958e000f959031cbee0cd83c2941	2026-11-03	MIT	comunidad (la más instalada en skills.sh)
+flutter	flutter/agent-plugins	skills	774dc2c1e7fa748b792ef4d12580ca73686f82a5	2026-11-03	BSD-3-Clause	oficial (equipos de Flutter y Dart)

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>SDD en la gerencia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+@page { size: 420mm 297mm; margin: 0; }
+:root {
+  --ink: #1B1F24; --muted: #555E69; --line: #CBD0D6; --paper: #F2F3F5; --sheet: #FFFFFF;
+  --brand: #EA580C; --brand-deep: #9A3412; --brand-soft: #FDEDE3;
+  --gate: #374151; --gate-soft: #E8EAEE;
+  --ok: #15803D; --ok-soft: #DCF3E4;
+  --qa: #7A3E9E; --qa-soft: #F1E6F7;
+  --perf: #0B7268; --perf-soft: #DDF1EE;
+  --eh: #B42345; --eh-soft: #FBE4E9;
+  --jira: #1F4FA3; --jira-soft: #E4ECF8;
+  --f-d: "Archivo", "Arial Narrow", sans-serif;
+  --f-b: "IBM Plex Sans", system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1587px; height: 1123px; }
+body { background: var(--sheet); color: var(--ink); font: 400 14px/1.42 var(--f-b); overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 1587px; height: 1123px; padding: 44px 56px 34px; display: grid; grid-template-rows: auto auto 1fr auto; gap: 26px; position: relative; }
+.page::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 10px; background: linear-gradient(90deg, var(--brand) 0 62%, var(--gate) 62% 100%); }
+
+/* cabecera */
+.head { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: end; }
+h1 { font: 760 54px/0.98 var(--f-d); font-stretch: 78%; letter-spacing: -.015em; max-width: 32ch; }
+.lead { margin-top: 12px; font-size: 17px; color: var(--muted); max-width: 86ch; }
+.lead b { color: var(--ink); font-weight: 600; }
+.meta { text-align: right; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.meta strong { display: block; font: 700 18px/1.1 var(--f-d); font-stretch: 88%; color: var(--ink); }
+
+/* vía */
+.track { position: relative; background: var(--paper); border-radius: 6px; padding: 18px 22px 20px; }
+.phases { display: grid; grid-template-columns: 2fr 3fr 2fr 1.15fr; gap: 14px; margin-bottom: 12px; }
+.phase { font: 650 14px/1.2 var(--f-d); font-stretch: 90%; padding-bottom: 6px; border-bottom: 3px solid currentColor; }
+.phase span { font: 400 12.5px var(--f-b); color: var(--muted); margin-left: 6px; }
+.ph-neg { color: var(--jira); } .ph-cel { color: var(--brand-deep); } .ph-cert { color: var(--gate); } .ph-pase { color: var(--ok); }
+.stations { display: grid; grid-template-columns: repeat(7, 1fr) 1.15fr; gap: 14px; position: relative; }
+.stations::before { content: ""; position: absolute; left: 22px; right: 60px; top: 21px; height: 6px; background: var(--ink); border-radius: 3px; }
+.st { position: relative; display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px; }
+.dot { width: 48px; height: 48px; border-radius: 50%; background: var(--sheet); border: 6px solid var(--ink); display: grid; place-items: center; font: 800 18px var(--f-d); position: relative; z-index: 1; }
+.st h3 { font: 700 18px/1.12 var(--f-d); font-stretch: 86%; }
+.st p { font-size: 13px; color: #333A44; }
+.state { align-self: start; justify-self: start; font-size: 11.5px; font-weight: 500; padding: 3px 8px; border-radius: 3px; background: var(--jira-soft); color: var(--jira); }
+.st.neg .dot { border-color: var(--jira); color: var(--jira); }
+.st.cel .dot { border-color: var(--brand); color: var(--brand-deep); }
+.st.cert .dot { border-color: var(--gate); color: var(--gate); }
+.st.pase .dot { border-color: var(--ok); background: var(--ok); color: #fff; }
+.locks { display: flex; gap: 6px; flex-wrap: wrap; }
+.lock { font-size: 11.5px; font-weight: 600; padding: 3px 8px; border-radius: 3px; }
+.l-qa { background: var(--qa-soft); color: var(--qa); } .l-perf { background: var(--perf-soft); color: var(--perf); } .l-eh { background: var(--eh-soft); color: var(--eh); }
+.rule { margin-top: 14px; display: flex; gap: 22px; align-items: center; font-size: 13.5px; border-top: 1px solid var(--line); padding-top: 12px; }
+.rule b { font-weight: 600; }
+.rule .sep { width: 1px; height: 18px; background: var(--line); }
+
+/* paneles */
+.panels { display: grid; grid-template-columns: 1.2fr 1.1fr 1fr 1.1fr; gap: 26px; min-height: 0; }
+.pn h2 { font: 720 22px/1.1 var(--f-d); font-stretch: 84%; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
+.types { display: grid; gap: 10px; }
+.ty { display: grid; grid-template-columns: 62px 1fr; gap: 12px; align-items: start; }
+.tag { font: 800 15px/1 var(--f-d); font-stretch: 90%; text-align: center; padding: 8px 0; border-radius: 4px; color: #fff; }
+.t-fuid { background: var(--brand); } .t-fdt { background: var(--gate); } .t-mau { background: var(--eh); }
+.ty h4 { font: 650 15px/1.2 var(--f-d); font-stretch: 92%; margin-bottom: 2px; }
+.ty p { font-size: 13px; color: #333A44; }
+.list { list-style: none; display: grid; gap: 9px; }
+.list li { font-size: 13.5px; padding-left: 16px; position: relative; }
+.list li::before { content: ""; position: absolute; left: 0; top: 7px; width: 7px; height: 7px; background: var(--brand); border-radius: 1px; }
+.list b { font-weight: 600; }
+.roles { display: grid; gap: 6px; }
+.role { display: grid; grid-template-columns: 104px 1fr; gap: 8px; font-size: 13px; line-height: 1.35; align-items: baseline; }
+.role b { font: 650 14.5px var(--f-d); font-stretch: 92%; }
+.org { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 12px; }
+.layer { border: 1.5px solid var(--ink); border-radius: 4px; text-align: center; padding: 6px 2px; font: 650 13px var(--f-d); }
+.layer small { display: block; font: 400 11px var(--f-b); color: var(--muted); }
+.layer.own { background: var(--brand-soft); border-color: var(--brand); }
+.layer.shared { background: var(--gate-soft); border-color: var(--gate); border-style: dashed; }
+
+/* fases de adopción */
+.adopt { display: grid; grid-template-columns: auto 1fr 1fr; gap: 0; border-radius: 6px; overflow: hidden; }
+.adopt > div { padding: 14px 20px; font-size: 13.5px; }
+.adopt .lbl { background: var(--ink); color: #fff; font: 700 17px/1.15 var(--f-d); font-stretch: 86%; display: grid; align-content: center; }
+.adopt .f1 { background: var(--brand-soft); } .adopt .f2 { background: var(--gate-soft); }
+.adopt h4 { font: 700 15px var(--f-d); font-stretch: 90%; margin-bottom: 2px; }
+.adopt .f1 h4 { color: var(--brand-deep); }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="head">
+    <div>
+      <h1>Del pedido en Jira a producción, con la spec como contrato</h1>
+      <p class="lead">Spec-Driven Development (SDD): cada historia de Jira se convierte primero en una <b>especificación aprobada por el PO</b>; el código, las pruebas y las certificaciones se miden contra ella, y <b>controles automáticos bloquean</b> lo que no cumple.</p>
+    </div>
+    <div class="meta"><strong>Gerencia de Canales Digitales</strong>Metodología SDD · noviembre 2026<br>Jira · GitHub Copilot · GitLab · Playwright</div>
+  </header>
+
+  <section class="track" aria-label="Recorrido de una historia">
+    <div class="phases">
+      <div class="phase ph-neg">Negocio <span>el PO, en Jira</span></div>
+      <div class="phase ph-cel">Célula <span>desarrollo asistido por IA</span></div>
+      <div class="phase ph-cert">Certificación <span>otras áreas, en QA</span></div>
+      <div class="phase ph-pase">Pase</div>
+    </div>
+    <div class="stations">
+      <div class="st neg"><div class="dot">1</div><h3>Pedido en Jira</h3><p>El PO abre la épica (FUID, FDT o MAU) y la divide en historias con criterios de aceptación.</p><span class="state">Refinada</span></div>
+      <div class="st neg"><div class="dot">2</div><h3>Spec aprobada</h3><p>La célula escribe la spec de la historia y sus dudas; el PO responde y la aprueba en Jira, antes de cualquier código.</p><span class="state">Lista para desarrollo</span></div>
+      <div class="st cel"><div class="dot">3</div><h3>Desarrollo con IA</h3><p>Agentes de Copilot: pruebas primero, código después, revisión y seguridad. El desarrollador aprueba cada paso.</p><span class="state">En desarrollo</span></div>
+      <div class="st cel"><div class="dot">4</div><h3>Controles en GitLab</h3><p>El pipeline bloquea el cambio si no cumple la spec, si se tocaron las pruebas o si falta la clave de Jira.</p><span class="state">En desarrollo</span></div>
+      <div class="st cel"><div class="dot">5</div><h3>Prueba de punta a punta</h3><p>Pruebas automáticas de la funcionalidad completa en integración. Sin verde no se cierra la historia.</p><span class="state">En integración</span></div>
+      <div class="st cert"><div class="dot">6</div><h3>Certificación QA</h3><p>QA certifica cada historia contra su spec y, después, la versión completa del pase.</p><span class="state">En certificación QA</span></div>
+      <div class="st cert"><div class="dot">7</div><h3>Rendimiento y seguridad</h3><p>Sobre la versión completa: pruebas de carga con los umbrales del arquitecto y ethical hacking.</p><div class="locks"><span class="lock l-qa">QA</span><span class="lock l-perf">Performance</span><span class="lock l-eh">Ethical hacking</span></div></div>
+      <div class="st pase"><div class="dot">✓</div><h3>Producción</h3><p>Despliegue por capas (MS → API → BFF → app) con la funcionalidad tras un interruptor. El PO la da por hecha.</p><span class="state">Hecha</span></div>
+    </div>
+    <div class="rule">
+      <span><b>Sin los tres OK no hay pase</b>, tampoco para un incidente urgente.</span><span class="sep"></span>
+      <span>Un hallazgo de certificación es un <b>defecto enlazado a la historia</b>, se corrige con una prueba que lo reproduce.</span><span class="sep"></span>
+      <span>El PO sigue el avance <b>en los estados de Jira</b>, sin entrar a ninguna otra herramienta.</span>
+    </div>
+  </section>
+
+  <section class="panels">
+    <div class="pn">
+      <h2>Tres tipos de pedido, tres caminos</h2>
+      <div class="types">
+        <div class="ty"><span class="tag t-fuid">FUID</span><div><h4>Funcionalidad nueva o ampliada</h4><p>Cada pantalla o capacidad es una historia con su propia spec. Recorre el camino completo.</p></div></div>
+        <div class="ty"><span class="tag t-fdt">FDT</span><div><h4>Cambio puntual</h4><p>Actualizar un endpoint, migrar de versión. Regla de oro: si cambia el comportamiento, primero se actualiza la spec; si es solo técnico, regresión completa.</p></div></div>
+        <div class="ty"><span class="tag t-mau">MAU</span><div><h4>Incidente en producción</h4><p>Diagnóstico, corrección y verificación por separado, con una prueba que reproduce el error antes de corregirlo.</p></div></div>
+      </div>
+    </div>
+    <div class="pn">
+      <h2>Quién hace qué</h2>
+      <div class="roles">
+        <div class="role"><b>PO</b><span>Pide, aclara y aprueba. Todo desde Jira.</span></div>
+        <div class="role"><b>Célula</b><span>4 devs full-stack: spec, código, pruebas y contratos. Dueña de sus repos.</span></div>
+        <div class="role"><b>Arquitecto</b><span>Define la carga y los umbrales de rendimiento.</span></div>
+        <div class="role"><b>QA</b><span>Certifica cada historia y la versión.</span></div>
+        <div class="role"><b>Performance</b><span>Ejecuta las pruebas de carga de BFF, API y MS.</span></div>
+        <div class="role"><b>Ethical hacking</b><span>Prueba la seguridad de la versión completa.</span></div>
+      </div>
+    </div>
+    <div class="pn">
+      <h2>Organizados por funcionalidad</h2>
+      <div class="org">
+        <div class="layer own">App<small>propia</small></div>
+        <div class="layer own">BFF<small>propio</small></div>
+        <div class="layer shared">API<small>o compartida</small></div>
+        <div class="layer shared">MS<small>o compartido</small></div>
+      </div>
+      <ul class="list">
+        <li>Unas <b>20 células</b> de 4 devs en Personas, Empresas y Adquirencia.</li>
+        <li>Se trabaja por <b>funcionalidad</b>: Botón Pago Genérico, nóminas MTN, transferencias…</li>
+        <li>Cada célula tiene <b>un repo</b> con las specs, los contratos y las pruebas de sus funcionalidades.</li>
+      </ul>
+    </div>
+    <div class="pn">
+      <h2>Qué gana la gerencia</h2>
+      <ul class="list">
+        <li><b>Trazabilidad</b>: cada cambio se explica por una historia de Jira y su spec.</li>
+        <li><b>Calidad que no depende de personas</b>: los controles bloquean, no recomiendan.</li>
+        <li><b>Costo de IA por historia y por épica</b>, medido con la telemetría de Copilot.</li>
+        <li><b>Un solo proceso</b> en todas las células, sobre 18 arquetipos estándar.</li>
+        <li><b>Contratos versionados</b>: cambiar un servicio compartido no rompe otra funcionalidad.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="adopt">
+    <div class="lbl">Adopción en<br>dos fases</div>
+    <div class="f1"><h4>Fase 1 · Piloto con los desarrolladores</h4>Célula Hades (Botón Pago Genérico, Autorizar y Consultar Otros Comercios, botón de pago SII, nóminas): forma de trabajo con agentes en cada repo.</div>
+    <div class="f2"><h4>Fase 2 · Estándar de la gerencia</h4>Repo por célula, controles que bloquean en GitLab, PO en Jira y tablero de costo de IA por historia y por equipo.</div>
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Catálogo de arquetipos: 3 subgerencias × 2 canales × 3 templates = 18.
+# Columnas (separadas por tabulador): id · subgerencia · canal · stack · template
+# stack ∈ express | nest | angular | flutter (perfil en arquetipos/stacks/<stack>.conf)
+# template: repo del template en GitLab (por confirmar con cada subgerencia).
+personas-web-express	Personas	web	express	por-confirmar
+personas-web-nest	Personas	web	nest	por-confirmar
+personas-web-angular	Personas	web	angular	por-confirmar
+personas-app-express	Personas	app	express	por-confirmar
+personas-app-nest	Personas	app	nest	por-confirmar
+personas-app-flutter	Personas	app	flutter	por-confirmar
+empresas-web-express	Empresas	web	express	por-confirmar
+empresas-web-nest	Empresas	web	nest	por-confirmar
+empresas-web-angular	Empresas	web	angular	por-confirmar
+empresas-app-express	Empresas	app	express	por-confirmar
+empresas-app-nest	Empresas	app	nest	por-confirmar
+empresas-app-flutter	Empresas	app	flutter	por-confirmar
+adquirencia-web-express	Adquirencia	web	express	por-confirmar
+adquirencia-web-nest	Adquirencia	web	nest	por-confirmar
+adquirencia-web-angular	Adquirencia	web	angular	por-confirmar
+adquirencia-app-express	Adquirencia	app	express	por-confirmar
+adquirencia-app-nest	Adquirencia	app	nest	por-confirmar
+adquirencia-app-flutter	Adquirencia	app	flutter	por-confirmar

@@ -1,0 +1,23 @@
+// Workspace de la funcionalidad __FUNCIONALIDAD__ (célula __CELULA__). Se abre con: sh sdd-plataforma/scripts/sdd-abrir.sh <CLAVE-HISTORIA>
+// Es la declaración de los repos de la funcionalidad: sdd-abrir, /speckit-sdd-impacto y los agentes leen de aquí
+// qué repos existen. Los nombres no se deducen de la funcionalidad: escribe los reales.
+// - App y BFF: propios de la funcionalidad.
+// - API y MS: propios o compartidos con otras funcionalidades (sus contratos están en servicios/<repo>/contracts/).
+// El "name" lleva la capa y el repo ("BFF · <repo>"); agrega "(compartido)" a los API y MS que se comparten.
+// Los repos se clonan uno al lado del otro, junto a celula-__CELULA__.
+{
+  "folders": [
+    // { "name": "App · <repo-app>", "path": "../../../<repo-app>" },
+    // { "name": "BFF · <repo-bff>", "path": "../../../<repo-bff>" },
+    // { "name": "API · <repo-api> (compartido)", "path": "../../../<repo-api>" },
+    // { "name": "MS · <repo-ms> (compartido)", "path": "../../../<repo-ms>" },
+    { "name": "Célula (specs y E2E)", "path": "../.." }
+  ],
+  "settings": {
+    // Skills de Spec Kit (.github/skills) y hooks de agentes (.github/hooks, frontmatter `hooks`)
+    "chat.useAgentSkills": true,
+    "chat.useHooks": true,
+    // Telemetría de Copilot con OpenTelemetry (opcional en el piloto). Sin un collector escuchando, déjalo en false.
+    "github.copilot.chat.otel.enabled": false
+  }
+}

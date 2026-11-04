@@ -1,0 +1,30 @@
+schema_version: "1.0"
+
+extension:
+  id: fdt
+  name: "FDT - Cambio puntual"
+  version: "1.1.0"
+  description: "Evalúa con la regla de oro, aplica y verifica cambios puntuales (FDT) con reportes en .specify/fdt/<slug>/"
+  author: equipo-plataforma
+  repository: sdd-plataforma
+  license: UNLICENSED
+
+requires:
+  speckit_version: ">=1.0.0"
+
+provides:
+  commands:
+    - name: speckit.fdt.assess
+      file: commands/speckit.fdt.assess.md
+      description: "Clasifica un FDT con la regla de oro (contrato, comportamiento o técnico), lista specs y contratos afectados y define las pruebas. No toca código"
+    - name: speckit.fdt.apply
+      file: commands/speckit.fdt.apply.md
+      description: "Aplica el FDT evaluado y registra cualquier desvío del alcance"
+    - name: speckit.fdt.test
+      file: commands/speckit.fdt.test.md
+      description: "Corre las pruebas definidas en el assess y deja el veredicto del FDT"
+
+tags:
+  - "fdt"
+  - "cambio-puntual"
+  - "regla-de-oro"

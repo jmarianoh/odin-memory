@@ -1,0 +1,63 @@
+schema_version: "1.0"
+
+preset:
+  id: "sdd-gerencia"
+  name: "SDD Gerencia"
+  version: "2.0.0"
+  description: "Estándar SDD de la gerencia: trazabilidad con Jira, regla de oro, roles tester/implementer y E2E obligatorio"
+  author: "equipo-plataforma"
+  repository: "sdd-plataforma"
+  license: "UNLICENSED"
+
+requires:
+  speckit_version: ">=1.0.0"
+
+provides:
+  templates:
+    - type: "template"
+      name: "spec-template"
+      file: "templates/spec-template.md"
+      description: "Spec con clave de Jira, escenarios Dado/Cuando/Entonces y Cambios posteriores"
+      replaces: "spec-template"
+
+    - type: "template"
+      name: "plan-template"
+      file: "templates/plan-template.append.md"
+      description: "Agrega contratos, agente/modelo por fase, Arándano y E2E al plan"
+      strategy: "append"
+
+    - type: "template"
+      name: "tasks-template"
+      file: "templates/tasks-template.append.md"
+      description: "Agrega roles [tester]/[implementer], commits por fase y tarea E2E final"
+      strategy: "append"
+
+    - type: "template"
+      name: "constitution-template"
+      file: "templates/constitution-template.md"
+      description: "Constitution base de la gerencia"
+      replaces: "constitution-template"
+
+    - type: "command"
+      name: "speckit.specify"
+      file: "commands/speckit.specify.append.md"
+      description: "Reglas de la gerencia para specify: Jira, numeración y ramas feature/"
+      strategy: "append"
+
+    - type: "command"
+      name: "speckit.tasks"
+      file: "commands/speckit.tasks.append.md"
+      description: "Reglas de la gerencia para tasks: roles, fases y tarea E2E"
+      strategy: "append"
+
+    - type: "command"
+      name: "speckit.implement"
+      file: "commands/speckit.implement.append.md"
+      description: "Reglas de la gerencia para implement: por fases y sin tocar tests del tester"
+      strategy: "append"
+
+tags:
+  - "sdd"
+  - "gerencia"
+  - "jira"
+  - "gitlab"

@@ -1,0 +1,47 @@
+---
+applyTo: "**"
+---
+
+# Arquetipo de este repo
+
+<!-- Generado por sdd-dev-process {{VERSION}} desde arquetipos/catalogo.tsv y arquetipos/stacks/{{STACK}}.conf. No editar: se regenera al actualizar. Lo propio del repo va en .github/copilot-instructions.md. -->
+
+| Campo | Valor |
+| --- | --- |
+| Arquetipo | `{{ARQUETIPO}}` |
+| Subgerencia | {{SUBGERENCIA}} |
+| Canal | {{CANAL}} |
+| Stack | {{STACK_NOMBRE}} · {{CAPAS}} |
+| Template de origen | {{TEMPLATE}} |
+| Skill de stack | `{{SKILL}}` |
+
+## Comandos
+
+Son los habituales del stack. Si el `package.json`, el `pubspec.yaml` o el pipeline del repo dicen otra cosa, gana el repo: úsalo y avisa para corregir el perfil.
+
+| Para | Comando |
+| --- | --- |
+| Instalar dependencias | `{{CMD_INSTALAR}}` |
+| Build | `{{CMD_BUILD}}` |
+| Lint y formato | `{{CMD_LINT}}` |
+| Tests | `{{CMD_TEST}}` |
+| Un test o archivo | `{{CMD_TEST_FOCO}}` |
+| Integración | `{{CMD_TEST_INTEGRACION}}` |
+| Dependencias vulnerables | `{{CMD_DEPS}}` |
+| Plan JMeter (humo) | `{{CMD_JMETER}}` |
+
+Archivos de test: {{ARCHIVOS_TEST}}.
+
+Rendimiento (JMeter): {{JMETER}}.
+
+Servidor MCP del stack: {{MCP}}.
+
+## Knowledge y skill de stack
+
+Al planificar, implementar, testear o revisar código de este repo, lee en este orden:
+
+1. `.github/knowledge/arquitectura/arquetipos/{{ARQUETIPO}}.md`: estructura y convenciones del template de {{SUBGERENCIA}}.
+2. `.github/knowledge/arquitectura/calidad-codigo.md`: límites de calidad del código nuevo.
+3. La skill `{{SKILL}}` y las reglas de `.github/instructions/stack-{{STACK}}.instructions.md`.
+
+Si el knowledge del arquetipo y la skill chocan, gana el knowledge del arquetipo y lo avisas. Si una sección del arquetipo está "por completar", usa la skill y el código del repo, y decláralo en tus supuestos. El mapa completo está en `.github/knowledge/README.md`.

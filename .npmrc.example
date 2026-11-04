@@ -1,2 +1,0 @@
-registry=https://<HOST_NEXUS>/repository/<GRUPO_NPM>/
-always-auth=true

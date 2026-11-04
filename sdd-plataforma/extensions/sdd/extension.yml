@@ -1,0 +1,27 @@
+schema_version: "1.0"
+
+extension:
+  id: sdd
+  name: "SDD Gerencia - comandos corporativos"
+  version: "1.2.0"
+  description: "Comandos corporativos: resumen de la spec para el PO en Jira e impacto por capas de una historia"
+  author: equipo-plataforma
+  repository: sdd-plataforma
+  license: UNLICENSED
+
+requires:
+  speckit_version: ">=1.0.0"
+
+provides:
+  commands:
+    - name: speckit.sdd.resumen-po
+      file: commands/speckit.sdd.resumen-po.md
+      description: "Genera el resumen de spec.md (escenarios, fuera de alcance, decisiones y dudas) para que el PO lo apruebe en Jira"
+    - name: speckit.sdd.impacto
+      file: commands/speckit.sdd.impacto.md
+      description: "En el repo de la célula, genera impacto.md de una historia: capas que cambian, contratos, orden de despliegue y flag"
+
+tags:
+  - "sdd"
+  - "jira"
+  - "gerencia"

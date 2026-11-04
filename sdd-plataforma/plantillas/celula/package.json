@@ -1,0 +1,15 @@
+{
+  "name": "celula-__CELULA__",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Specs, contratos y E2E de las funcionalidades de la célula __CELULA__ (estándar sdd-plataforma)",
+  "scripts": {
+    "e2e": "sh ci/e2e.sh",
+    "listar": "playwright test --list"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6"
+  }
+}
