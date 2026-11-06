@@ -1,0 +1,2071 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flujo SDD con Spec Kit y Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  /* Layout: cabecera con selector de épica, pestañas por vista; la vista Flujo es un carril por rol x 9 fases, con panel de detalle a la derecha */
+  --bg: #F4F3EF;
+  --surface: #FCFBF8;
+  --ink: #17202E;
+  --muted: #535E6E;
+  --line: #D6D2C6;
+  --accent: #A6520E;
+  --accent-soft: #F3E2CC;
+  --po: #E2EAF6;
+  --lt: #F5E6D1;
+  --dev: #DAEEE8;
+  --ci: #E5E5E8;
+  --cert: #EBE3F3;
+  --ok: #2F7A3A;
+  --warn: #A6520E;
+  --bad: #B23A1E;
+  --font-body: 'IBM Plex Sans', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151D; --surface: #19202B; --ink: #ECEAE4; --muted: #A9B2C0; --line: #2F3745;
+    --accent: #F0A24A; --accent-soft: #3A2B19;
+    --po: #1E2A3C; --lt: #36291A; --dev: #17302D; --ci: #252A32; --cert: #2B2337;
+    --ok: #6CC07A; --warn: #F0A24A; --bad: #F08A70;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151D; --surface: #19202B; --ink: #ECEAE4; --muted: #A9B2C0; --line: #2F3745;
+  --accent: #F0A24A; --accent-soft: #3A2B19;
+  --po: #1E2A3C; --lt: #36291A; --dev: #17302D; --ci: #252A32; --cert: #2B2337;
+  --ok: #6CC07A; --warn: #F0A24A; --bad: #F08A70;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1480px; margin: 0 auto; padding: 24px 20px 48px; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: flex-end; justify-content: space-between; }
+h1 { font-size: 26px; line-height: 1.2; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 6px 0 0; max-width: 760px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+.seg { display: flex; flex-direction: column; gap: 6px; }
+.seg-label { font-size: 12px; color: var(--muted); }
+.seg-btns { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.seg-btns button { font: inherit; font-size: 14px; padding: 8px 14px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
+.seg-btns button:last-child { border-right: 0; }
+.seg-btns button small { color: var(--muted); font-size: 11.5px; }
+.seg-btns button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg-btns button[aria-pressed="true"] small { color: var(--bg); opacity: .8; }
+nav.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+nav.tabs a { text-decoration: none; color: var(--muted); padding: 10px 14px; border-bottom: 2px solid transparent; font-weight: 500; }
+nav.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.view { display: none; }
+.view.active { display: block; }
+.flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.diagram { overflow-x: auto; padding: 12px; }
+.diagram svg { display: block; width: 100%; height: auto; }
+figure { margin: 0; }
+figcaption { color: var(--muted); font-size: 13px; padding: 8px 12px 4px; }
+/* SVG */
+.lane-bg { stroke: var(--line); stroke-width: 1; }
+.lane-po { fill: var(--po); } .lane-lt { fill: var(--lt); } .lane-dev { fill: var(--dev); } .lane-ci { fill: var(--ci); } .lane-cert { fill: var(--cert); }
+.lane-name { font: 600 13px var(--font-body); fill: var(--ink); }
+.lane-tool { font: 400 11px var(--font-body); fill: var(--muted); }
+.col-head { font: 600 11.5px var(--font-mono); fill: var(--muted); letter-spacing: .04em; }
+.col-sep { stroke: var(--line); stroke-dasharray: 3 4; }
+.node rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+.node.gate rect { stroke: var(--accent); stroke-width: 2.2; }
+.node.info rect { stroke-dasharray: 4 3; }
+.node .t { font: 600 12.5px var(--font-body); fill: var(--ink); }
+.node.cmd .t { font: 600 12px var(--font-mono); }
+.node .s { font: 400 11px var(--font-body); fill: var(--muted); }
+.node { cursor: pointer; }
+.node:hover rect { stroke: var(--ink); }
+.node:focus { outline: none; }
+.node:focus rect, .node.sel rect { stroke: var(--ink); stroke-width: 2.6; }
+.node.st-opt rect { stroke-dasharray: 6 3; }
+.node.st-cond rect { stroke-dasharray: 2 3; }
+.node.st-skip { opacity: .32; }
+.chip-svg { font: 600 9.5px var(--font-mono); fill: var(--accent); letter-spacing: .05em; }
+.edge { fill: none; stroke: var(--muted); stroke-width: 1.4; }
+.arrowhead { fill: var(--muted); }
+.edge-label { font: 500 10.5px var(--font-body); fill: var(--muted); }
+.group-box { fill: none; stroke: var(--muted); stroke-dasharray: 5 4; stroke-width: 1; }
+.svg-note { font: 400 11px var(--font-body); fill: var(--muted); }
+/* panel */
+.panel { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.panel-head { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: flex-end; justify-content: space-between; }
+.panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px 28px; align-items: start; }
+.panel-grid > div { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel h2 { font-size: 20px; margin: 0; line-height: 1.25; text-wrap: balance; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.chip.st-req { border-color: var(--ok); color: var(--ok); }
+.chip.st-opt, .chip.st-cond { border-color: var(--warn); color: var(--warn); }
+.chip.st-skip { border-color: var(--muted); color: var(--muted); }
+.chip.gate { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.panel h3 { font-size: 12px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 4px; }
+.panel p { margin: 0; }
+.panel ul { margin: 0; padding-left: 18px; }
+.mono { font-family: var(--font-mono); font-size: 12.5px; }
+.cmd-row { display: flex; gap: 8px; align-items: flex-start; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.cmd-row code { flex: 1; font-family: var(--font-mono); font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+.copy { font: inherit; font-size: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.type-note { border-left: 3px solid var(--accent); padding: 6px 0 6px 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 12px 16px; font-size: 13px; color: var(--muted); align-items: center; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.sw { width: 28px; height: 14px; border-radius: 4px; border: 1.5px solid var(--line); background: var(--surface); display: inline-block; }
+.sw.gate { border: 2.2px solid var(--accent); }
+.sw.opt { border-style: dashed; border-color: var(--muted); }
+.sw.cond { border-style: dotted; border-color: var(--muted); }
+.sw.skip { opacity: .35; border-color: var(--muted); }
+.sw.info { border-style: dashed; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.box { padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
+.box h3 { margin: 0; font-size: 16px; }
+.box p, .box ul { margin: 0; color: var(--muted); }
+.box ul { padding-left: 18px; }
+.box code, td code, li code { font-family: var(--font-mono); font-size: 12.5px; }
+.callout { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 12px; padding: 14px 18px; }
+.callout strong { color: var(--ink); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl-wrap { overflow-x: auto; }
+input[type="number"] { font: inherit; width: 84px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.inputs { display: flex; flex-wrap: wrap; gap: 16px 28px; padding: 16px 20px; }
+.inputs label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.result { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.meter { height: 12px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.meter > div { height: 100%; background: var(--ok); }
+.meter.warn > div { background: var(--warn); }
+.meter.bad > div { background: var(--bad); }
+.big { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.pill { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; border: 1px solid currentColor; }
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+.check { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.check:last-child { border-bottom: 0; }
+.check input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--accent); }
+.check label { font-weight: 600; cursor: pointer; }
+.check p { margin: 2px 0 0; color: var(--muted); }
+.progress { font-size: 13px; color: var(--muted); }
+.sec-h { font-size: 18px; margin: 28px 0 12px; }
+.files { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .files { grid-template-columns: 1fr; } }
+.file-list { padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+.file-list .grp { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 10px 8px 4px; }
+.file-list button { font: inherit; text-align: left; border: 0; background: transparent; color: var(--ink); padding: 7px 10px; border-radius: 8px; cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; }
+.file-list button:hover { background: var(--bg); }
+.file-list button[aria-selected="true"] { background: var(--accent-soft); outline: 1px solid var(--accent); }
+.file-view { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.file-view h3 { margin: 0; font-family: var(--font-mono); font-size: 15px; }
+.file-view p { margin: 0; color: var(--muted); }
+.file-view pre { margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; color: var(--ink); }
+.file-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+footer { color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+footer a { color: var(--ink); }
+/* workspace del dev */
+.ide { display: grid; grid-template-columns: 280px minmax(0, 1fr) 340px; grid-template-rows: auto minmax(0, 1fr) auto auto; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); font-size: 13px; min-width: 980px; }
+.ide-scroll { overflow-x: auto; }
+.ide-title { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--ci); border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.ide-title .dots { display: flex; gap: 6px; } .ide-title .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); display: block; }
+.ide-pane { border-right: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; }
+.ide-pane:last-of-type { border-right: 0; }
+.ide-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tree { padding: 6px 0 10px; font-family: var(--font-mono); font-size: 12px; }
+.tree .root { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px 4px; font-weight: 600; color: var(--ink); font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
+.tree .root small { font-weight: 400; text-transform: none; color: var(--muted); letter-spacing: 0; }
+.tree .it { padding: 2px 12px; white-space: nowrap; color: var(--ink); }
+.tree .it.dim { color: var(--muted); }
+.tree .it.hl { background: var(--accent-soft); }
+.tree .ro { color: var(--muted); }
+.editor pre { margin: 0; padding: 12px 14px; font-family: var(--font-mono); font-size: 12px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; }
+.editor .tabs-ed { display: flex; gap: 0; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 12px; }
+.editor .tabs-ed span { padding: 7px 12px; border-right: 1px solid var(--line); color: var(--muted); }
+.editor .tabs-ed span.on { color: var(--ink); background: var(--bg); }
+.editor .c { color: var(--muted); }
+.done { color: var(--ok); } .todo { color: var(--ink); } .cur { background: var(--accent-soft); display: inline; }
+.chat { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; }
+.chat .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chat .sel { font-family: var(--font-mono); font-size: 12px; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; background: var(--bg); }
+.chat .mcp { font-size: 11.5px; border-radius: 999px; padding: 1px 8px; border: 1px solid var(--ok); color: var(--ok); }
+.chat .msg { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--bg); }
+.chat .msg.me { background: var(--po); }
+.chat .tool { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); }
+.chat .handoff { align-self: flex-start; font: inherit; font-size: 12px; border: 1px solid var(--accent); color: var(--ink); background: var(--accent-soft); border-radius: 8px; padding: 4px 10px; }
+.term { grid-column: 1 / 3; border-top: 1px solid var(--line); border-right: 1px solid var(--line); }
+.term pre { margin: 0; padding: 10px 14px; font-family: var(--font-mono); font-size: 12px; line-height: 1.55; color: var(--ink); background: var(--bg); white-space: pre-wrap; }
+.term .ok { color: var(--ok); } .term .c { color: var(--muted); }
+.chat-foot { grid-column: 3; border-top: 1px solid var(--line); padding: 10px 12px; font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: flex-start; }
+.status { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 6px 14px; background: var(--ink); color: var(--bg); font-family: var(--font-mono); font-size: 11.5px; }
+.spot { font: 700 11px var(--font-body); width: 20px; height: 20px; border-radius: 50%; border: 0; background: var(--accent); color: var(--surface); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; padding: 0; }
+.spot[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+.status .spot { background: var(--accent); color: var(--ink); }
+@media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+.ws-detail { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 0; margin-top: 16px; }
+@media (max-width: 900px) { .ws-detail { grid-template-columns: 1fr; } }
+.ws-list { padding: 10px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); }
+.ws-list button { font: inherit; font-size: 13.5px; text-align: left; border: 0; background: transparent; color: var(--ink); padding: 7px 10px; border-radius: 8px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
+.ws-list button:hover { background: var(--bg); }
+.ws-list button[aria-selected="true"] { background: var(--accent-soft); outline: 1px solid var(--accent); }
+.ws-list .n { font: 700 11px var(--font-body); width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--surface); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.ws-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ws-body h3 { margin: 0; font-size: 18px; }
+.ws-body p { margin: 0; }
+.ws-body .why { color: var(--muted); border-left: 3px solid var(--accent); padding-left: 12px; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; counter-reset: st; }
+.steps .box { position: relative; }
+.steps .box h3::before { counter-increment: st; content: counter(st); font: 700 12px var(--font-body); width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; margin-right: 8px; vertical-align: 1px; }
+@media (prefers-reduced-motion: no-preference) { .node rect { transition: stroke-width .12s; } .node { transition: opacity .35s; } }
+/* animaciones */
+.tour-bar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; padding: 14px 16px 0; }
+.btn { font: inherit; font-size: 13.5px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+.btn:disabled { opacity: .45; cursor: default; }
+.tour-info { color: var(--muted); font-size: 13.5px; margin-left: 6px; }
+.tour-info strong { color: var(--ink); }
+.tour-prog { height: 3px; background: var(--line); border-radius: 2px; margin: 10px 16px 0; overflow: hidden; }
+.tour-prog > div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+.node.t-future { opacity: .28; }
+.node.t-cur rect { stroke: var(--accent); stroke-width: 3; }
+.edge.e-hot { stroke: var(--accent); stroke-width: 2.2; }
+.edge.e-future { opacity: .2; }
+.flow-dot { fill: var(--accent); pointer-events: none; }
+.amb-dot { fill: var(--accent); opacity: .85; pointer-events: none; }
+.tl { display: block; min-height: 1.55em; }
+@keyframes pulseRect { 0%, 100% { stroke-width: 2.4; } 50% { stroke-width: 5; } }
+@keyframes seqIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes curGlow { 0%, 100% { background: var(--accent-soft); } 50% { background: transparent; } }
+@media (prefers-reduced-motion: no-preference) {
+  .node.t-cur rect { animation: pulseRect 1.4s ease-in-out infinite; }
+  .seq { opacity: 0; animation: seqIn .45s ease-out forwards; }
+  .cur.glow { animation: curGlow 1.6s ease-in-out 3; }
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <p class="eyebrow">SDD · Spec Kit · GitHub Copilot · GitLab</p>
+    <h1>Flujo SDD con Spec Kit y Copilot</h1>
+    <p class="sub">De la épica de Jira al pase a producción, para 30 equipos con repos de APP (Flutter), WEB (Angular), BFF, API y MS. Haz clic en cualquier paso para ver quién lo hace, con qué herramienta, qué comando corre y qué archivo deja.</p>
+  </div>
+  <div class="seg">
+    <span class="seg-label" id="typeLabel">Tipo de épica</span>
+    <div class="seg-btns" role="group" aria-labelledby="typeLabel">
+      <button type="button" data-type="FUID" aria-pressed="true">FUID<small>funcionalidad o mejora</small></button>
+      <button type="button" data-type="FDT" aria-pressed="false">FDT<small>deuda técnica</small></button>
+      <button type="button" data-type="MAU" aria-pressed="false">MAU<small>error de producción</small></button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Vistas">
+  <a href="#flujo" data-view="flujo">Flujo de trabajo</a>
+  <a href="#triage" data-view="triage">Triage</a>
+  <a href="#harness" data-view="harness">Harness de desarrollo</a>
+  <a href="#workspace" data-view="workspace">Workspace del dev</a>
+  <a href="#estandares" data-view="estandares">Estándares y e2e</a>
+  <a href="#backstage" data-view="backstage">Backstage</a>
+  <a href="#repos" data-view="repos">Repos y specs</a>
+  <a href="#ramas" data-view="ramas">Ramas y pipeline</a>
+  <a href="#creditos" data-view="creditos">Créditos de Copilot</a>
+  <a href="#preparacion" data-view="preparacion">Preparación</a>
+</nav>
+
+<!-- FLUJO -->
+<section class="view" id="view-flujo" aria-label="Flujo de trabajo">
+  <div class="flow">
+    <div class="card">
+      <div class="tour-bar" role="group" aria-label="Recorrido animado">
+        <button type="button" class="btn primary" id="tourPlay">▶ Reproducir recorrido</button>
+        <button type="button" class="btn" id="tourPrev" aria-label="Paso anterior">◀</button>
+        <button type="button" class="btn" id="tourNext" aria-label="Paso siguiente">▶</button>
+        <button type="button" class="btn" id="tourReset">Ver todo</button>
+        <span class="tour-info" id="tourInfo" aria-live="polite">Recorre el flujo paso a paso según el tipo de épica, o haz clic en un paso para ver qué entra y qué sale.</span>
+      </div>
+      <div class="tour-prog"><div id="tourBar"></div></div>
+      <figure class="diagram">
+        <svg id="flowSvg" role="img" aria-label="Flujo por roles: el PO crea la épica y el brief, el líder técnico genera spec y plan con Spec Kit en el repo BFF, los devs implementan por historia y prueban en DEV, el LT aprueba el merge a Desarrollo-CI, la versión se despliega en QA y QA, JMeter y ethical hacking certifican antes del pase a producción."></svg>
+        <figcaption id="flowCaption">Cada carril es un rol; cada columna, una fase. Los recuadros con borde ámbar son puntos de aprobación.</figcaption>
+      </figure>
+      <div class="legend" aria-label="Leyenda">
+        <span><i class="sw"></i> paso obligatorio</span>
+        <span><i class="sw opt"></i> opcional</span>
+        <span><i class="sw cond"></i> condicional</span>
+        <span><i class="sw skip"></i> se omite en este tipo</span>
+        <span><i class="sw gate"></i> gate de aprobación</span>
+        <span><i class="sw info"></i> contexto fijo</span>
+      </div>
+    </div>
+    <aside class="card panel" id="panel" aria-live="polite"></aside>
+  </div>
+</section>
+
+<!-- HARNESS -->
+<section class="view" id="view-harness" aria-label="Harness de desarrollo">
+  <div class="callout" style="margin-bottom:16px">
+    <p><strong>Qué es el harness.</strong> Todo lo que rodea al agente en el IDE del dev: lo que sabe al empezar, lo que puede hacer, lo que lo frena y cómo comprueba que terminó. Vive versionado en cada repo, así los 30 equipos trabajan igual y nada depende del pipeline, que no se puede modificar.</p>
+  </div>
+
+  <div class="card">
+    <figure class="diagram">
+      <svg viewBox="0 0 1180 420" role="img" aria-label="El agente de Copilot lee el contexto del repo y de odin-memory, cada herramienta que usa pasa por hooks y aprobaciones, y al terminar una tarea corre la verificación local; si falla vuelve a corregir hasta tres veces, y si pasa marca la tarea y guarda memoria.">
+        <defs><marker id="arrH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
+        <text x="30" y="30" class="col-head">1 · CONTEXTO · QUÉ SABE</text>
+        <rect x="30" y="44" width="260" height="250" rx="12" class="lane-bg lane-po"/>
+        <text x="48" y="74" class="lane-name">Del repo</text>
+        <text x="48" y="96" class="svg-note mono">constitution.md</text>
+        <text x="48" y="116" class="svg-note mono">copilot-instructions.md</text>
+        <text x="48" y="136" class="svg-note mono" style="font-size:12px">instructions/ · catalog-info.yaml</text>
+        <text x="48" y="168" class="lane-name">De la épica</text>
+        <text x="48" y="190" class="svg-note mono">specs/CLAVE/spec · plan · tasks</text>
+        <text x="48" y="222" class="lane-name">Memoria y catálogo</text>
+        <text x="48" y="244" class="svg-note mono">odin-memory (MCP)</text>
+        <text x="48" y="266" class="svg-note mono">Backstage (MCP)</text>
+
+        <text x="350" y="30" class="col-head">2 · AGENTE · QUÉ HACE</text>
+        <rect x="350" y="44" width="250" height="250" rx="12" class="lane-bg lane-lt" style="stroke:var(--accent);stroke-width:2"/>
+        <text x="368" y="74" class="lane-name">Copilot en modo agente</text>
+        <text x="368" y="94" class="lane-tool">VS Code · un agente por paso, con botones</text>
+        <rect x="368" y="104" width="214" height="34" rx="8" class="lane-bg" style="fill:var(--surface);stroke:var(--accent);stroke-width:1.8"/><text x="380" y="126" class="t" style="font:600 12px var(--font-mono);fill:var(--ink)">sdd-orquestador</text>
+        <path d="M380,138 V258 M380,160 H392 M380,192 H392 M380,224 H392 M380,256 H392" fill="none" stroke="var(--muted)" stroke-width="1.2"/>
+        <rect x="392" y="146" width="190" height="28" rx="7" class="lane-bg lane-ci"/><text x="404" y="165" class="t" style="font:600 12px var(--font-mono);fill:var(--ink)">sdd-planner</text>
+        <rect x="392" y="178" width="190" height="28" rx="7" class="lane-bg lane-ci"/><text x="404" y="197" class="t" style="font:600 12px var(--font-mono);fill:var(--ink)">sdd-tester</text>
+        <rect x="392" y="210" width="190" height="28" rx="7" class="lane-bg lane-ci"/><text x="404" y="229" class="t" style="font:600 12px var(--font-mono);fill:var(--ink)">sdd-implementer</text>
+        <rect x="392" y="242" width="190" height="28" rx="7" class="lane-bg lane-ci"/><text x="404" y="261" class="t" style="font:600 12px var(--font-mono);fill:var(--ink)">sdd-reviewer</text>
+        <text x="368" y="286" class="svg-note">+ /speckit.* y extensiones fdt y bug</text>
+
+        <text x="660" y="30" class="col-head">3 · CONTROL · QUÉ LO FRENA</text>
+        <rect x="660" y="44" width="240" height="250" rx="12" class="lane-bg lane-ci"/>
+        <text x="678" y="74" class="lane-name">Hooks del agente</text>
+        <text x="678" y="96" class="svg-note">PreToolUse: bloquea push, CI, borrados</text>
+        <text x="678" y="116" class="svg-note">PostToolUse: formatea y corre lint</text>
+        <text x="678" y="148" class="lane-name">Aprobación de terminal</text>
+        <text x="678" y="170" class="svg-note">automática solo para lint, test, build</text>
+        <text x="678" y="202" class="lane-name">Git hooks locales</text>
+        <text x="678" y="224" class="svg-note">pre-commit: Cycode secretos y SAST</text>
+        <text x="678" y="244" class="svg-note">pre-push: Cycode sobre los commits</text>
+
+        <text x="960" y="30" class="col-head">4 · VERIFICACIÓN</text>
+        <rect x="960" y="44" width="190" height="250" rx="12" class="lane-bg lane-dev"/>
+        <text x="978" y="74" class="lane-name">Por tarea</text>
+        <text x="978" y="96" class="svg-note">lint + tests de la capa</text>
+        <text x="978" y="116" class="svg-note">build si aplica</text>
+        <text x="978" y="148" class="lane-name">Por repo</text>
+        <text x="978" y="170" class="svg-note mono">/speckit.converge</text>
+        <text x="978" y="190" class="svg-note">revisión contra spec</text>
+        <text x="978" y="222" class="lane-name">Evidencia</text>
+        <text x="978" y="244" class="svg-note">va en la plantilla de MR</text>
+
+        <path d="M290,150 H350" class="edge" marker-end="url(#arrH)"/>
+        <text x="296" y="142" class="edge-label">lee al iniciar</text>
+        <path d="M600,150 H660" class="edge" marker-end="url(#arrH)"/>
+        <text x="604" y="142" class="edge-label">cada acción</text>
+        <path d="M900,150 H960" class="edge" marker-end="url(#arrH)"/>
+        <text x="904" y="142" class="edge-label">al terminar</text>
+        <path d="M1055,294 V340 H475 V298" class="edge" style="stroke:var(--bad)" marker-end="url(#arrH)"/>
+        <text x="620" y="360" class="edge-label" style="fill:var(--bad);font-weight:600">falla: el agente corrige, máximo 3 intentos; después escala al LT</text>
+        <path d="M475,294 V390 H160 V298" class="edge" style="stroke-dasharray:4 4" marker-end="url(#arrH)"/>
+        <text x="190" y="408" class="edge-label">pasa: marca [X] en tasks.md y guarda lo aprendido en odin-memory</text>
+      </svg>
+      <figcaption>Las cuatro capas del harness. La regla de fondo: lo que tiene que pasar siempre va en hooks o git hooks; lo que es criterio va en instrucciones.</figcaption>
+    </figure>
+  </div>
+
+  <h2 class="sec-h">El ciclo de cada tarea</h2>
+  <div class="card">
+    <figure class="diagram">
+      <svg viewBox="0 0 1180 250" role="img" aria-label="Ciclo por tarea: leer tarea y memoria, el tester escribe el test que falla, el implementador hace el cambio, los hooks formatean y corren lint, la verificación local corre los tests; si fallan se vuelve a implementar; si pasan se marca la tarea, se guarda memoria y se hace commit con Cycode en pre-commit.">
+        <defs><marker id="arrT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
+        <g>
+          <rect x="20" y="60" width="140" height="70" rx="10" class="lane-bg lane-po"/><text x="32" y="86" class="lane-name">1 · Contexto</text><text x="32" y="106" class="lane-tool">tarea + odin-memory</text>
+          <rect x="185" y="60" width="140" height="70" rx="10" class="lane-bg lane-ci"/><text x="197" y="86" class="lane-name">2 · Test rojo</text><text x="197" y="106" class="lane-tool">sdd-tester, desde EARS</text>
+          <rect x="350" y="60" width="140" height="70" rx="10" class="lane-bg lane-lt" style="stroke:var(--accent);stroke-width:2"/><text x="362" y="86" class="lane-name">3 · Implementar</text><text x="362" y="106" class="lane-tool">sdd-implementer</text>
+          <rect x="515" y="60" width="140" height="70" rx="10" class="lane-bg lane-ci"/><text x="527" y="86" class="lane-name">4 · Hooks</text><text x="527" y="106" class="lane-tool">formato + lint</text>
+          <rect x="680" y="60" width="140" height="70" rx="10" class="lane-bg lane-dev"/><text x="692" y="86" class="lane-name">5 · Verificar</text><text x="692" y="106" class="lane-tool">tests de la capa</text>
+          <rect x="845" y="60" width="140" height="70" rx="10" class="lane-bg lane-dev"/><text x="857" y="86" class="lane-name">6 · Cerrar tarea</text><text x="857" y="106" class="lane-tool">[X] + memoria</text>
+          <rect x="1010" y="60" width="150" height="70" rx="10" class="lane-bg lane-ci"/><text x="1022" y="86" class="lane-name">7 · Commit</text><text x="1022" y="106" class="lane-tool">pre-commit: Cycode</text>
+        </g>
+        <path d="M160,95 H185" class="edge" marker-end="url(#arrT)"/><path d="M325,95 H350" class="edge" marker-end="url(#arrT)"/>
+        <path d="M490,95 H515" class="edge" marker-end="url(#arrT)"/><path d="M655,95 H680" class="edge" marker-end="url(#arrT)"/>
+        <path d="M820,95 H845" class="edge" marker-end="url(#arrT)"/><path d="M985,95 H1010" class="edge" marker-end="url(#arrT)"/>
+        <path d="M750,130 V170 H420 V134" class="edge" style="stroke:var(--bad)" marker-end="url(#arrT)"/>
+        <text x="470" y="190" class="edge-label" style="fill:var(--bad);font-weight:600">tests en rojo: vuelve a implementar (máx. 3)</text>
+        <path d="M1085,60 V30 H90 V56" class="edge" style="stroke-dasharray:4 4" marker-end="url(#arrT)"/>
+        <text x="460" y="22" class="edge-label">siguiente tarea de tasks.md</text>
+        <text x="20" y="230" class="svg-note">Al terminar las tareas del repo: el dev corre /speckit.converge, sdd-reviewer revisa contra la spec, push (pre-push: Cycode) y MR a Desarrollo-CI.</text>
+      </svg>
+      <figcaption>Una tarea por sesión del agente, con todo el pedido en un solo mensaje: es la forma de gastar menos créditos y de que cada commit tenga una verificación propia.</figcaption>
+    </figure>
+  </div>
+
+  <h2 class="sec-h">Cinco agentes, cada uno con su rol, sus herramientas y su modelo</h2>
+  <p style="margin:-4px 0 14px;color:var(--muted);max-width:960px">Todo pedido empieza con el orquestador. Cada agente termina con un botón hacia el siguiente, y esa es la pausa del proceso: el dev revisa antes de seguir. El que escribe los tests no es el que escribe el código, y el hook tests-intactos lo hace cumplir.</p>
+  <div class="grid2">
+    <div class="card box" style="border-color:var(--accent)"><p class="eyebrow">Puede editar: nada</p><h3>sdd-orquestador</h3><p>Clasifica el pedido (tipo, nivel y superficie sensible) con la skill sdd-clasificar, detecta el paso leyendo el repo y deriva con el botón que corresponde.</p><p class="mono">memoria: el estado del pedido</p></div>
+    <div class="card box"><p class="eyebrow">Puede editar: specs/, .specify/, jira/</p><h3>sdd-planner</h3><p>specify, clarify, plan, tasks y analyze; diagnóstico de MAU y evaluación de FDT. Modelo de mejor razonamiento.</p><p class="mono">memoria: las decisiones</p></div>
+    <div class="card box"><p class="eyebrow">Puede editar: solo tests y planes JMeter (perf/)</p><h3>sdd-tester</h3><p>Tests antes del código, en rojo por la razón correcta: tareas [tester], el test que reproduce un MAU y el ajuste de tests de un FDT.</p><p class="mono">memoria: los tests en rojo</p></div>
+    <div class="card box"><p class="eyebrow">Puede editar: código · tests-intactos le bloquea los tests</p><h3>sdd-implementer</h3><p>Código por fases y converge; corrección de MAU y aplicación de FDT. Modelo equilibrado.</p><p class="mono">memoria: el avance</p></div>
+    <div class="card box"><p class="eyebrow">Puede editar: nada</p><h3>sdd-reviewer</h3><p>Revisión de solo lectura antes del MR contra spec, contrato, tasks, stack, calidad y controles, con un modelo distinto al que implementó.</p><p class="mono">memoria: los bloqueantes</p></div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card box"><p class="eyebrow">Impone</p><h3>Políticas de Copilot</h3><p>El modelo de cada agente es una preferencia en su <code>model</code>; la lista de modelos aprobados se cierra en la política de la organización.</p></div>
+    <div class="card box"><p class="eyebrow">Estandariza</p><h3><code>.github/agents/*.agent.md</code></h3><p>Los cinco agentes, la skill sdd-clasificar y el hook tests-intactos llegan a cada repo desde <code>ingenieria-harness</code> con sync-harness.sh.</p></div>
+    <div class="card box"><p class="eyebrow">Traza</p><h3>Agente y modelo en el MR</h3><p>La plantilla de MR registra la clasificación del pedido y qué agente y modelo hizo cada parte.</p></div>
+  </div>
+  <div class="callout" style="margin-top:16px"><p><strong>Memoria compartida.</strong> Los cinco leen y guardan en odin-memory: el orquestador el estado, el planner las decisiones, el tester los tests en rojo, el implementer el avance y el reviewer los bloqueantes. Guardar en la memoria no es editar archivos. Cada modelo consume créditos distinto: el de mejor razonamiento del planner es el más caro, así que conviene usarlo solo donde rinde.</p></div>
+
+  <h2 class="sec-h">Verificación por capa</h2>
+  <div class="card tbl-wrap">
+    <table>
+      <thead><tr><th>Repo</th><th>Instrucciones (applyTo)</th><th>Verificación local por tarea</th><th>Regla clave de la constitución</th></tr></thead>
+      <tbody>
+        <tr><td><b>APP</b> · Flutter</td><td><code>lib/**, test/**</code></td><td><code>flutter analyze</code> · <code>flutter test</code></td><td>Todo widget nuevo con test de widget; sin lógica que le corresponda al BFF.</td></tr>
+        <tr><td><b>WEB</b> · Angular</td><td><code>src/**</code></td><td><code>ng lint</code> · <code>ng test</code> · <code>ng build</code></td><td>Consume solo el contrato del BFF; componentes con test.</td></tr>
+        <tr><td><b>BFF</b> · NestJS o Express</td><td><code>src/**, test/**</code></td><td><code>npm run lint</code> · <code>npm test</code> · <code>npm run test:e2e</code> · contrato con el front</td><td>Orquesta y adapta; no contiene reglas de dominio.</td></tr>
+        <tr><td><b>API</b> · NestJS o Express</td><td><code>src/**, test/**</code></td><td><code>npm run lint</code> · <code>npm test</code> · <code>npm run test:e2e</code> · validar el OpenAPI</td><td>Compatible hacia atrás; un cambio que rompe se versiona.</td></tr>
+        <tr><td><b>MS</b> · NestJS o Express</td><td><code>src/**, test/**</code></td><td><code>npm run lint</code> · <code>npm test</code> · <code>npm run test:e2e</code></td><td>Dominio y datos; migraciones versionadas.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="progress" style="margin-top:8px">Los nombres de scripts npm y las rutas de applyTo son de ejemplo: ajústalos a sus plantillas. En Express, <code>test:e2e</code> hay que agregarlo a la plantilla.</p>
+
+  <h2 class="sec-h">Archivos del harness en cada repo</h2>
+  <div class="files">
+    <div class="card file-list" id="fileList" role="tablist" aria-label="Archivos del harness"></div>
+    <div class="card file-view" id="fileView" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- TRIAGE -->
+<section class="view" id="view-triage" aria-label="Triage por tipo de pedido">
+  <div class="callout" style="margin-bottom:16px">
+    <p><strong>El tipo de pedido decide el camino; dentro de un FDT decide la regla de oro.</strong> El PO abre un FUID, un FDT o un MAU en Jira. En un FDT, la regla de oro define si primero cambia un contrato, la spec o solo el código. sdd-orquestador lee el tipo, clasifica el nivel y la superficie sensible, y deriva al agente que sigue.</p>
+  </div>
+  <div class="card">
+    <figure class="diagram">
+      <svg viewBox="0 0 1180 520" role="img" aria-label="El PO elige el tipo de pedido en Jira. FUID sigue el flujo SDD completo, de specify a converge, con contratos y E2E nuevos. FDT pasa por speckit-fdt-assess, que aplica la regla de oro: si toca un contrato, primero su dueño; si cambia comportamiento, primero spec.md y luego código; si es solo técnico, regresión completa. MAU pasa por speckit-bug-assess, que diagnostica sin tocar código, y luego bug-fix y bug-test con un test que reproduce el incidente. Todos terminan en un MR con la clave del pedido y los E2E de la spec afectada.">
+        <defs><marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
+        <rect x="440" y="16" width="300" height="56" rx="10" class="lane-bg lane-po"/>
+        <text x="456" y="40" class="lane-name">Pedido del PO en Jira</text><text x="456" y="59" class="lane-tool">El PO elige el tipo</text>
+        <path d="M590,72 V96 H165 V118" class="edge" marker-end="url(#arrG)"/>
+        <path d="M590,72 V118" class="edge" marker-end="url(#arrG)"/>
+        <path d="M590,72 V96 H1015 V118" class="edge" marker-end="url(#arrG)"/>
+
+        <rect x="30" y="120" width="270" height="56" rx="10" class="lane-bg lane-dev"/><text x="46" y="144" class="lane-name">FUID</text><text x="46" y="163" class="lane-tool">Funcionalidad completa o mejora</text>
+        <rect x="330" y="120" width="520" height="56" rx="10" class="lane-bg lane-lt"/><text x="346" y="144" class="lane-name">FDT</text><text x="346" y="163" class="lane-tool">Deuda técnica o cambio puntual</text>
+        <rect x="880" y="120" width="270" height="56" rx="10" class="lane-bg lane-cert"/><text x="896" y="144" class="lane-name">MAU</text><text x="896" y="163" class="lane-tool">Incidente en producción</text>
+
+        <path d="M165,176 V208" class="edge" marker-end="url(#arrG)"/>
+        <path d="M590,176 V208" class="edge" marker-end="url(#arrG)"/>
+        <path d="M1015,176 V208" class="edge" marker-end="url(#arrG)"/>
+        <rect x="30" y="210" width="270" height="60" rx="10" class="lane-bg" style="fill:var(--surface)"/><text x="46" y="235" class="lane-name">Flujo SDD completo</text><text x="46" y="255" class="lane-tool">Una spec por capacidad</text>
+        <rect x="330" y="210" width="520" height="60" rx="10" class="lane-bg" style="fill:var(--surface);stroke:var(--accent);stroke-width:1.8"/><text x="346" y="235" class="lane-name" style="font-family:var(--font-mono)">/speckit-fdt-assess</text><text x="346" y="255" class="lane-tool">Clasifica el cambio con la regla de oro, sin tocar código</text>
+        <rect x="880" y="210" width="270" height="60" rx="10" class="lane-bg" style="fill:var(--surface)"/><text x="896" y="235" class="lane-name" style="font-family:var(--font-mono)">/speckit-bug-assess</text><text x="896" y="255" class="lane-tool">Diagnóstico sin tocar código</text>
+
+        <path d="M165,270 V310" class="edge" marker-end="url(#arrG)"/>
+        <path d="M590,270 V288 H412 V310" class="edge" marker-end="url(#arrG)"/>
+        <path d="M590,270 V310" class="edge" marker-end="url(#arrG)"/>
+        <path d="M590,270 V288 H768 V310" class="edge" marker-end="url(#arrG)"/>
+        <path d="M1015,270 V310" class="edge" marker-end="url(#arrG)"/>
+        <rect x="30" y="312" width="270" height="72" rx="10" class="lane-bg" style="fill:var(--surface)"/><text x="46" y="338" class="lane-name" style="font-family:var(--font-mono);font-size:12px">specify → … → converge</text><text x="46" y="360" class="lane-tool">Contratos y E2E nuevos</text>
+        <rect x="330" y="312" width="164" height="72" rx="10" class="lane-bg lane-lt"/><text x="342" y="336" class="lane-name" style="font-size:12px">Toca un contrato</text><text x="342" y="355" class="lane-tool">El dueño del contrato</text><text x="342" y="370" class="lane-tool">aprueba primero</text>
+        <rect x="508" y="312" width="164" height="72" rx="10" class="lane-bg lane-lt"/><text x="520" y="336" class="lane-name" style="font-size:12px">Cambia comportamiento</text><text x="520" y="355" class="lane-tool">Actualizar spec.md,</text><text x="520" y="370" class="lane-tool">luego el código</text>
+        <rect x="686" y="312" width="164" height="72" rx="10" class="lane-bg lane-lt"/><text x="698" y="336" class="lane-name" style="font-size:12px">Solo técnico</text><text x="698" y="355" class="lane-tool">Node, librerías:</text><text x="698" y="370" class="lane-tool">regresión completa</text>
+        <rect x="880" y="312" width="270" height="72" rx="10" class="lane-bg" style="fill:var(--surface)"/><text x="896" y="338" class="lane-name" style="font-family:var(--font-mono);font-size:12px">/speckit-bug-fix y bug-test</text><text x="896" y="360" class="lane-tool">Test que reproduce el incidente</text>
+
+        <path d="M165,384 V470 H178" class="edge" marker-end="url(#arrG)"/>
+        <path d="M412,384 V438" class="edge" marker-end="url(#arrG)"/>
+        <path d="M590,384 V438" class="edge" marker-end="url(#arrG)"/>
+        <path d="M768,384 V438" class="edge" marker-end="url(#arrG)"/>
+        <path d="M1015,384 V470 H1002" class="edge" marker-end="url(#arrG)"/>
+        <rect x="180" y="440" width="820" height="60" rx="12" class="lane-bg lane-ci" style="stroke:var(--ink)"/>
+        <text x="200" y="466" class="lane-name">MR con la clave del pedido y los E2E de la spec afectada</text>
+        <text x="200" y="486" class="lane-tool">specs-tocadas.sh dice qué specs toca el cambio y qué E2E corren</text>
+      </svg>
+      <figcaption>La regla de oro se revisa en orden: si el FDT toca un contrato, manda el dueño del contrato; si no, pero cambia comportamiento, primero se actualiza spec.md; si no, es solo técnico y corre la regresión completa.</figcaption>
+    </figure>
+  </div>
+
+  <h2 class="sec-h">Antes del primer paso · clasificar el pedido</h2>
+  <p style="margin:-4px 0 14px;color:var(--muted);max-width:960px">El orquestador usa la skill sdd-clasificar. El tipo lo decide el PO en Jira; el nivel y la superficie sensible los determina el agente y los muestra con su motivo.</p>
+  <div class="card tbl-wrap">
+    <table>
+      <thead><tr><th>Nivel</th><th>Criterio</th><th>Qué cambia</th></tr></thead>
+      <tbody>
+        <tr><td><b>N0</b></td><td>Un archivo, cambio mecánico, reversible, sin lógica, sin contrato y sin superficie sensible</td><td>Sin plan ni tasks. sdd-implementer edita, muestra el diff real y corre build y tests.</td></tr>
+        <tr><td><b>N1</b></td><td>Hasta 5 criterios de aceptación, sin superficie sensible ni integración externa nueva</td><td>Camino completo del tipo de pedido.</td></tr>
+        <tr><td><b>N2</b></td><td>6 o más criterios, lógica de negocio, integración externa nueva o superficie sensible</td><td>Camino completo; con superficie sensible, sdd-reviewer revisa también los controles de seguridad y ethical hacking certifica antes del pase.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card box"><h3>Superficie sensible</h3><p>Autenticación y autorización, bypass de auth, datos personales, pagos y dinero, endpoint público nuevo con efecto, secretos, configuración de despliegue, acceso a datos y rutas marcadas por el líder técnico.</p></div>
+    <div class="card box callout"><h3>En boton-pago-generico casi todo cuenta</h3><p>Lo que mueve dinero o identifica a un cliente es sensible: pagos, montos, tarjetas, RUT. Por eso los tres ejemplos del diagrama son N2. Con superficie sensible el pedido nunca es N0, y ante la duda cuenta como sensible.</p></div>
+  </div>
+
+  <h2 class="sec-h">Camino FDT · un cambio puntual con su propio proceso corto</h2>
+  <p style="margin:-4px 0 14px;color:var(--muted);max-width:900px">Spec Kit no trae un proceso para cambios puntuales. El equipo de plataforma construye la extensión <code>fdt</code> en <code>ingenieria-harness</code>, con el mismo patrón de la extensión <code>bug</code>, y la publica en el catálogo interno de extensiones de Spec Kit.</p>
+  <div class="steps">
+    <div class="card box"><h3 class="mono" style="font-size:15px">/speckit-fdt-assess</h3><p>No toca código. Clasifica el cambio con la regla de oro, lista las specs y contratos afectados y define qué pruebas corren.</p><p class="mono">.specify/fdt/&lt;slug&gt;/assessment.md</p></div>
+    <div class="card box"><h3 class="mono" style="font-size:15px">/speckit-fdt-apply</h3><p>Aplica el cambio y registra cualquier desvío del alcance evaluado.</p><p class="mono">.specify/fdt/&lt;slug&gt;/apply.md</p></div>
+    <div class="card box"><h3 class="mono" style="font-size:15px">/speckit-fdt-test</h3><p>Corre las pruebas que definió el assess y deja el veredicto: verificado, parcial o fallido.</p><p class="mono">.specify/fdt/&lt;slug&gt;/test.md</p></div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card box"><p class="eyebrow">FDT · con comportamiento</p><h3>HADES-121 · botonpago-api a la versión 2 del contrato</h3>
+      <ol style="margin:0;padding-left:20px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
+        <li>El assess detecta un cambio incompatible: es versión mayor.</li>
+        <li>El contrato v2 se publica junto al v1 en botonpago-api y se registra en Backstage; <code>spec.md</code> se actualiza.</li>
+        <li>Resumen del cambio al PO en Jira y aviso a los consumidores de v1, que Backstage lista.</li>
+        <li>Tests de la API nuevos para v2; los de v1 siguen corriendo mientras ambas versiones convivan.</li>
+      </ol></div>
+    <div class="card box"><p class="eyebrow">FDT · técnico</p><h3>HADES-120 · botonpago-ms de Node 24 a 26</h3>
+      <ol style="margin:0;padding-left:20px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
+        <li>Rama <code>feature/HADES-120-node-26</code>.</li>
+        <li>Imagen base, <code>package.json</code> y lockfile. Sin cambio de spec.</li>
+        <li>Regresión completa: el runtime afecta a todo el repo.</li>
+        <li><code>specs-tocadas.sh</code> devuelve todas las specs cuando cambian esos archivos.</li>
+      </ol></div>
+  </div>
+
+  <h2 class="sec-h">Camino MAU · la extensión bug de Spec Kit</h2>
+  <p style="margin:-4px 0 14px;color:var(--muted);max-width:900px">Viene con Spec Kit y se instala en cada repo con <code>specify extension add bug</code>. Cada bug tiene su carpeta <code>.specify/bugs/&lt;slug&gt;/</code> con un reporte por etapa.</p>
+  <div class="steps">
+    <div class="card box"><h3 class="mono" style="font-size:15px">/speckit-bug-assess</h3><p>Lee el incidente, juzga si es un bug real, ubica el código sospechoso y propone la corrección. No modifica código.</p><p class="mono">.specify/bugs/&lt;slug&gt;/assessment.md</p></div>
+    <div class="card box"><h3 class="mono" style="font-size:15px">/speckit-bug-fix</h3><p>Aplica la corrección y registra qué cambió. Si aparece trabajo fuera del alcance, queda como desvío. Antes, sdd-tester deja el test que reproduce el incidente.</p><p class="mono">.specify/bugs/&lt;slug&gt;/fix.md</p></div>
+    <div class="card box"><h3 class="mono" style="font-size:15px">/speckit-bug-test</h3><p>Vuelve a correr la reproducción y los tests agregados. Si queda un problema, se vuelve al diagnóstico o al fix con esa evidencia.</p><p class="mono">.specify/bugs/&lt;slug&gt;/test.md</p></div>
+  </div>
+
+  <h2 class="sec-h">specs-tocadas.sh</h2>
+  <div class="grid2">
+    <div class="card box"><h3>Qué hace</h3><p>Compara la rama con Desarrollo-CI y responde qué specs toca el cambio, para correr sus E2E y dejarlos en el MR. Vive en <code>ingenieria-harness</code> y lo usan los tres caminos.</p></div>
+    <div class="card box"><h3>Cuándo devuelve todas</h3><p>Si cambian archivos del runtime (<code>Dockerfile</code>, <code>package.json</code>, lockfile, <code>.nvmrc</code>), el cambio afecta a todo el repo y devuelve todas las specs. Cómo se asocian rutas con specs lo define plataforma; una opción es un mapa por repo en <code>.specify/</code>.</p></div>
+  </div>
+</section>
+
+<!-- WORKSPACE -->
+<section class="view" id="view-workspace" aria-label="Workspace del dev">
+  <div class="callout" style="margin-bottom:16px;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between">
+    <p style="margin:0;flex:1 1 520px" id="wsIntro"></p>
+    <div class="seg-btns" role="group" aria-label="Ejemplo por tipo de épica">
+      <button type="button" data-type="FUID" aria-pressed="true">FUID<small>pagos recurrentes</small></button>
+      <button type="button" data-type="FDT" aria-pressed="false">FDT<small>MS a Node 26</small></button>
+      <button type="button" data-type="MAU" aria-pressed="false">MAU<small>cliente no puede pagar</small></button>
+    </div>
+  </div>
+
+  <div class="ide-scroll">
+  <div class="ide" role="group" aria-label="Maqueta de VS Code con el workspace del ejemplo">
+    <div class="ide-title"><span class="dots"><i></i><i></i><i></i></span><span id="wsTitle"></span><button type="button" class="copy" id="wsReplay" style="margin-left:auto">↺ Repetir animación</button></div>
+    <div class="ide-pane">
+      <div class="ide-head">Explorador</div>
+      <div class="tree" id="wsTree"></div>
+    </div>
+    <div class="ide-pane editor">
+      <div class="tabs-ed" id="wsTabs"></div>
+      <pre id="wsEditor"></pre>
+    </div>
+    <div class="ide-pane">
+      <div class="ide-head">Chat · Copilot <button type="button" class="spot" data-spot="5" aria-label="Detalle 5">5</button></div>
+      <div class="chat" id="wsChat"></div>
+    </div>
+    <div class="term">
+      <div class="ide-head">Terminal <button type="button" class="spot" data-spot="7" aria-label="Detalle 7">7</button></div>
+      <pre id="wsTerm"></pre>
+    </div>
+    <div class="chat-foot"><span id="wsFoot"></span></div>
+    <div class="status"><button type="button" class="spot" data-spot="8" aria-label="Detalle 8">8</button><span id="wsStatus" style="display:contents"></span></div>
+  </div>
+  </div>
+
+  <div class="card ws-detail">
+    <div class="ws-list" id="wsList" role="tablist" aria-label="Partes del workspace"></div>
+    <div class="ws-body" id="wsBody" role="tabpanel"></div>
+  </div>
+
+  <h2 class="sec-h">El día del dev, paso a paso</h2>
+  <div class="steps">
+    <div class="card box"><h3>Abrir la historia</h3><p>Un script del harness, <code>abrir-historia.sh &lt;HISTORIA&gt; &lt;ÉPICA&gt; &lt;repo&gt;</code>, crea la rama de la historia desde la rama de spec de la épica, prepara las carpetas de solo lectura que necesite el tipo de épica y genera el <code>.code-workspace</code>.</p></div>
+    <div class="card box"><h3>Confirmar contexto</h3><p>La barra de estado muestra rama, feature activa y versión del harness. Si el harness está atrasado, se corre <code>sync-harness.sh</code> antes de empezar.</p></div>
+    <div class="card box"><h3>Empezar con el orquestador</h3><p>sdd-orquestador clasifica el pedido, detecta el paso y muestra el botón que sigue: en una FUID, tests desde los criterios EARS y <code>/speckit.implement</code>; en una FDT, <code>/speckit-fdt-*</code>; en una MAU, <code>/speckit-bug-*</code> con el test que reproduce el incidente.</p></div>
+    <div class="card box"><h3>Pasar de agente en agente</h3><p>Cada agente termina con un botón hacia el siguiente: sdd-tester, sdd-implementer, sdd-reviewer. El dev revisa en cada pausa. Los hooks formatean, corren lint y mantienen intactos los tests.</p></div>
+    <div class="card box"><h3>Cerrar la tarea</h3><p>El agente marca <code>[X]</code> en tasks.md y guarda lo aprendido en odin-memory. El commit lleva la clave de la historia y pasa por Cycode.</p></div>
+    <div class="card box"><h3>Antes del MR</h3><p>sdd-reviewer revisa contra la spec y <code>/speckit.converge</code> busca brechas. Un MR por historia y repo, con la evidencia en la plantilla; el LT de Hades lo aprueba.</p></div>
+  </div>
+
+  <h2 class="sec-h">El archivo del workspace</h2>
+  <div class="grid2">
+    <div class="card box" style="min-width:0">
+      <div class="file-head"><h3 class="mono" id="wsFileName"></h3><button type="button" class="copy" id="copyWs">Copiar</button></div>
+      <pre id="wsCode" style="margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-family:var(--font-mono);font-size:12.5px;line-height:1.55;color:var(--ink)"></pre>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card box"><h3>No va en el repo</h3><p>Es un archivo por historia y por dev, junto a sus clones. Lo genera <code>abrir-historia.sh</code>, que vive en <code>ingenieria-harness</code>, así que los 30 equipos lo arman igual.</p></div>
+      <div class="card box"><h3>Por qué repite ajustes del harness</h3><p>Cuando VS Code abre varias carpetas, ignora en el <code>.vscode/settings.json</code> de cada una los ajustes que no son por archivo, como los de hooks y terminal. Por eso el script los copia a <code>settings</code> del workspace.</p></div>
+      <div class="card box"><h3>Un repo de escritura por ventana</h3><p>Si el mismo dev también toca el BFF, abre otra ventana con el BFF como carpeta principal. Cada sesión usa los hooks de una sola carpeta y cada MR es de un solo repo.</p></div>
+      <div class="card box"><h3>Lo que no se abre</h3><p>Los repos vecinos no entran al workspace: su contrato y su dueño llegan por Backstage y se simulan en local. Solo se abren, en su propia ventana, si la historia también los modifica.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ESTANDARES -->
+<section class="view" id="view-estandares" aria-label="Estándares y e2e">
+  <div class="callout" style="margin-bottom:16px">
+    <p><strong>Idea central.</strong> Los estándares viven en un repo propio, versionado, y se copian a cada repo: Spec Kit lee la constitución desde <code>.specify/memory/constitution.md</code> del repo y no la hereda de otro lado. Las plantillas de Flutter, Angular, NestJS y Express llevan el harness a los repos nuevos; un script por MR lo lleva a los vigentes.</p>
+  </div>
+
+  <div class="card">
+    <figure class="diagram">
+      <svg viewBox="0 0 1180 440" role="img" aria-label="El repo ingenieria-harness es la fuente de los estándares. Alimenta las plantillas de proyecto, de donde nacen los repos nuevos, y un script de sincronización que abre un MR en cada repo vigente. En cada repo la constitución se arma con la parte común, la de su capa y una sección local que la sincronización no pisa.">
+        <defs><marker id="arrE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
+        <rect x="30" y="40" width="330" height="360" rx="12" class="lane-bg lane-lt" style="stroke:var(--accent);stroke-width:2"/>
+        <text x="48" y="70" class="lane-name">ingenieria-harness</text>
+        <text x="48" y="90" class="lane-tool">repo central, versionado (v1.4.0)</text>
+        <text x="48" y="124" class="svg-note mono">constitucion/comun.md</text>
+        <text x="48" y="144" class="svg-note mono">constitucion/capas/app|web|bff|api|ms.md</text>
+        <text x="48" y="172" class="svg-note mono">instrucciones/como-trabajamos.md</text>
+        <text x="48" y="192" class="svg-note mono">instrucciones/stacks/flutter|angular|</text>
+        <text x="48" y="208" class="svg-note mono">&#160;&#160;nestjs|express.instructions.md</text>
+        <text x="48" y="236" class="svg-note mono">agentes/ · hooks/ · skills/</text>
+        <text x="48" y="256" class="svg-note mono">speckit/overrides/ (plantilla de spec)</text>
+        <text x="48" y="276" class="svg-note mono">lint/ (analysis_options, eslint)</text>
+        <text x="48" y="296" class="svg-note mono">e2e/ (esqueletos por stack)</text>
+        <text x="48" y="324" class="svg-note mono">scripts/sync-harness.sh</text>
+        <text x="48" y="344" class="svg-note mono">CHANGELOG.md</text>
+        <text x="48" y="378" class="svg-note">Dueño: equipo de habilitación + arquitectura</text>
+
+        <rect x="440" y="60" width="250" height="110" rx="12" class="lane-bg lane-ci"/>
+        <text x="458" y="90" class="lane-name">Plantillas de proyecto</text>
+        <text x="458" y="110" class="lane-tool">Flutter · Angular · NestJS · Express</text>
+        <text x="458" y="140" class="svg-note">traen el harness y el e2e base</text>
+        <rect x="440" y="250" width="250" height="110" rx="12" class="lane-bg lane-ci"/>
+        <text x="458" y="280" class="lane-name">sync-harness.sh</text>
+        <text x="458" y="300" class="lane-tool">lo corre el LT o habilitación</text>
+        <text x="458" y="330" class="svg-note">abre un MR por repo, sin tocar el CI</text>
+
+        <rect x="780" y="60" width="370" height="300" rx="12" class="lane-bg lane-dev"/>
+        <text x="798" y="90" class="lane-name">Cada repo (APP, WEB, BFF, API, MS)</text>
+        <text x="798" y="110" class="lane-tool">archivos generados + versión en catalog-info.yaml</text>
+        <text x="798" y="146" class="svg-note mono">.specify/memory/constitution.md</text>
+        <rect x="810" y="158" width="310" height="26" rx="6" class="lane-bg lane-lt"/><text x="820" y="176" class="svg-note">común · del repo central</text>
+        <rect x="810" y="188" width="310" height="26" rx="6" class="lane-bg lane-lt"/><text x="820" y="206" class="svg-note">de la capa (p. ej. BFF) · del repo central</text>
+        <rect x="810" y="218" width="310" height="26" rx="6" class="lane-bg lane-po"/><text x="820" y="236" class="svg-note">reglas locales · las escribe el equipo</text>
+        <text x="798" y="276" class="svg-note mono">.github/copilot-instructions.md</text>
+        <text x="798" y="296" class="svg-note mono">.github/instructions/&lt;stack&gt;.instructions.md</text>
+        <text x="798" y="316" class="svg-note mono">.github/agents · hooks · skills</text>
+        <text x="798" y="336" class="svg-note mono">.pre-commit-config.yaml · lint · e2e/</text>
+
+        <path d="M360,115 H440" class="edge" marker-end="url(#arrE)"/>
+        <text x="368" y="106" class="edge-label">versión nueva</text>
+        <path d="M360,305 H440" class="edge" marker-end="url(#arrE)"/>
+        <text x="368" y="296" class="edge-label">versión nueva</text>
+        <path d="M690,115 H780" class="edge" marker-end="url(#arrE)"/>
+        <text x="700" y="106" class="edge-label">repos nuevos</text>
+        <path d="M690,305 H780" class="edge" marker-end="url(#arrE)"/>
+        <text x="700" y="296" class="edge-label">repos vigentes</text>
+        <text x="440" y="410" class="svg-note">La sección de reglas locales va entre marcadores: el script reemplaza lo común y lo de la capa, y conserva lo local.</text>
+      </svg>
+      <figcaption>Un solo lugar para cambiar los estándares y dos caminos para llegar a los repos. Cada repo declara su versión del harness en su catalog-info.yaml, así Backstage muestra quién está atrasado.</figcaption>
+    </figure>
+  </div>
+
+  <h2 class="sec-h">Qué va en cada parte del harness</h2>
+  <div class="card tbl-wrap">
+    <table>
+      <thead><tr><th>Qué</th><th>Dónde en el repo</th><th>Origen</th><th>Ejemplo</th></tr></thead>
+      <tbody>
+        <tr><td><b>Principios no negociables</b>: cómo decidimos</td><td><code>.specify/memory/constitution.md</code></td><td>Central: común + capa</td><td>“Cada criterio EARS tiene un test antes de implementarse.” “La API es compatible hacia atrás.”</td></tr>
+        <tr><td><b>Cómo trabajamos</b>: flujo SDD, ramas, commits, memoria, verificación</td><td><code>.github/copilot-instructions.md</code></td><td>Central, igual en todos</td><td>“Una tarea por sesión.” “Una rama feature/HISTORIA por historia, desde la rama de spec de la épica.”</td></tr>
+        <tr><td><b>Buenas prácticas del lenguaje</b></td><td><code>.github/instructions/&lt;stack&gt;.instructions.md</code> con <code>applyTo</code></td><td>Central, una por stack</td><td>NestJS: un módulo por recurso, DTO con validación. Flutter: widgets sin lógica de negocio.</td></tr>
+        <tr><td><b>Lo comprobable de esas prácticas</b></td><td>Config de lint y formato</td><td>Plantillas de proyecto</td><td><code>analysis_options.yaml</code>, ESLint y Prettier: los ejecutan los hooks y el pre-commit.</td></tr>
+        <tr><td><b>Procedimientos repetibles</b></td><td><code>.github/skills/</code></td><td>Central</td><td>“Crear un endpoint NestJS con DTO, test unitario y e2e.” “Agregar un journey e2e.”</td></tr>
+        <tr><td><b>Cómo se escribe una spec</b></td><td><code>.specify/templates/overrides/</code></td><td>Central</td><td>Criterios en EARS con su nivel de prueba; secciones de rendimiento y seguridad.</td></tr>
+        <tr><td><b>Roles del agente y controles</b></td><td><code>.github/agents/</code>, <code>.github/hooks/</code></td><td>Central</td><td>sdd-orquestador, sdd-planner, sdd-tester, sdd-implementer y sdd-reviewer, la skill sdd-clasificar; bloqueos de push y CI, y tests-intactos.</td></tr>
+        <tr><td><b>Excepciones del repo</b></td><td>Sección “Reglas locales” de la constitución</td><td>Local, el script no la pisa</td><td>“Este MS usa una cola heredada: no cambiar el formato de mensajes.”</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="progress" style="margin-top:8px">Regla para decidir: si se puede comprobar con una herramienta, va a lint, tests o hooks; si es criterio, va a instrucciones; si es un principio que guía specs y planes, va a la constitución.</p>
+
+  <h2 class="sec-h">Dónde van las pruebas, incluidas las e2e</h2>
+  <div class="card tbl-wrap">
+    <table>
+      <thead><tr><th>Nivel</th><th>Dónde vive</th><th>Herramienta por stack</th><th>Cuándo corre</th></tr></thead>
+      <tbody>
+        <tr><td><b>Unitarias</b></td><td>Cada repo</td><td>Flutter: <code>flutter test</code> · Angular: su runner de tests · NestJS y Express: Jest</td><td>En cada tarea (local) y en el pipeline</td></tr>
+        <tr><td><b>E2E de servicio</b></td><td>Cada repo: <code>test/e2e/</code> en NestJS y Express, <code>e2e/</code> en Angular, <code>integration_test/</code> en Flutter</td><td>NestJS: <code>npm run test:e2e</code> (la plantilla de Nest ya lo trae) · Express: Jest + supertest · Angular: Playwright o Cypress con el BFF simulado · Flutter: integration_test con el BFF simulado</td><td>Antes del MR, en local</td></tr>
+        <tr><td><b>Contrato entre capas</b></td><td>El contrato en <code>contracts/</code> de la spec del BFF; las pruebas en cada lado</td><td>El proveedor valida sus respuestas contra el OpenAPI; el consumidor usa simulaciones generadas del mismo contrato. Pact si tienen o pueden tener un broker.</td><td>Antes del MR, en ambos repos</td></tr>
+        <tr><td><b>Journeys e2e entre repos</b></td><td>Repo aparte <code>e2e-journeys</code>, una carpeta por funcionalidad</td><td>Playwright para WEB; Flutter integration_test o Patrol para APP</td><td>Contra el ambiente de QA, después del despliegue y antes de la certificación</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card box"><h3>Por qué los journeys van en un repo aparte</h3><p>Un journey cruza APP o WEB, BFF, API y MS: no pertenece a ninguno. Un repo propio, coescrito con QA, evita duplicarlo y lo convierte en la automatización de los casos que QA ya certifica.</p></div>
+    <div class="card box"><h3>Cómo se conectan con la spec</h3><p>Cada criterio EARS indica su nivel de prueba (unitaria, servicio, contrato o journey). <code>/speckit.tasks</code> genera la tarea de prueba en el repo que corresponde y sdd-tester la escribe primero.</p></div>
+    <div class="card box"><h3>Sin modificar el pipeline</h3><p>Los e2e de servicio y de contrato corren en local antes del MR y su evidencia va en la plantilla. Los journeys se ejecutan desde fuera del pipeline hasta que el área de plataforma acepte sumar una etapa.</p></div>
+  </div>
+
+  <h2 class="sec-h">Cómo alinear los repos vigentes que no tienen e2e</h2>
+  <p style="margin:-4px 0 14px;color:var(--muted)">La madurez mide al repo; no se confunde con el nivel N0, N1 o N2 con que el orquestador clasifica cada pedido.</p>
+  <div class="grid2">
+    <div class="card box"><p class="eyebrow">Madurez 0</p><h3>Sin harness</h3><p>Sin constitución, instrucciones ni hooks.</p></div>
+    <div class="card box"><p class="eyebrow">Madurez 1 · un MR, sin cambiar código</p><h3>Harness instalado</h3><p>sync-harness.sh, pre-commit con Cycode y lint en modo aviso.</p></div>
+    <div class="card box"><p class="eyebrow">Madurez 2</p><h3>Red mínima</h3><p>Lint estricto en archivos tocados y un e2e de humo: el servicio levanta, responde salud y un camino feliz.</p></div>
+    <div class="card box"><p class="eyebrow">Madurez 3</p><h3>Flujos críticos cubiertos</h3><p>E2E de servicio de los flujos con más tráfico o más MAU, y pruebas de contrato con sus vecinos.</p></div>
+    <div class="card box"><p class="eyebrow">Madurez 4</p><h3>En journeys</h3><p>La funcionalidad aparece en e2e-journeys y QA certifica sobre esa automatización.</p></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="check"><div><label>1. Campaña de madurez 1 en todos los repos</label><p>El equipo de habilitación corre sync-harness.sh en los repos de los 30 equipos: un MR por repo, sin tocar código. Es el patrón de campañas sobre la flota.</p></div></div>
+    <div class="check"><div><label>2. Cada épica sube la madurez de lo que toca</label><p>Toda FUID, FDT o MAU que modifica un flujo deja su e2e de servicio. En una MAU, el test que reproduce el error queda como e2e de regresión.</p></div></div>
+    <div class="check"><div><label>3. Tests de caracterización antes de cambiar</label><p>En un flujo sin pruebas, sdd-tester primero escribe e2e que capturan el comportamiento actual, en verde. Recién después se cambia el código. Los casos de certificación de QA son el mejor punto de partida.</p></div></div>
+    <div class="check"><div><label>4. FDT de alineación para los repos más riesgosos</label><p>Priorizar por cantidad de MAU, tráfico y repos compartidos (API y MS primero, porque los usan varias funcionalidades).</p></div></div>
+    <div class="check"><div><label>5. Medir y publicar la madurez de cada repo</label><p>Cada repo declara su versión y madurez del harness como anotaciones en su catalog-info.yaml; Tech Insights, el plugin de scorecards de Backstage, arma el tablero por equipo sin depender del pipeline.</p></div></div>
+  </div>
+  <p class="progress" style="margin-top:8px">Las campañas de alineación también consumen créditos de Copilot: conviene presupuestarlas aparte de las épicas.</p>
+</section>
+
+<!-- BACKSTAGE -->
+<section class="view" id="view-backstage" aria-label="Backstage">
+  <div class="callout" style="margin-bottom:16px">
+    <p><strong>Backstage es el mapa que el agente necesita.</strong> Como cada pieza ya tiene su <code>catalog-info.yaml</code>, el catálogo sabe a qué funcionalidad pertenece cada repo, quién es su dueño y qué APIs expone o consume. Con el plugin de acciones MCP de Backstage, Copilot puede consultarlo en vez de adivinar.</p>
+  </div>
+
+  <div class="card">
+    <figure class="diagram">
+      <svg viewBox="0 0 1180 520" role="img" aria-label="En el catálogo, el sistema boton-pago-generico del equipo Hades agrupa APP, WEB, BFF, API y MS. APP y WEB consumen la API del BFF; el BFF consume la API de botonpago-api, y esta consume la de botonpago-ms. El agente consulta el catálogo por MCP para saber repos impactados, dueños y contratos vigentes.">
+        <defs><marker id="arrS" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
+        <rect x="30" y="40" width="1120" height="360" rx="14" class="group-box"/>
+        <text x="46" y="64" class="col-head">SYSTEM: BOTON-PAGO-GENERICO · OWNER: HADES</text>
+        <rect x="50" y="100" width="150" height="60" rx="10" class="lane-bg lane-dev"/><text x="62" y="125" class="lane-name">botonpago-app</text><text x="62" y="145" class="lane-tool">Component · Flutter</text>
+        <rect x="50" y="250" width="150" height="60" rx="10" class="lane-bg lane-dev"/><text x="62" y="275" class="lane-name">botonpago-web</text><text x="62" y="295" class="lane-tool">Component · Angular</text>
+        <rect x="225" y="165" width="150" height="44" rx="10" class="lane-bg lane-ci"/><text x="236" y="184" class="lane-name" style="font-size:11.5px">botonpago-bff-openapi</text><text x="236" y="200" class="lane-tool">API</text>
+        <rect x="400" y="155" width="160" height="64" rx="10" class="lane-bg lane-lt" style="stroke:var(--accent);stroke-width:2"/><text x="412" y="181" class="lane-name">botonpago-bff</text><text x="412" y="201" class="lane-tool">Component · NestJS</text>
+        <rect x="585" y="165" width="150" height="44" rx="10" class="lane-bg lane-ci"/><text x="596" y="184" class="lane-name" style="font-size:11.5px">botonpago-api-openapi</text><text x="596" y="200" class="lane-tool">API</text>
+        <rect x="760" y="155" width="170" height="64" rx="10" class="lane-bg lane-lt"/><text x="772" y="181" class="lane-name">botonpago-api</text><text x="772" y="201" class="lane-tool">Component · Express</text>
+        <rect x="770" y="262" width="150" height="44" rx="10" class="lane-bg lane-ci"/><text x="781" y="281" class="lane-name" style="font-size:11.5px">botonpago-ms-openapi</text><text x="781" y="297" class="lane-tool">API</text>
+        <rect x="760" y="330" width="170" height="56" rx="10" class="lane-bg lane-lt"/><text x="772" y="353" class="lane-name">botonpago-ms</text><text x="772" y="372" class="lane-tool">Component · NestJS</text>
+        <path d="M200,130 H300 V165" class="edge" marker-end="url(#arrS)"/><text x="206" y="122" class="edge-label">consumesApis</text>
+        <path d="M200,280 H300 V209" class="edge" marker-end="url(#arrS)"/><text x="206" y="272" class="edge-label">consumesApis</text>
+        <path d="M400,187 H377" class="edge" marker-end="url(#arrS)"/><text x="372" y="150" class="edge-label">provides</text>
+        <path d="M560,187 H583" class="edge" marker-end="url(#arrS)"/><text x="530" y="240" class="edge-label">consumesApis</text>
+        <path d="M760,187 H737" class="edge" marker-end="url(#arrS)"/><text x="728" y="150" class="edge-label">provides</text>
+        <path d="M845,219 V260" class="edge" marker-end="url(#arrS)"/><text x="853" y="245" class="edge-label">consumesApis</text>
+        <path d="M900,330 V308" class="edge" marker-end="url(#arrS)"/><text x="908" y="324" class="edge-label">provides</text>
+        <rect x="975" y="100" width="155" height="120" rx="10" class="lane-bg" style="fill:none;stroke-dasharray:4 4"/>
+        <text x="988" y="124" class="lane-name">Si fuera compartida</text>
+        <text x="988" y="146" class="svg-note">una API o MS de otra</text>
+        <text x="988" y="162" class="svg-note">funcionalidad tendría</text>
+        <text x="988" y="178" class="svg-note">otro owner, y ese equipo</text>
+        <text x="988" y="194" class="svg-note">aprobaría el Gate 2.</text>
+        <rect x="300" y="430" width="580" height="64" rx="12" class="lane-bg lane-lt"/>
+        <text x="318" y="456" class="lane-name">Copilot consulta el catálogo por MCP</text>
+        <text x="318" y="476" class="svg-note">¿Qué repos toca boton-pago-generico? ¿Quién es dueño de botonpago-ms? ¿Cuál es su contrato vigente?</text>
+        <path d="M590,430 V404" class="edge" style="stroke-dasharray:4 4" marker-end="url(#arrS)"/>
+      </svg>
+      <figcaption>El mismo ejemplo de la vista Workspace del dev: todas las piezas son del equipo Hades. El catálogo responde tres preguntas del flujo: qué repos se impactan, quién aprueba si una pieza es compartida y dónde está el contrato vigente.</figcaption>
+    </figure>
+  </div>
+
+  <h2 class="sec-h">Qué aporta en cada paso del flujo</h2>
+  <div class="card tbl-wrap">
+    <table>
+      <thead><tr><th>Paso</th><th>Qué se lee del catálogo</th><th>Para qué</th></tr></thead>
+      <tbody>
+        <tr><td>Refinamiento</td><td><code>spec.system</code>, <code>consumesApis</code>, <code>dependsOn</code></td><td>Listar los repos impactados de la funcionalidad sin depender de la memoria del equipo.</td></tr>
+        <tr><td>Gate 2</td><td><code>spec.owner</code> de la API o el MS</td><td>Saber qué equipo aprueba la spec delta y el contrato.</td></tr>
+        <tr><td>/speckit.plan</td><td>Entidades <code>kind: API</code> con su definición OpenAPI</td><td>Que el agente parta del contrato vigente antes de proponer cambios.</td></tr>
+        <tr><td>Implementación</td><td>Documentación y dueños vía MCP</td><td>Consultar en lugar de suponer cómo se usa un servicio de otro equipo.</td></tr>
+        <tr><td>Revisión y cierre</td><td>El propio <code>catalog-info.yaml</code></td><td>Si la épica agrega una dependencia o una API, el archivo se actualiza en el mismo MR; sdd-reviewer lo verifica.</td></tr>
+        <tr><td>Alineación de repos</td><td>Anotaciones de versión y madurez del harness</td><td>Un tablero por equipo con Tech Insights, el plugin de scorecards de Backstage.</td></tr>
+        <tr><td>Campañas de flota</td><td><code>spec.type</code> y <code>tags</code> (stack)</td><td>Que sync-harness.sh elija capa y stack de cada repo sin preguntar.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sec-h">Ejemplo de catalog-info.yaml de botonpago-bff</h2>
+  <div class="grid2">
+    <div class="card box" style="min-width:0">
+      <div class="file-head"><h3 class="mono">catalog-info.yaml</h3><button type="button" class="copy" id="copyCatalog">Copiar</button></div>
+      <pre id="catalogCode" style="margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-family:var(--font-mono);font-size:12.5px;line-height:1.55;color:var(--ink)"></pre>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card box"><h3>Contrato vigente y contrato propuesto</h3><p>El contrato vigente vive en un archivo estable del repo, por ejemplo <code>api/openapi.yaml</code>, y es el que registra Backstage. El <code>contracts/</code> de cada spec es la propuesta de la épica: al cerrarla, se fusiona en el vigente.</p></div>
+      <div class="card box"><h3>Anotaciones del harness</h3><p><code>sdd.harness/version</code> y <code>sdd.harness/madurez</code> son nombres propuestos: elijan los suyos y úsenlos igual en los 30 equipos para que el tablero los lea.</p></div>
+      <div class="card box callout"><h3>Lo que hay que pedir a quien opera Backstage</h3><p>Habilitar <code>@backstage/plugin-mcp-actions-backend</code>, que expone el catálogo como herramientas MCP, y definir cómo se autentican los agentes. Sin eso, el agente solo puede leer el <code>catalog-info.yaml</code> del repo abierto.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- REPOS -->
+<section class="view" id="view-repos" aria-label="Repos y specs">
+  <div class="card">
+    <figure class="diagram">
+      <svg viewBox="0 0 1180 560" role="img" aria-label="La spec maestra vive en el BFF, único por funcionalidad. APP y WEB consumen el contrato del BFF. API y MS son compartidos y reciben una spec delta que enlaza la maestra. El merge va de MS hacia el front.">
+        <defs><marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
+        <!-- front -->
+        <rect x="30" y="60" width="230" height="96" rx="12" class="lane-bg lane-dev"/>
+        <text x="48" y="90" class="lane-name">APP · Flutter</text>
+        <text x="48" y="110" class="lane-tool">único por funcionalidad</text>
+        <text x="48" y="138" class="svg-note mono">specs/FUID-1234-…/tasks.md</text>
+        <rect x="30" y="196" width="230" height="96" rx="12" class="lane-bg lane-dev"/>
+        <text x="48" y="226" class="lane-name">WEB · Angular</text>
+        <text x="48" y="246" class="lane-tool">por funcionalidad (a confirmar)</text>
+        <text x="48" y="274" class="svg-note mono">specs/FUID-1234-…/tasks.md</text>
+        <!-- bff -->
+        <rect x="330" y="96" width="250" height="160" rx="12" class="lane-bg lane-lt" style="stroke:var(--accent);stroke-width:2.2"/>
+        <text x="348" y="126" class="lane-name">BFF</text>
+        <text x="348" y="146" class="lane-tool">único por funcionalidad</text>
+        <text x="348" y="172" class="chip-svg">SPEC MAESTRA AQUÍ</text>
+        <text x="348" y="196" class="svg-note mono">specs/FUID-1234-…/spec.md</text>
+        <text x="348" y="214" class="svg-note mono">plan.md · contracts/</text>
+        <text x="348" y="232" class="svg-note mono">tasks.md (todas las capas)</text>
+        <!-- api -->
+        <rect x="650" y="96" width="230" height="160" rx="12" class="lane-bg lane-ci"/>
+        <text x="668" y="126" class="lane-name">API</text>
+        <text x="668" y="146" class="lane-tool">compartida entre funcionalidades</text>
+        <text x="668" y="172" class="chip-svg">SPEC DELTA + DUEÑO</text>
+        <text x="668" y="196" class="svg-note mono">specs/FUID-1234-…/spec.md</text>
+        <text x="668" y="214" class="svg-note">enlaza la spec maestra</text>
+        <text x="668" y="232" class="svg-note">contrato OpenAPI versionado</text>
+        <!-- ms -->
+        <rect x="930" y="96" width="220" height="160" rx="12" class="lane-bg lane-ci"/>
+        <text x="948" y="126" class="lane-name">MS</text>
+        <text x="948" y="146" class="lane-tool">compartido entre funcionalidades</text>
+        <text x="948" y="172" class="chip-svg">SPEC DELTA + DUEÑO</text>
+        <text x="948" y="196" class="svg-note mono">specs/FUID-1234-…/spec.md</text>
+        <text x="948" y="214" class="svg-note">dominio y datos</text>
+        <!-- contracts arrows -->
+        <path d="M260,108 H295 V150 H330" class="edge" marker-end="url(#arrR)"/>
+        <path d="M260,244 H295 V200 H330" class="edge" marker-end="url(#arrR)"/>
+        <text x="266" y="178" class="edge-label">llama al</text>
+        <text x="266" y="192" class="edge-label">BFF</text>
+        <path d="M580,176 H650" class="edge" marker-end="url(#arrR)"/>
+        <text x="590" y="168" class="edge-label">contrato</text>
+        <path d="M880,176 H930" class="edge" marker-end="url(#arrR)"/>
+        <text x="884" y="168" class="edge-label">contrato</text>
+        <!-- merge order -->
+        <path d="M1040,300 V340 H145 V300" class="edge" marker-end="url(#arrR)" style="stroke:var(--accent);stroke-width:2"/>
+        <text x="420" y="362" class="edge-label" style="fill:var(--accent);font-weight:600">Orden de merge: MS → API → BFF → APP / WEB (ningún front llama a un endpoint que no existe)</text>
+        <!-- rules -->
+        <text x="30" y="420" class="lane-name">Reglas para repos compartidos</text>
+        <text x="30" y="446" class="svg-note">1. La carpeta de spec usa la clave de la épica (FUID-1234-…) para que dos funcionalidades no choquen en la misma API o MS.</text>
+        <text x="30" y="468" class="svg-note">2. El equipo dueño de API o MS aprueba la spec delta y el contrato antes de que otro equipo implemente (Gate 2).</text>
+        <text x="30" y="490" class="svg-note">3. La constitución de cada repo compartido exige compatibilidad hacia atrás del contrato; un cambio que rompe se versiona.</text>
+        <text x="30" y="512" class="svg-note">4. Cada historia tiene su rama (feature/HADES-101-nombre), que sale de la rama de spec de la épica en cada repo.</text>
+      </svg>
+      <figcaption>Dónde vive cada archivo de Spec Kit. El BFF es la mejor ancla porque es único por funcionalidad, igual que la APP, y conoce el contrato con todas las capas.</figcaption>
+    </figure>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card box"><h3>FUID en repos compartidos</h3><p>La spec maestra queda en el BFF; en API y MS solo se describe lo que agrega, modifica o elimina esa funcionalidad, con enlace a la maestra.</p></div>
+    <div class="card box"><h3>FDT</h3><p>El assessment vive en <code>.specify/fdt/&lt;slug&gt;/</code> del repo del cambio. Si cambia comportamiento, se actualiza la spec afectada; si toca un contrato compartido, su dueño aprueba primero.</p></div>
+    <div class="card box"><h3>MAU</h3><p>El diagnóstico vive en <code>.specify/bugs/&lt;slug&gt;/</code> del repo donde está la causa raíz. Si el error cruza capas, la causa raíz decide dónde va y los demás repos solo llevan tareas.</p></div>
+  </div>
+</section>
+
+<!-- RAMAS -->
+<section class="view" id="view-ramas" aria-label="Ramas y pipeline">
+  <div class="card">
+    <figure class="diagram">
+      <svg viewBox="0 0 1180 540" role="img" aria-label="La rama de spec de la épica sale de Desarrollo-CI; de ella sale una rama feature por historia, que vuelve a Desarrollo-CI por MR. El dev prueba su rama en DEV; tras el merge, Desarrollo-CI se despliega en QA y QA, JMeter y ethical hacking certifican y Desarrollo-CI pasa a producción; master queda como respaldo.">
+        <defs><marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
+        <text x="30" y="56" class="lane-name">master</text><text x="30" y="72" class="lane-tool">respaldo de producción</text>
+        <line x1="190" y1="60" x2="1150" y2="60" class="edge" style="stroke-width:3"/>
+        <text x="30" y="156" class="lane-name">Desarrollo-CI</text><text x="30" y="172" class="lane-tool">la rama que pasa a producción</text>
+        <line x1="190" y1="160" x2="1150" y2="160" class="edge" style="stroke-width:3;stroke:var(--accent)"/>
+        <text x="30" y="206" class="lane-name">feature/FUID-1234-spec</text><text x="30" y="222" class="lane-tool">spec de la épica, la deja el LT</text>
+        <path d="M220,160 C240,160 240,210 260,210 H540" class="edge" style="stroke-width:1.6;stroke-dasharray:5 4"/>
+        <circle cx="220" cy="160" r="6" fill="var(--accent)"/>
+        <circle cx="290" cy="210" r="5" fill="var(--surface)" stroke="var(--ink)"/>
+        <text x="30" y="256" class="lane-name">feature/HADES-101-…</text><text x="30" y="272" class="lane-tool">una por historia y repo</text>
+        <path d="M290,210 C310,210 310,260 330,260 H560" class="edge" style="stroke-width:2.4"/>
+        <circle cx="360" cy="260" r="6" fill="var(--surface)" stroke="var(--ink)"/>
+        <circle cx="430" cy="260" r="6" fill="var(--surface)" stroke="var(--ink)"/>
+        <circle cx="500" cy="260" r="6" fill="var(--surface)" stroke="var(--ink)"/>
+        <text x="352" y="244" class="svg-note">commits con /speckit.implement</text>
+        <path d="M500,266 V290" class="edge" style="stroke-dasharray:3 3"/>
+        <rect x="420" y="290" width="170" height="40" rx="8" class="lane-bg lane-dev"/><text x="432" y="307" class="lane-name" style="font-size:12px">Despliegue en DEV</text><text x="432" y="322" class="lane-tool">lo lanza el dev desde su rama</text>
+        <path d="M560,260 C600,260 600,160 640,160" class="edge" style="stroke-width:2.4" marker-end="url(#arrB)"/>
+        <text x="604" y="252" class="edge-label">MR</text>
+        <circle cx="646" cy="160" r="7" fill="var(--accent)"/>
+        <text x="200" y="146" class="edge-label">la rama de spec sale de Desarrollo-CI</text>
+        <circle cx="1000" cy="160" r="7" fill="var(--accent)"/>
+        <text x="960" y="146" class="edge-label">certificado</text>
+        <path d="M1000,160 C1030,160 1030,60 1060,60" class="edge" marker-end="url(#arrB)"/>
+        <text x="1040" y="110" class="edge-label">respaldo</text>
+        <rect x="690" y="340" width="460" height="150" rx="12" class="group-box"/>
+        <text x="706" y="364" class="col-head">CERTIFICACIÓN ANTES DE PRODUCCIÓN</text>
+        <rect x="706" y="384" width="134" height="56" rx="8" class="lane-bg lane-cert"/><text x="718" y="408" class="lane-name">QA</text><text x="718" y="426" class="lane-tool">casos desde EARS</text>
+        <rect x="860" y="384" width="134" height="56" rx="8" class="lane-bg lane-cert"/><text x="872" y="408" class="lane-name">JMeter</text><text x="872" y="426" class="lane-tool">rendimiento</text>
+        <rect x="1006" y="384" width="134" height="56" rx="8" class="lane-bg lane-cert"/><text x="1018" y="408" class="lane-name">Ethical hacking</text><text x="1018" y="426" class="lane-tool">equipo de seguridad</text>
+        <path d="M840,412 H860" class="edge" marker-end="url(#arrB)"/><path d="M994,412 H1006" class="edge" marker-end="url(#arrB)"/>
+        <text x="706" y="470" class="svg-note">Insumos: secciones de rendimiento y seguridad de spec.md</text>
+        <path d="M646,168 V388" class="edge" marker-end="url(#arrB)"/>
+        <rect x="470" y="390" width="200" height="48" rx="8" class="lane-bg lane-ci" style="stroke:var(--ink)"/><text x="484" y="410" class="lane-name">Despliegue en QA</text><text x="484" y="427" class="lane-tool">la versión de Desarrollo-CI</text>
+        <path d="M670,412 H704" class="edge" marker-end="url(#arrB)"/>
+        <path d="M1073,384 V176" class="edge" style="stroke-dasharray:4 4" marker-end="url(#arrB)"/>
+      </svg>
+      <figcaption>El modelo de ramas no cambia: Spec Kit solo agrega archivos al repo. Lo que el pipeline no puede validar (coherencia entre spec, plan y código) se valida en local y queda como evidencia en el MR.</figcaption>
+    </figure>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card box"><h3>Controles sin tocar el CI</h3><ul><li><code>/speckit.analyze</code> y <code>/speckit.converge</code> se corren antes del MR.</li><li>Una plantilla en <code>.gitlab/merge_request_templates/</code> pide enlace a la spec, criterios cubiertos y evidencia de tests. Vive en el repo, no en el pipeline.</li></ul></div>
+    <div class="card box"><h3>Lo que no está disponible en GitLab</h3><ul><li>El agente en la nube de Copilot y la revisión de PR de Copilot funcionan sobre repos de GitHub.</li><li>En GitLab se usa Copilot en el IDE, en modo agente, con el repo clonado.</li><li><code>/speckit.taskstoissues</code> crea issues de GitHub: en Jira las subtareas se cargan aparte.</li></ul></div>
+    <div class="card box callout"><h3>Decisión pendiente para MAU</h3><p>Si Desarrollo-CI tiene cambios todavía no certificados, un fix urgente que sale por esa rama los arrastra a producción. Conviene acordar con el área una ruta de hotfix (por ejemplo, desde master) o una certificación exprés.</p></div>
+  </div>
+</section>
+
+<!-- CREDITOS -->
+<section class="view" id="view-creditos" aria-label="Créditos de Copilot">
+  <div class="callout" style="margin-bottom:16px">
+    <p><strong>Cómo se cobra hoy.</strong> Desde el 1 de junio de 2026 Copilot cobra en créditos de IA según los tokens usados; Copilot Business incluye 1.900 créditos por licencia al mes. El modo agente consume mucho más que una pregunta de chat. Los valores de la tabla son <strong>ejemplos para arrancar, no mediciones</strong>: reemplázalos con el reporte de uso después del piloto.</p>
+  </div>
+  <div class="card inputs">
+    <label for="cPerDev">Créditos por persona al mes<input type="number" id="cPerDev" value="1900" min="0" step="50"></label>
+    <label for="devs">Devs por equipo (sin el LT)<input type="number" id="devs" value="6" min="1" step="1"></label>
+    <label for="nFUID">FUID por equipo al mes<input type="number" id="nFUID" value="2" min="0" step="1"></label>
+    <label for="nFDT">FDT por equipo al mes<input type="number" id="nFDT" value="1" min="0" step="1"></label>
+    <label for="nMAU">MAU por equipo al mes<input type="number" id="nMAU" value="3" min="0" step="1"></label>
+    <label for="daily">Uso diario fuera del flujo (por persona)<input type="number" id="daily" value="300" min="0" step="50"></label>
+  </div>
+  <div class="result" style="margin:16px 0">
+    <div class="card box" id="resLT"></div>
+    <div class="card box" id="resDev"></div>
+  </div>
+  <div class="card tbl-wrap">
+    <table>
+      <thead><tr><th>Tipo</th><th>Actividad</th><th>Quién</th><th class="num">Créditos por vez (ejemplo)</th><th class="num">Veces por épica</th><th class="num">Total por épica</th></tr></thead>
+      <tbody id="actBody"></tbody>
+    </table>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card box"><h3>El LT concentra el gasto de spec</h3><p>specify, clarify y plan los corre el LT en el BFF. Si un equipo lleva varias FUID a la vez, su LT es el primero en quedarse sin créditos.</p></div>
+    <div class="card box"><h3>Gastar menos por épica</h3><ul><li>Un brief claro del PO evita vueltas de <code>clarify</code>.</li><li>Instrucciones completas en un solo mensaje, no en goteo.</li><li>Modelos más livianos para <code>analyze</code> y preguntas rápidas.</li><li>odin-memory evita volver a explicar el contexto en cada sesión.</li></ul></div>
+  </div>
+</section>
+
+<!-- PREPARACION -->
+<section class="view" id="view-preparacion" aria-label="Preparación">
+  <p class="progress" id="prepProgress"></p>
+  <div class="card" id="prepList"></div>
+</section>
+
+<footer>
+  <span>Fuentes:
+    <a href="https://github.com/github/spec-kit">GitHub Spec Kit</a> ·
+    <a href="https://www.augmentcode.com/guides/github-spec-kit-practical-guide-sdd-workflow">Guía práctica de Spec Kit (Augment)</a> ·
+    <a href="https://docs.github.com/en/enterprise-cloud@latest/copilot/get-started/features">Funciones de GitHub Copilot</a> ·
+    <a href="https://fireup.pro/news/github-copilot-ai-credits-billing-agent-mode-cost-2026">Créditos de Copilot por plan</a> ·
+    <a href="https://aicodereview.cc/tool/github-copilot/">Copilot code review, solo GitHub</a> ·
+    <a href="https://github.github.io/spec-kit/guides/bugfix.html">Extensión bug de Spec Kit</a> ·
+    <a href="https://code.visualstudio.com/docs/agents/reference/custom-agent-file-reference">Archivo de agente en VS Code</a> ·
+    <a href="https://backstage.io/docs/next/ai/mcp-actions/">Backstage MCP Actions</a> ·
+    <a href="https://backstage.io/docs/features/software-catalog/descriptor-format/">Formato de catalog-info.yaml</a> ·
+    <a href="https://github.com/backstage/community-plugins/tree/main/workspaces/tech-insights">Tech Insights</a>
+  </span>
+  <span>Las estimaciones de créditos son supuestos editables.</span>
+</footer>
+</div>
+
+<script type="text/plain" id="catalogSrc">apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: botonpago-bff
+  description: BFF de la funcionalidad boton-pago-generico
+  tags: [nestjs, bff]
+  annotations:
+    gitlab.com/project-slug: grupo/botonpago-bff
+    sdd.harness/version: "1.4.0"
+    sdd.harness/madurez: "2"
+spec:
+  type: service
+  lifecycle: production
+  owner: group:hades
+  system: boton-pago-generico
+  providesApis: [botonpago-bff-openapi]
+  consumesApis: [botonpago-api-openapi]
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: botonpago-bff-openapi
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:hades
+  system: boton-pago-generico
+  definition:
+    $text: ./api/openapi.yaml
+</script>
+<script type="text/plain" id="f13">apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: botonpago-bff
+  tags: [nestjs, bff]
+  annotations:
+    sdd.harness/version: "1.4.0"
+    sdd.harness/madurez: "2"
+spec:
+  type: service
+  owner: group:hades
+  system: boton-pago-generico
+  providesApis: [botonpago-bff-openapi]
+  consumesApis: [botonpago-api-openapi]
+</script>
+<script type="text/plain" id="f1"># Cómo trabaja el agente en este repo
+Este repo usa Spec-Driven Development con Spec Kit.
+
+## Antes de tocar código
+1. Lee specs/<CLAVE>/spec.md, plan.md y la tarea activa de tasks.md.
+2. Busca en odin-memory la clave de la épica, la de la historia y el nombre de este repo.
+3. Para dueños, dependencias y APIs de otros repos, consulta Backstage (MCP) antes de suponer.
+4. Si la tarea no está clara, pregunta antes de editar.
+
+## Mientras trabajas
+- Una sola tarea por sesión.
+- No cambies contracts/ si la tarea no lo pide.
+- No edites tests ya escritos para hacerlos pasar.
+- Nunca ejecutes git push ni modifiques .gitlab-ci.yml.
+
+## Para dar una tarea por terminada
+- Corre la verificación de la capa (ver .github/instructions/).
+- Marca [X] en tasks.md solo con todo en verde.
+- Guarda en odin-memory decisiones, comandos útiles y errores resueltos.
+- Lo que cambie el alcance o el contrato va a spec.md, no solo a la memoria.
+- Si cambian dependencias o APIs, actualiza catalog-info.yaml en el mismo MR.
+</script>
+<script type="text/plain" id="f2">---
+applyTo: "lib/**/*.dart,test/**/*.dart"
+---
+# Capa APP (Flutter)
+- Todo widget nuevo tiene su test de widget en test/.
+- La app solo habla con su BFF; nunca llama a la API ni a los MS.
+- Verificación de cada tarea:
+  flutter analyze && flutter test
+</script>
+<script type="text/plain" id="f3"># Constitución · BFF de <funcionalidad>
+
+## I. Spec primero
+Ningún cambio sin una tarea en specs/<CLAVE>/tasks.md.
+
+## II. El BFF orquesta
+Sin reglas de dominio: se delegan a la API o al MS.
+
+## III. Contratos
+Todo endpoint expuesto al front está en contracts/ y tiene test de contrato.
+
+## IV. Tests primero
+Cada criterio EARS tiene al menos un test antes de implementarse.
+
+## V. Seguridad
+Sin secretos en el código; el pre-commit de Cycode es obligatorio.
+
+## VI. Catálogo
+catalog-info.yaml refleja las dependencias y APIs reales; se actualiza en el mismo MR que las cambia.
+
+## Gobernanza
+Cambiar esta constitución requiere un MR aprobado por el LT y arquitectura.
+</script>
+<script type="text/plain" id="f14">---
+name: sdd-orquestador
+description: Punto de entrada de todo pedido. Clasifica tipo, nivel y superficie sensible, detecta el paso leyendo el repo y deriva al agente que sigue
+tools: ['search', 'read', 'odin-memory/*', 'backstage/*']  # no edita archivos
+model: ['<modelo aprobado por la política>']
+handoffs:
+  - label: Planificar o evaluar → sdd-planner
+    agent: sdd-planner
+    prompt: Sigue con el paso que detecté para este pedido.
+  - label: Escribir tests → sdd-tester
+    agent: sdd-tester
+    prompt: Escribe los tests de la tarea activa y confirma que fallan por la razón correcta.
+  - label: Implementar → sdd-implementer
+    agent: sdd-implementer
+    prompt: Implementa la tarea activa hasta que pasen sus tests.
+  - label: Revisar → sdd-reviewer
+    agent: sdd-reviewer
+    prompt: Revisa la rama contra la spec antes del MR.
+---
+No editas archivos. Guardar en odin-memory no es editar.
+
+1. Clasifica con la skill sdd-clasificar. El tipo (FUID, FDT, MAU) lo decide el PO en Jira;
+   el nivel (N0, N1, N2) y la superficie sensible los decides tú y muestras el motivo.
+   Ante la duda, cuenta como sensible. Con superficie sensible nunca es N0.
+2. Detecta el paso leyendo el repo:
+   - FUID sin spec.md, plan.md o tasks.md → sdd-planner.
+   - FDT sin .specify/fdt/<slug>/assessment.md, o MAU sin .specify/bugs/<slug>/assessment.md → sdd-planner.
+   - Tarea siguiente sin test → sdd-tester. Test en rojo → sdd-implementer.
+   - Todas las tareas en [X] o veredicto verificado → sdd-reviewer.
+   - N0: directo a sdd-implementer, sin plan ni tasks.
+3. Responde con la clasificación, el paso detectado y el botón que corresponde.
+4. Guarda en odin-memory el estado del pedido: tipo, nivel, superficie y paso.
+</script>
+<script type="text/plain" id="f16">---
+name: sdd-planner
+description: Specify, clarify, plan, tasks y analyze; diagnóstico de MAU y evaluación de FDT
+tools: ['search', 'read', 'edit', 'odin-memory/*', 'backstage/*']
+model: ['<modelo de mejor razonamiento aprobado>']
+handoffs:
+  - label: Escribir los tests → sdd-tester
+    agent: sdd-tester
+    prompt: Escribe los tests de la primera tarea [tester] de la historia.
+---
+Solo editas specs/, .specify/ y jira/. Un hook bloquea cualquier otra ruta.
+
+- FUID: /speckit.specify, /speckit.clarify, /speckit.plan, /speckit.tasks y /speckit.analyze.
+- FDT: /speckit-fdt-assess con la regla de oro.
+- MAU: /speckit-bug-assess, sin tocar código.
+
+Guarda en odin-memory las decisiones y su motivo.
+</script>
+<script type="text/plain" id="f15">---
+name: sdd-clasificar
+description: Clasifica un pedido en nivel N0, N1 o N2 y detecta superficie sensible, con su motivo
+---
+Nivel
+- N0: un archivo, cambio mecánico y reversible, sin lógica, sin contrato y sin superficie sensible.
+- N1: hasta 5 criterios de aceptación, sin superficie sensible ni integración externa nueva.
+- N2: 6 o más criterios, lógica de negocio, integración externa nueva o superficie sensible.
+
+Superficie sensible
+Autenticación y autorización, bypass de auth, datos personales, pagos y dinero,
+endpoint público nuevo con efecto, secretos, configuración de despliegue,
+acceso a datos y rutas marcadas por el LT en .specify/rutas-sensibles.txt.
+Todo lo que mueve dinero o identifica a un cliente cuenta: montos, tarjetas, RUT.
+
+Reglas
+- Con superficie sensible, el pedido nunca es N0.
+- Ante la duda, cuenta como sensible.
+- Muestra siempre el nivel, la superficie y el motivo de cada uno.
+</script>
+<script type="text/plain" id="f17">#!/usr/bin/env bash
+# PreToolUse de sdd-implementer: bloquea ediciones en archivos de test.
+# Revisar los nombres de herramienta y campos con el formato de hooks de su versión de VS Code.
+entrada="$(cat)"
+herramienta="$(echo "$entrada" | jq -r '.tool_name // empty')"
+
+case "$herramienta" in
+  *edit*|*Edit*|*create*|*Create*|*write*|*Write*|*replace*) ;;
+  *) exit 0 ;;   # leer o correr tests sigue permitido
+esac
+
+ruta="$(echo "$entrada" | jq -r '.tool_input | (.filePath // .file_path // .path // empty)')"
+if echo "$ruta" | grep -Eq '(^|/)(test|tests|e2e|integration_test|perf)/|\.spec\.ts$|\.test\.(js|ts)$|_test\.dart$'; then
+  echo "Bloqueado por tests-intactos: los tests los escribe sdd-tester." >&2
+  exit 2
+fi
+exit 0
+</script>
+<script type="text/plain" id="f4">---
+name: sdd-tester
+description: Tests antes del código, en rojo por la razón correcta
+tools: ['search', 'read', 'edit', 'execute', 'odin-memory/*', 'backstage/*']
+model: ['<modelo aprobado por la política>']
+handoffs:
+  - label: Implementar la tarea → sdd-implementer
+    agent: sdd-implementer
+    prompt: Implementa la tarea activa hasta que pasen los tests que acabo de escribir.
+---
+Solo editas tests y planes de JMeter (perf/).
+
+- FUID: tareas [tester] de tasks.md, al menos un test por criterio EARS.
+- MAU: el test que reproduce el incidente.
+- FDT: ajustes de tests que pida el assessment y /speckit-fdt-test.
+
+Corre los tests y confirma que fallan por la razón esperada, no por un error de setup.
+Guarda en odin-memory los tests en rojo y el criterio que cubre cada uno.
+</script>
+<script type="text/plain" id="f5">---
+name: sdd-implementer
+description: Código por fases y converge; corrección de MAU y aplicación de FDT
+tools: ['search', 'read', 'edit', 'execute', 'odin-memory/*', 'backstage/*']
+model: ['<modelo equilibrado aprobado>']
+hooks:
+  PreToolUse:
+    - type: command
+      command: ./scripts/hooks/tests-intactos.sh
+      timeout: 15
+handoffs:
+  - label: Revisar contra la spec → sdd-reviewer
+    agent: sdd-reviewer
+    prompt: Revisa los cambios contra spec.md, contracts/ y tasks.md.
+---
+Los tests no son tuyos: el hook tests-intactos bloquea cualquier edición en ellos.
+
+- FUID: implementa la tarea activa hasta que pasen sus tests y corre /speckit.converge.
+- MAU: /speckit-bug-fix. FDT: /speckit-fdt-apply.
+- N0: edita, muestra el diff real y corre build y tests.
+
+Si falla, corrige y vuelve a verificar. Después de 3 intentos, detente y explica el bloqueo.
+Con todo en verde, marca [X] en tasks.md y guarda en odin-memory el avance.
+</script>
+<script type="text/plain" id="f6">---
+name: sdd-reviewer
+description: Revisión de solo lectura antes del MR, con un modelo distinto al que implementó
+tools: ['search', 'read', 'odin-memory/*', 'backstage/*']  # no edita archivos
+model: ['<modelo aprobado, distinto al de sdd-implementer>']
+---
+Compara el diff de la rama contra spec.md, contracts/, tasks.md, las reglas del stack,
+la calidad del código y los controles locales.
+Reporta cada brecha con archivo, línea y criterio afectado, y marca cuáles bloquean el MR.
+Revisa que catalog-info.yaml refleje las dependencias y APIs nuevas.
+Guarda en odin-memory solo los bloqueantes.
+</script>
+<script type="text/plain" id="f7">{
+  "servers": {
+    "odin-memory": {
+      "type": "stdio",
+      "command": "odin-memory",
+      "args": ["mcp"]
+    },
+    "cycode": {
+      "type": "stdio",
+      "command": "cycode",
+      "args": ["mcp"]
+    },
+    "backstage": {
+      "type": "http",
+      "url": "https://<su-backstage>/api/mcp-actions/v1/catalog",
+      "headers": { "Authorization": "Bearer ${input:backstage-token}" }
+    }
+  },
+  "inputs": [
+    { "type": "promptString", "id": "backstage-token", "description": "Token de Backstage", "password": true }
+  ]
+}
+</script>
+<script type="text/plain" id="f8">{
+  "chat.useHooks": true,
+  "chat.tools.terminal.autoApprove": {
+    "flutter analyze": true,
+    "flutter test": true,
+    "ng lint": true,
+    "ng test": true,
+    "/^git push/": false,
+    "/^rm -rf/": false
+  }
+}
+</script>
+<script type="text/plain" id="f9">{
+  "hooks": {
+    "PreToolUse": [
+      { "type": "command", "command": "./scripts/hooks/bloquear-peligrosos.sh", "timeout": 15 }
+    ],
+    "PostToolUse": [
+      { "type": "command", "command": "./scripts/hooks/formatear-y-lint.sh", "timeout": 60 }
+    ]
+  }
+}
+</script>
+<script type="text/plain" id="f10">#!/usr/bin/env bash
+# PreToolUse: recibe por stdin el JSON de la herramienta que el agente quiere usar.
+entrada="$(cat)"
+
+if echo "$entrada" | grep -Eq 'git push|rm -rf|--no-verify|\.gitlab-ci\.yml'; then
+  echo "Bloqueado por el harness: acción reservada al dev o al área de plataforma." >&2
+  exit 2   # 2 = bloquear la acción
+fi
+
+exit 0
+</script>
+<script type="text/plain" id="f11">repos:
+  - repo: https://github.com/cycodehq/cycode-cli
+    rev: vX.Y.Z
+    hooks:
+      - id: cycode            # secretos
+        stages: [pre-commit]
+      - id: cycode-sast       # análisis estático
+        stages: [pre-commit]
+      - id: cycode-pre-push   # commits que se van a subir
+        stages: [pre-push]
+
+# Una vez por máquina:
+#   cycode auth
+#   pre-commit install
+#   pre-commit install --hook-type pre-push
+</script>
+<script type="text/plain" id="f12">## Historia
+HADES-101 · <enlace a Jira> · US1 en spec.md
+
+## Épica
+FUID-1234 · <enlace a Jira>
+
+## Clasificación
+- Tipo: FUID · Nivel: N2 · Superficie sensible: pagos (motivo: …)
+
+## Agentes y modelos
+- sdd-planner: <modelo> · sdd-tester: <modelo>
+- sdd-implementer: <modelo> · sdd-reviewer: <modelo distinto>
+
+## Spec
+- Spec maestra: <repo BFF>/specs/FUID-1234-<nombre>/spec.md
+- Spec delta de este repo (si aplica):
+
+## Criterios cubiertos en este MR
+- [ ] 1.1 …
+- [ ] 1.2 …
+
+## Evidencia
+- [ ] Verificación de la capa en verde (pegar resumen)
+- [ ] /speckit.converge sin brechas abiertas
+- [ ] Probado en DEV: qué criterios y contra qué versiones de las otras capas
+- [ ] Cycode pre-commit y pre-push sin hallazgos
+- [ ] Sin cambios de contrato no pedidos
+
+## Orden de merge
+Depende de: <MR de MS y API, si aplica>
+</script>
+<script>
+(function () {
+  "use strict";
+  var TYPES = ["FUID", "FDT", "MAU"];
+  var state = { type: "FUID", sel: "epic" };
+
+  var LANES = [
+    { id: "po", name: "PO / SM", tool: "Jira · Microsoft Copilot" },
+    { id: "lt", name: "Líder técnico", tool: "GitHub Copilot · Spec Kit" },
+    { id: "dev", name: "Devs", tool: "Copilot · odin-memory" },
+    { id: "ci", name: "GitLab", tool: "CI de otra área" },
+    { id: "cert", name: "Certificación", tool: "QA · JMeter · EH" }
+  ];
+  var COLS = ["0 · PREPARACIÓN", "1 · ÉPICA", "2 · SPEC", "3 · APROBACIÓN Y PLAN", "4 · IMPLEMENTACIÓN", "5 · REVISIÓN Y MR", "6 · GATE 3 Y QA", "7 · PRODUCCIÓN", "8 · CIERRE"];
+  var STLABEL = { req: "obligatorio", opt: "opcional", cond: "condicional", skip: "se omite" };
+
+  var N = {
+    setup: { col: 0, lane: "lt", slot: 0, kind: "cmd", t: "Init Spec Kit", s: "una vez por repo",
+      title: "Inicializar Spec Kit en cada repo", actor: "Líder técnico", tool: "Terminal + GitHub Copilot",
+      what: "Se instala specify-cli con versión fija y se inicializa cada repo (APP, WEB, BFF, API y MS) para Copilot. Entra por MR como cualquier cambio. Spec Kit no depende de dónde esté alojado el repo: funciona igual con GitLab.",
+      cmds: ["uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z", "specify init . --integration copilot"],
+      out: [".specify/ (plantillas, scripts, memory/)", ".github/ (comandos /speckit.* para Copilot)"],
+      note: "Fijen la misma versión para los 30 equipos y actualícenla de forma coordinada." },
+    constitution: { col: 0, lane: "lt", slot: 1, kind: "cmd", t: "Constitución", s: "corporativa + por capa",
+      title: "Constitución por capa", actor: "Líder técnico con arquitectura", tool: "GitHub Copilot + Spec Kit",
+      what: "Una plantilla corporativa común más reglas propias de cada capa. Ejemplos: el BFF no contiene lógica de dominio; la API mantiene compatibilidad hacia atrás; Flutter y Angular exigen tests de widget o de componente.",
+      cmds: ["/speckit.constitution"], out: [".specify/memory/constitution.md"],
+      gate: "Revisión de arquitectura antes de publicarla",
+      note: "Escriban reglas comprobables. El modelo interpreta la constitución, pero no la hace cumplir: lo crítico también debe estar en tests o linters." },
+    mem: { col: 0, lane: "dev", slot: 0, kind: "step", t: "odin-memory", s: "servidor MCP en VS Code",
+      title: "odin-memory como memoria del agente", actor: "Devs y LT", tool: "VS Code + MCP",
+      what: "Servidor MCP de memoria persistente. Al iniciar una sesión el agente busca en la memoria lo aprendido sobre la épica y el repo; al cerrar guarda decisiones, comandos útiles y errores resueltos.",
+      out: [".vscode/mcp.json (servidor odin-memory)", ".github/copilot-instructions.md (cuándo leer y escribir memoria)"],
+      note: "Regla: lo que cambia el contrato o el alcance va a la spec; lo aprendido en la sesión va a la memoria." },
+    ciInfo: { col: 0, lane: "ci", slot: 0, kind: "info", t: "Pipeline fijo", s: "lo maneja otra área",
+      title: "El pipeline de GitLab no se modifica", actor: "Área de plataforma", tool: "GitLab CI",
+      what: "El equipo no toca .gitlab-ci.yml. Los controles propios de Spec Kit corren en el IDE antes del MR y su evidencia queda en la descripción del MR.",
+      out: [".gitlab/merge_request_templates/spec.md (plantilla en el repo, no en el CI)"] },
+    epic: { col: 1, lane: "po", slot: 0, kind: "step", t: "Épica en Jira", s: "FUID · FDT · MAU",
+      title: "Épica en Jira", actor: "PO / SM", tool: "Jira",
+      what: "Toda demanda entra como épica con su tipo y una o más historias. La clave de la épica (por ejemplo FUID-1234) nombra la carpeta de spec; la clave de cada historia (por ejemplo HADES-101) nombra las ramas, las subtareas y los commits.",
+      out: ["Épica con clave, tipo y prioridad", "Historias asociadas a la épica"],
+      byType: { FUID: "Valor de negocio, usuarios afectados y canales (APP, WEB).", FDT: "Qué deuda se resuelve y qué riesgo hay si no se hace.", MAU: "Incidente, impacto en producción y evidencia: logs, pasos, capturas." } },
+    brief: { col: 1, lane: "po", slot: 1, kind: "step", t: "Brief del PO", s: "con Microsoft Copilot",
+      title: "Brief con Microsoft Copilot", actor: "PO / SM", tool: "Microsoft 365 Copilot",
+      what: "El PO no usa GitHub Copilot ni entra a los repos. Con Microsoft Copilot redacta el brief en una plantilla fija: problema, objetivo, criterios de aceptación en lenguaje de negocio y lo que queda fuera de alcance.",
+      out: ["Descripción de la épica con el brief"],
+      note: "Es la entrada directa de /speckit.specify: un brief claro ahorra créditos al LT.",
+      byType: { FUID: "Plantilla completa.", FDT: "El LT puede redactar el brief técnico y el PO lo prioriza.", MAU: "Basta con impacto, pasos para reproducir y comportamiento esperado." } },
+    refine: { col: 1, lane: "lt", slot: 0, kind: "step", t: "Refinamiento", s: "PO + LT · repos",
+      title: "Refinamiento PO + LT", actor: "PO / SM y líder técnico", tool: "Jira + Backstage",
+      what: "El LT abre el pedido con sdd-orquestador, que lo clasifica (nivel N0, N1 o N2 y superficie sensible, con su motivo). Revisan el brief y confirman qué repos toca la épica (APP, WEB, BFF, API, MS). El catálogo de Backstage da la lista: el system de la funcionalidad, las APIs que consume y sus dependencias, con el dueño de cada pieza compartida.",
+      out: ["Lista de repos impactados", "Equipos dueños a involucrar"],
+      byType: { MAU: "Refinamiento exprés: confirmar repo afectado y severidad." } },
+    specify: { alt: {
+        FDT: { t: "/speckit-fdt-assess", s: "regla de oro · sin código", title: "/speckit-fdt-assess en el repo del cambio", tool: "GitHub Copilot + extensión fdt",
+          what: "Spec Kit no trae un proceso para cambios puntuales, así que el FDT usa la extensión fdt de ingenieria-harness, con el mismo patrón de la extensión bug. assess no toca código: clasifica el cambio con la regla de oro (toca un contrato, cambia comportamiento o es solo técnico), lista las specs y contratos afectados y define qué pruebas corren.",
+          cmds: ["/speckit-fdt-assess HADES-120 slug=node-26"], out: [".specify/fdt/<slug>/assessment.md"] },
+        MAU: { t: "/speckit-bug-assess", s: "diagnóstico sin tocar código", title: "/speckit-bug-assess en el repo del error", tool: "GitHub Copilot + extensión bug de Spec Kit",
+          what: "La extensión bug, que viene con Spec Kit, separa el arreglo en assess, fix y test. assess lee el incidente, juzga si es un bug real, ubica el código sospechoso y propone la corrección, sin modificar código.",
+          cmds: ["specify extension add bug", "/speckit-bug-assess <incidente MAU-5678> slug=tarjeta-guardada"], out: [".specify/bugs/<slug>/assessment.md"] } }, col: 2, lane: "lt", slot: 0, kind: "cmd", t: "/speckit.specify", s: "spec maestra en el BFF",
+      title: "/speckit.specify en el repo BFF", actor: "Líder técnico", tool: "GitHub Copilot (sdd-planner) + Spec Kit",
+      what: "Como el BFF es único por funcionalidad, ahí vive la spec maestra. El LT pega el brief de la épica con sus historias y el agente escribe la spec: cada historia de Jira queda como una historia de usuario de spec.md (US1, US2…), con su prioridad y sus criterios en EARS, más las secciones de rendimiento y seguridad.",
+      cmds: ["/speckit.specify <brief de FUID-1234 con sus historias>"],
+      out: ["BFF: specs/FUID-1234-nombre/spec.md", "BFF: specs/FUID-1234-nombre/checklists/requirements.md"],
+      byType: { FUID: "Spec completa en el BFF: una historia de usuario por cada historia de Jira.", FDT: "La regla de oro decide qué viene después: si toca un contrato, aprueba primero su dueño; si cambia comportamiento, se actualiza spec.md antes del código; si es solo técnico, regresión completa. Ver la pestaña Triage.", MAU: "El diagnóstico queda en el repo de la causa raíz; el test que reproduce el incidente sale del assessment." } },
+    clarify: { col: 2, lane: "lt", slot: 1, kind: "cmd", t: "/speckit.clarify", s: "cierra ambigüedades",
+      title: "/speckit.clarify", actor: "Líder técnico (con el PO para dudas de negocio)", tool: "GitHub Copilot (sdd-planner) + Spec Kit",
+      what: "El agente lista lo ambiguo y actualiza spec.md con las respuestas. Las dudas de negocio se responden con el PO en la épica.",
+      cmds: ["/speckit.clarify"], out: ["spec.md actualizado"],
+      status: { FUID: "req", FDT: "skip", MAU: "skip" },
+      byType: { FUID: "Obligatorio: es el paso que más retrabajo evita.", FDT: "Se omite: el assessment ya acota el cambio.", MAU: "Se omite salvo que el comportamiento esperado no esté claro." } },
+    gate1: { alt: {
+        FDT: { s: "se valida el assessment", title: "Gate 1: se valida el assessment", actor: "Líder técnico y PO", what: "El LT revisa la clasificación de la regla de oro antes de tocar código. Si el FDT cambia comportamiento o un contrato, el PO recibe en Jira un resumen del cambio." },
+        MAU: { s: "se valida el diagnóstico", title: "Gate 1: se valida el diagnóstico", actor: "Líder técnico y PO", what: "El LT revisa el assessment: que sea un bug real, la causa probable y la corrección propuesta. El PO aprueba el criterio de corrección." } }, col: 3, lane: "po", slot: 0, kind: "gate", t: "Gate 1", s: "el PO aprueba la spec",
+      title: "Gate 1: el PO aprueba la spec", actor: "PO / SM", tool: "Jira + Microsoft Copilot",
+      what: "El LT copia en la épica el resumen de spec.md: criterios de aceptación y fuera de alcance. El PO lo contrasta con su brief (Microsoft Copilot puede listarle las diferencias) y aprueba en Jira.",
+      gate: "Estado de la épica: Spec aprobada",
+      byType: { FDT: "Aprueba prioridad y ventana; el detalle técnico lo valida el LT.", MAU: "Aprobación rápida del criterio de corrección." } },
+    plan: { status: { FUID: "req", FDT: "skip", MAU: "skip" }, col: 3, lane: "lt", slot: 0, kind: "cmd", t: "/speckit.plan", s: "contratos entre capas",
+      title: "/speckit.plan", actor: "Líder técnico con los devs", tool: "GitHub Copilot (sdd-planner) + Spec Kit",
+      what: "Define el cómo en cada capa y, sobre todo, los contratos: APP y WEB con el BFF, el BFF con la API, la API con el MS. El agente parte de los contratos vigentes registrados en Backstage como entidades API.",
+      cmds: ["/speckit.plan <stack por capa y restricciones>"],
+      out: ["plan.md, research.md, data-model.md", "contracts/ (OpenAPI entre capas)", "quickstart.md"],
+      byType: { FDT: "Se omite: el assessment define alcance y pruebas.", MAU: "Se omite: el assessment define causa y corrección." },
+      note: "En un pedido N0 se omiten plan y tasks: sdd-implementer edita, muestra el diff real y corre build y tests." },
+    tasks: { status: { FUID: "req", FDT: "skip", MAU: "skip" }, col: 3, lane: "lt", slot: 1, kind: "cmd", t: "tasks + analyze", s: "tareas por repo",
+      title: "/speckit.tasks y /speckit.analyze", actor: "Líder técnico", tool: "GitHub Copilot (sdd-planner) + Spec Kit",
+      what: "Genera tareas agrupadas por repo y revisa que spec, plan y tareas digan lo mismo. analyze no edita archivos: entrega un reporte.",
+      cmds: ["/speckit.tasks", "/speckit.analyze"], out: ["tasks.md con una sección por repo"] },
+    owners: { col: 3, lane: "dev", slot: 0, kind: "gate", t: "Gate 2", s: "dueños de API y MS",
+      title: "Gate 2: aprueban los dueños de API y MS", actor: "LT y devs del equipo dueño", tool: "MR de spec en el repo compartido",
+      what: "API y MS se comparten entre funcionalidades. El equipo dueño, el owner de su catalog-info.yaml, revisa la spec delta y el contrato antes de que otro equipo implemente. La spec delta se sube por MR al repo compartido.",
+      out: ["API / MS: specs/FUID-1234-nombre/spec.md (delta que enlaza la maestra)"],
+      gate: "Contrato aprobado por el equipo dueño",
+      status: { FUID: "req", FDT: "cond", MAU: "cond" },
+      byType: { FUID: "Siempre que la funcionalidad toque API o MS.", FDT: "Regla de oro: si el FDT toca un contrato, su dueño aprueba primero.", MAU: "Solo si el error está en una API o MS compartido." } },
+    subtasks: { col: 3, lane: "dev", slot: 1, kind: "step", t: "Subtareas Jira", s: "por historia y repo",
+      title: "Subtareas en Jira", actor: "Líder técnico", tool: "Jira",
+      what: "tasks.md agrupa las tareas por historia de usuario ([US1], [US2]…). Cada tarea se carga como subtarea de su historia de Jira, indicando el repo. /speckit.taskstoissues solo crea issues de GitHub, así que en Jira se cargan a mano o con un MCP de Atlassian, si la organización lo habilita.",
+      out: ["Subtareas por historia y repo, asignadas a cada dev"],
+      status: { MAU: "opt" } },
+    branch: { col: 4, lane: "dev", slot: 0, kind: "step", t: "Rama por historia", s: "feature/HADES-101-…",
+      title: "Ramas por historia", actor: "LT y devs", tool: "Git + Spec Kit",
+      what: "El LT deja la carpeta de spec de la épica en una rama feature/FUID-1234-spec de cada repo impactado. Cada dev crea desde ahí la rama de su historia: feature/HADES-101-nombre. .specify/feature.json apunta a la carpeta de la épica, así la rama puede llevar la clave de la historia.",
+      cmds: ["git fetch origin", "git checkout -b feature/HADES-101-nombre origin/feature/FUID-1234-spec"],
+      out: ["Una rama por historia en cada repo que toca"],
+      byType: { FDT: "Igual: rama de spec feature/FDT-2345-spec y una rama por historia.", MAU: "Igual, con la historia del bug (ver la decisión de hotfix en Ramas y pipeline)." } },
+    devDeploy: { col: 4, lane: "ci", slot: 0, kind: "step", t: "Despliegue en DEV", s: "lo lanza el dev",
+      title: "Despliegue en el ambiente de desarrollo", actor: "Devs", tool: "GitLab (job de despliegue del pipeline)",
+      what: "Con las tareas de su historia en verde en local, el dev despliega su rama feature en el ambiente de desarrollo con el job que ya trae el pipeline. Ahí prueba la historia integrada con las otras capas: los criterios principales de la spec y que los contratos respondan como dicen contracts/.",
+      out: ["Rama de la historia desplegada en DEV", "Resultado de la prueba en DEV, en la plantilla de MR"],
+      note: "En DEV también se despliega en el orden de dependencias, MS → API → BFF → front, para que ninguna capa llame a un endpoint que aún no existe.",
+      byType: { FDT: "Se revisa que el servicio levante con el cambio y que sus consumidores sigan funcionando.", MAU: "Se confirma que el error ya no se reproduce con el mismo caso del test." } },
+    implement: { alt: {
+        FDT: { t: "/speckit-fdt-apply", s: "aplica y registra desvíos", title: "/speckit-fdt-apply", what: "Aplica el cambio evaluado y registra cualquier desvío del alcance del assessment, en vez de ampliarlo sin avisar. Lo hace sdd-implementer.", cmds: ["/speckit-fdt-apply slug=node-26"], out: [".specify/fdt/<slug>/apply.md", "Código con la clave de la historia"] },
+        MAU: { t: "/speckit-bug-fix", s: "test que reproduce + fix", title: "/speckit-bug-fix", what: "Primero el test que reproduce el incidente, en rojo. Después se aplica la corrección del assessment y se registra exactamente qué cambió; si aparece trabajo fuera del alcance, queda como desvío. sdd-tester escribe el test y sdd-implementer el fix.", cmds: ["/speckit-bug-fix slug=tarjeta-guardada"], out: [".specify/bugs/<slug>/fix.md", "Test de regresión en test/e2e/"] } }, col: 4, lane: "dev", slot: 1, kind: "cmd", t: "/speckit.implement", s: "tarea a tarea, con tests",
+      title: "/speckit.implement tarea a tarea", actor: "Devs", tool: "GitHub Copilot (modo agente) + odin-memory",
+      what: "Cada dev implementa las tareas de su historia en su repo, empezando por sdd-orquestador, que detecta el paso y deriva: sdd-tester escribe los tests, sdd-implementer el código y cada uno termina con un botón hacia el siguiente. Al iniciar, el agente recupera de odin-memory lo aprendido en la épica; al terminar cada tarea marca [X] en tasks.md y guarda las decisiones.",
+      cmds: ["/speckit.implement", "Tests locales antes de cada commit"],
+      out: ["Código y tests", "[X] en tasks.md", "Commits con la clave de la historia"],
+      note: "La configuración del agente para este paso está en la vista Harness de desarrollo.",
+      byType: { MAU: "Primero un test que reproduzca el error (rojo) y después el fix." } },
+    review: { alt: {
+        FDT: { t: "/speckit-fdt-test", s: "veredicto + revisión LT", title: "/speckit-fdt-test y revisión del LT", what: "Corre las pruebas que definió el assessment y deja el veredicto: verificado, parcial o fallido. Con un veredicto verificado, el LT revisa antes del MR.", cmds: ["/speckit-fdt-test slug=node-26"], out: [".specify/fdt/<slug>/test.md con el veredicto"] },
+        MAU: { t: "/speckit-bug-test", s: "verifica + revisión LT", title: "/speckit-bug-test y revisión del LT", what: "Vuelve a correr la reproducción y los tests agregados y registra el resultado. Si queda un problema, se vuelve al diagnóstico o al fix con esa evidencia y se prueba de nuevo.", cmds: ["/speckit-bug-test slug=tarjeta-guardada"], out: [".specify/bugs/<slug>/test.md"] } }, col: 5, lane: "lt", slot: 0, kind: "cmd", t: "Revisión LT", s: "converge + analyze",
+      title: "Revisión técnica antes del MR", actor: "Líder técnico", tool: "GitHub Copilot en el IDE",
+      what: "/speckit.converge compara el código con las tareas y agrega un ítem por cada brecha. El LT revisa contra la spec. La revisión automática de Copilot sobre PRs es de GitHub, así que en GitLab se revisa desde el IDE.",
+      cmds: ["/speckit.converge", "/speckit.analyze"] },
+    mr: { col: 5, lane: "dev", slot: 0, kind: "step", t: "MR", s: "→ Desarrollo-CI",
+      title: "MR feature/* → Desarrollo-CI", actor: "Devs", tool: "GitLab",
+      what: "Un MR por historia y repo con la plantilla de spec: enlace a la historia y a la spec maestra, criterios cubiertos, evidencia de tests y salida de converge. La primera historia que llega a Desarrollo-CI lleva consigo la carpeta de spec.",
+      out: ["MR con checklist de spec completo"],
+      note: "Todo MR lleva la clave del pedido y los E2E de la spec afectada; specs-tocadas.sh dice cuáles corren." },
+    merge: { col: 6, lane: "lt", slot: 0, kind: "gate", t: "Gate 3 · merge", s: "MS → API → BFF → front",
+      title: "Gate 3: merge en orden", actor: "Líder técnico", tool: "GitLab",
+      what: "Con contratos entre capas se fusiona de abajo hacia arriba: MS, API, BFF y al final APP y WEB. Así ningún front llama a un endpoint que todavía no existe en Desarrollo-CI.",
+      gate: "MR aprobados y fusionados en orden" },
+    qaDeploy: { col: 6, lane: "ci", slot: 0, kind: "step", t: "Despliegue en QA", s: "desde Desarrollo-CI",
+      title: "Despliegue en el ambiente de QA", actor: "Pipeline de GitLab (otra área)", tool: "GitLab",
+      what: "Con los MR fusionados en Desarrollo-CI, esa versión se despliega en el ambiente de QA, capa por capa en el mismo orden del merge. Es la versión que certifican QA, JMeter y ethical hacking, y contra la que corren los journeys e2e.",
+      out: ["Versión de Desarrollo-CI desplegada en QA", "Aviso a QA con la épica, las historias y los criterios a certificar"],
+      note: "Quién lanza este despliegue (automático o con aprobación) lo define el área de plataforma. Conviene dejarlo escrito en la constitución para que los 30 equipos lo hagan igual.",
+      byType: { MAU: "Si la corrección es urgente, este despliegue depende de la decisión de hotfix pendiente (ver Ramas y pipeline)." } },
+    qa: { col: 6, lane: "cert", slot: 0, kind: "step", t: "Certificación QA", s: "casos desde EARS",
+      title: "Certificación QA", actor: "Equipo de QA", tool: "Su herramienta de pruebas",
+      what: "Los casos de prueba salen de los criterios EARS de spec.md: al menos un caso por criterio. QA no necesita acceso a Copilot, solo a la spec.",
+      byType: { FDT: "Regresión: el comportamiento no debe cambiar.", MAU: "El escenario del error más la regresión." } },
+    perf: { col: 6, lane: "cert", slot: 1, kind: "step", t: "JMeter + EH", s: "rendimiento y seguridad",
+      title: "JMeter y ethical hacking", actor: "Performance y seguridad", tool: "JMeter · equipo de ethical hacking",
+      what: "JMeter toma la sección de rendimiento de la spec (latencias y volúmenes esperados) y el equipo de ethical hacking toma la de seguridad. Por eso la plantilla de spec las incluye.",
+      status: { FUID: "req", FDT: "cond", MAU: "cond" },
+      byType: { FUID: "Con superficie sensible, ethical hacking es obligatorio.", FDT: "JMeter si el cambio afecta rendimiento; ethical hacking obligatorio si el orquestador marcó superficie sensible.", MAU: "Según la severidad; ethical hacking obligatorio con superficie sensible." } },
+    accept: { col: 7, lane: "po", slot: 0, kind: "gate", t: "Gate 4", s: "aceptación del PO",
+      title: "Gate 4: aceptación del PO", actor: "PO / SM", tool: "Jira",
+      what: "Con la certificación lista, el PO valida contra su brief y autoriza el pase.", gate: "Épica lista para producción" },
+    prod: { col: 7, lane: "ci", slot: 0, kind: "step", t: "Pase a producción", s: "desde Desarrollo-CI",
+      title: "Desarrollo-CI → producción", actor: "Área de plataforma", tool: "GitLab",
+      what: "Desarrollo-CI es la rama que pasa a producción.",
+      byType: { MAU: "Si Desarrollo-CI tiene cambios aún no certificados, el fix los arrastra. Acuerden una ruta de hotfix con el área." } },
+    master: { col: 7, lane: "ci", slot: 1, kind: "info", t: "master", s: "respaldo de producción",
+      title: "master: respaldo de producción", actor: "Área de plataforma", tool: "GitLab",
+      what: "Se actualiza después del pase a producción. Nadie desarrolla sobre master." },
+    close: { col: 8, lane: "lt", slot: 0, kind: "step", t: "Cierre", s: "spec + memoria al día",
+      title: "Cierre: spec y memoria al día", actor: "Líder técnico y devs", tool: "Spec Kit + odin-memory",
+      what: "La spec se ajusta a lo que realmente se construyó y los contracts/ de la épica se fusionan en el contrato vigente. catalog-info.yaml queda al día con dependencias y APIs, y odin-memory guarda las lecciones.",
+      byType: { MAU: "Si la causa raíz revela una regla faltante, se agrega a la constitución." } }
+  };
+
+  var EDGES = [
+    ["setup", "constitution", "v"], ["epic", "brief", "v"], ["brief", "refine", "v"], ["refine", "specify", "h"],
+    ["specify", "clarify", "v"], ["clarify", "gate1", "h"], ["gate1", "plan", "v", "aprobada"], ["plan", "tasks", "v"],
+    ["tasks", "owners", "v"], ["owners", "subtasks", "v"], ["subtasks", "branch", "h"], ["branch", "implement", "v"],
+    ["implement", "devDeploy", "v"], ["devDeploy", "review", "h"], ["review", "mr", "v"], ["mr", "merge", "h"], ["merge", "qaDeploy", "v", "en Desarrollo-CI"],
+    ["qaDeploy", "qa", "v"], ["qa", "perf", "v"], ["perf", "accept", "h"],
+    ["accept", "prod", "v", "aprobado"], ["prod", "master", "v"], ["prod", "close", "h"]
+  ];
+
+  var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var TOUR = ["setup", "constitution", "mem", "ciInfo", "epic", "brief", "refine", "specify", "clarify", "gate1", "plan", "tasks", "owners", "subtasks", "branch", "implement", "devDeploy", "review", "mr", "merge", "qaDeploy", "qa", "perf", "accept", "prod", "master", "close"];
+  var tour = { i: -1, playing: false, timer: null };
+  function V(id) { var n = N[id], a = n.alt && n.alt[state.type], o = {}, k; if (!a) return n; for (k in n) o[k] = n[k]; for (k in a) o[k] = a[k]; return o; }
+  function tourIds() { return TOUR.filter(function (id) { return N[id] && statusOf(N[id], state.type) !== "skip"; }); }
+
+  // geometry
+  var LW = 140, CW = 168, NW = 148, NH = 46, LH = 124, HEAD = 34, SLOT = [16, 68];
+  var W = LW + CW * COLS.length + 12, H = HEAD + LH * LANES.length + 4;
+  function laneIdx(id) { for (var i = 0; i < LANES.length; i++) if (LANES[i].id === id) return i; return 0; }
+  function pos(n) { return { x: LW + n.col * CW + (CW - NW) / 2, y: HEAD + laneIdx(n.lane) * LH + SLOT[n.slot] }; }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function statusOf(n, type) { return (n.status && n.status[type]) || "req"; }
+
+  function buildFlow() {
+    var s = [];
+    s.push('<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>');
+    LANES.forEach(function (l, i) {
+      var y = HEAD + i * LH;
+      s.push('<rect x="0" y="' + y + '" width="' + W + '" height="' + LH + '" class="lane-bg lane-' + l.id + '"/>');
+      s.push('<text x="12" y="' + (y + LH / 2 - 4) + '" class="lane-name">' + esc(l.name) + '</text>');
+      s.push('<text x="12" y="' + (y + LH / 2 + 13) + '" class="lane-tool">' + esc(l.tool) + '</text>');
+    });
+    COLS.forEach(function (c, i) {
+      var x = LW + i * CW;
+      s.push('<text x="' + (x + 10) + '" y="22" class="col-head">' + esc(c) + '</text>');
+      if (i > 0) s.push('<line x1="' + x + '" y1="' + HEAD + '" x2="' + x + '" y2="' + H + '" class="col-sep"/>');
+    });
+    s.push('<rect x="' + (LW + 4) + '" y="' + (HEAD + LH + 6) + '" width="' + (CW - 8) + '" height="' + (LH * 3 - 12) + '" rx="10" class="group-box"/>');
+    var tIds = tourIds(), tIdx = {}, ti = tour.i;
+    tIds.forEach(function (id, k) { tIdx[id] = k; });
+    EDGES.forEach(function (e) {
+      var a = N[e[0]], b = N[e[1]], pa = pos(a), pb = pos(b), d;
+      if (e[2] === "v") {
+        var cx = pa.x + NW / 2;
+        if (pb.y > pa.y) d = "M" + cx + "," + (pa.y + NH) + " V" + (pb.y - 2);
+        else d = "M" + cx + "," + pa.y + " V" + (pb.y + NH + 2);
+      } else {
+        var sx = pa.x + NW, sy = pa.y + NH / 2, tx = pb.x, ty = pb.y + NH / 2, g = sx + (tx - sx) / 2;
+        d = (sy === ty) ? "M" + sx + "," + sy + " H" + (tx - 2) : "M" + sx + "," + sy + " H" + g + " V" + ty + " H" + (tx - 2);
+      }
+      var ec = "edge", hot = false;
+      if (ti >= 0) {
+        var kb = tIdx[e[1]], ka = tIdx[e[0]];
+        if (kb === ti) { hot = true; ec += " e-hot"; }
+        else if (kb === undefined || kb > ti || (ka !== undefined && ka > ti)) ec += " e-future";
+      } else if (state.sel && (e[0] === state.sel || e[1] === state.sel)) { hot = true; ec += " e-hot"; }
+      s.push('<path d="' + d + '" class="' + ec + '" marker-end="url(#arr)"/>');
+      if (hot && !REDUCED) s.push('<circle r="5" class="flow-dot"><animateMotion dur="1.2s" repeatCount="indefinite" path="' + d + '"/></circle>');
+      if (e[3]) {
+        var lx = pa.x + NW / 2 + 8, ly = (pb.y > pa.y ? (pa.y + NH + pb.y) / 2 : (pb.y + NH + pa.y) / 2) + 4;
+        s.push('<text x="' + lx + '" y="' + ly + '" class="edge-label">' + esc(e[3]) + '</text>');
+      }
+    });
+    Object.keys(N).forEach(function (id) {
+      var n = V(id), p = pos(n), st = statusOf(n, state.type);
+      var cls = "node " + n.kind + " st-" + st + (state.sel === id && ti < 0 ? " sel" : "");
+      if (ti >= 0) { var k = tIdx[id]; cls += k === undefined ? " t-future" : k < ti ? " t-done" : k === ti ? " t-cur" : " t-future"; }
+      var label = n.title + ". " + STLABEL[st] + " en " + state.type;
+      s.push('<g class="' + cls + '" data-id="' + id + '" tabindex="0" role="button" aria-label="' + esc(label) + '">');
+      s.push('<rect x="' + p.x + '" y="' + p.y + '" width="' + NW + '" height="' + NH + '" rx="8"/>');
+      if (n.kind === "gate") s.push('<text x="' + (p.x + NW - 8) + '" y="' + (p.y + 12) + '" text-anchor="end" class="chip-svg">GATE</text>');
+      s.push('<text x="' + (p.x + 10) + '" y="' + (p.y + 19) + '" class="t"' + (n.kind === "cmd" && n.t.length > 18 ? ' style="font-size:11px"' : '') + '>' + esc(n.t) + '</text>');
+      if (st !== "req") {
+        var rest = n.s, lbl = STLABEL[st], max = 25 - lbl.length;
+        if (rest.length > max) rest = rest.slice(0, max - 1).replace(/\s+\S*$/, "") + "…";
+        s.push('<text x="' + (p.x + 10) + '" y="' + (p.y + 36) + '" class="s"><tspan class="chip-svg" style="font-size:10px">' + esc(lbl.toUpperCase()) + '</tspan> · ' + esc(rest) + '</text>');
+      } else s.push('<text x="' + (p.x + 10) + '" y="' + (p.y + 36) + '" class="s">' + esc(n.s) + '</text>');
+      s.push('</g>');
+    });
+    var svg = document.getElementById("flowSvg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.innerHTML = s.join("");
+  }
+
+  function list(items, mono) {
+    return '<ul>' + items.map(function (i) { return '<li' + (mono ? ' class="mono"' : '') + '>' + esc(i) + '</li>'; }).join("") + '</ul>';
+  }
+  function renderPanel() {
+    var n = V(state.sel), st = statusOf(n, state.type), h = [], c1 = [], c2 = [], c3 = [];
+    h.push('<div class="panel-head"><div><p class="eyebrow">' + esc(COLS[n.col]) + '</p><h2>' + esc(n.title) + '</h2></div>');
+    h.push('<div class="chips"><span class="chip">' + esc(n.actor) + '</span><span class="chip">' + esc(n.tool) + '</span><span class="chip st-' + st + '">' + esc(state.type) + ': ' + STLABEL[st] + '</span>' + (n.gate ? '<span class="chip gate">Gate</span>' : '') + '</div></div>');
+    c1.push('<div><h3>Qué pasa</h3><p>' + esc(n.what) + '</p></div>');
+    if (n.byType && n.byType[state.type]) c1.push('<div class="type-note"><h3>En una ' + esc(state.type) + '</h3><p>' + esc(n.byType[state.type]) + '</p></div>');
+    if (n.cmds) {
+      c2.push('<div><h3>Comandos</h3><div style="display:flex;flex-direction:column;gap:6px">');
+      n.cmds.forEach(function (c) { c2.push('<div class="cmd-row"><code>' + esc(c) + '</code><button type="button" class="copy" data-copy="' + esc(c) + '">Copiar</button></div>'); });
+      c2.push('</div></div>');
+    }
+    if (n.out) c3.push('<div><h3>Deja como resultado</h3>' + list(n.out, true) + '</div>');
+    if (n.gate) c3.push('<div><h3>Condición del gate</h3><p>' + esc(n.gate) + '</p></div>');
+    if (n.note) c3.push('<div><h3>Ojo</h3><p>' + esc(n.note) + '</p></div>');
+    if (!c2.length) { c2 = c3; c3 = []; }
+    h.push('<div class="panel-grid"><div>' + c1.join("") + '</div>' + (c2.length ? '<div>' + c2.join("") + '</div>' : '') + (c3.length ? '<div>' + c3.join("") + '</div>' : '') + '</div>');
+    document.getElementById("panel").innerHTML = h.join("");
+  }
+
+  function select(id) {
+    if (tour.i >= 0) { var k = tourIds().indexOf(id); tourPause(); if (k >= 0) { tour.i = k; } else { tour.i = -1; } }
+    state.sel = id; buildFlow(); renderPanel(); tourUi();
+    var el = document.querySelector('.node[data-id="' + id + '"]'); if (el) el.focus({ preventScroll: true });
+  }
+
+  // recorrido animado
+  function tourGo(i) {
+    var ids = tourIds(); if (!ids.length) return;
+    tour.i = Math.max(0, Math.min(ids.length - 1, i));
+    state.sel = ids[tour.i]; buildFlow(); renderPanel(); tourUi();
+  }
+  function tourPause() { tour.playing = false; clearTimeout(tour.timer); }
+  function tourTick() {
+    if (!tour.playing) return;
+    var ids = tourIds();
+    if (tour.i >= ids.length - 1) { tourPause(); tourUi(); return; }
+    tourGo(tour.i + 1);
+    tour.timer = setTimeout(tourTick, N[ids[tour.i]].kind === "gate" ? 3800 : 2700);
+  }
+  function tourPlay() {
+    var ids = tourIds();
+    if (tour.playing) { tourPause(); tourUi(); return; }
+    tour.playing = true;
+    if (tour.i < 0 || tour.i >= ids.length - 1) tourGo(0); else tourUi();
+    tour.timer = setTimeout(tourTick, 2700);
+  }
+  function tourUi() {
+    var ids = tourIds(), play = document.getElementById("tourPlay"), info = document.getElementById("tourInfo");
+    play.textContent = tour.playing ? "❚❚ Pausar" : (tour.i >= ids.length - 1 && tour.i >= 0 ? "↺ Reproducir de nuevo" : tour.i >= 0 ? "▶ Continuar" : "▶ Reproducir recorrido");
+    document.getElementById("tourPrev").disabled = tour.i <= 0;
+    document.getElementById("tourNext").disabled = tour.i >= ids.length - 1;
+    document.getElementById("tourReset").disabled = tour.i < 0;
+    document.getElementById("tourBar").style.width = tour.i < 0 ? "0" : ((tour.i + 1) / ids.length * 100) + "%";
+    if (tour.i < 0) { info.textContent = "Recorre el flujo paso a paso según el tipo de épica, o haz clic en un paso para ver qué entra y qué sale."; return; }
+    var n = V(ids[tour.i]);
+    info.innerHTML = "Paso " + (tour.i + 1) + " de " + ids.length + " · <strong>" + esc(n.title) + "</strong> · " + esc(n.actor);
+  }
+  document.getElementById("tourPlay").addEventListener("click", tourPlay);
+  document.getElementById("tourPrev").addEventListener("click", function () { tourPause(); tourGo(tour.i - 1); });
+  document.getElementById("tourNext").addEventListener("click", function () { tourPause(); tourGo(tour.i < 0 ? 0 : tour.i + 1); });
+  document.getElementById("tourReset").addEventListener("click", function () { tourPause(); tour.i = -1; buildFlow(); renderPanel(); tourUi(); });
+
+  document.getElementById("flowSvg").addEventListener("click", function (ev) {
+    var g = ev.target.closest(".node"); if (g) select(g.getAttribute("data-id"));
+  });
+  document.getElementById("flowSvg").addEventListener("keydown", function (ev) {
+    var g = ev.target.closest(".node"); if (!g) return;
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); select(g.getAttribute("data-id")); }
+  });
+  document.getElementById("panel").addEventListener("click", function (ev) {
+    var b = ev.target.closest(".copy"); if (!b) return;
+    var txt = b.getAttribute("data-copy");
+    try { navigator.clipboard.writeText(txt).then(function () { b.textContent = "Copiado"; setTimeout(function () { b.textContent = "Copiar"; }, 1500); }, function () { b.textContent = "Selecciona y copia"; }); }
+    catch (e) { b.textContent = "Selecciona y copia"; }
+  });
+
+  // epic type
+  var CAPTION = {
+    FUID: "FUID: flujo completo. La spec maestra vive en el BFF y los dueños de API y MS aprueban el contrato.",
+    FDT: "FDT: /speckit-fdt-assess clasifica el cambio con la regla de oro y reemplaza a clarify, plan y tasks; el dueño del contrato entra solo si el cambio lo toca.",
+    MAU: "MAU: camino corto con la extensión bug de Spec Kit, assess → fix → test; el fix empieza por un test que reproduce el incidente."
+  };
+  function setType(t) {
+    state.type = t;
+    document.querySelectorAll(".seg-btns button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-type") === t ? "true" : "false"); });
+    document.getElementById("flowCaption").textContent = CAPTION[t] + " Los recuadros con borde ámbar son puntos de aprobación.";
+    if (typeof tourPause === "function") { tourPause(); tour.i = -1; }
+    buildFlow(); renderPanel(); if (typeof tourUi === "function") tourUi();
+    document.dispatchEvent(new CustomEvent("tipo-epica", { detail: t }));
+  }
+  document.querySelectorAll(".seg-btns button").forEach(function (b) { b.addEventListener("click", function () { setType(b.getAttribute("data-type")); }); });
+
+  // credits
+  var ACT = [
+    ["FUID", "specify + clarify", "LT", 60, 1], ["FUID", "plan", "LT", 80, 1], ["FUID", "tasks + analyze", "LT", 30, 1],
+    ["FUID", "implement (por tarea)", "Dev", 20, 20], ["FUID", "converge y correcciones de CI", "Dev", 40, 1],
+    ["FDT", "specify", "LT", 30, 1], ["FDT", "plan", "LT", 40, 1], ["FDT", "tasks + analyze", "LT", 15, 1],
+    ["FDT", "implement (por tarea)", "Dev", 20, 8], ["FDT", "converge y correcciones de CI", "Dev", 20, 1],
+    ["MAU", "spec de bug", "LT", 15, 1], ["MAU", "plan mínimo", "LT", 10, 1],
+    ["MAU", "implement (por tarea)", "Dev", 20, 3], ["MAU", "correcciones de CI", "Dev", 10, 1]
+  ];
+  function num(id) { var v = parseFloat(document.getElementById(id).value); return isNaN(v) || v < 0 ? 0 : v; }
+  function buildActs() {
+    var tb = document.getElementById("actBody"), h = [];
+    ACT.forEach(function (a, i) {
+      h.push('<tr><td><b>' + a[0] + '</b></td><td>' + esc(a[1]) + '</td><td>' + a[2] + '</td>' +
+        '<td class="num"><input type="number" min="0" step="5" id="ac' + i + '" value="' + a[3] + '" aria-label="Créditos por vez: ' + esc(a[0] + ' ' + a[1]) + '"></td>' +
+        '<td class="num"><input type="number" min="0" step="1" id="aq' + i + '" value="' + a[4] + '" aria-label="Veces por épica: ' + esc(a[0] + ' ' + a[1]) + '"></td>' +
+        '<td class="num" id="at' + i + '"></td></tr>');
+    });
+    tb.innerHTML = h.join("");
+  }
+  function fmt(n) { return Math.round(n).toLocaleString("es-CL"); }
+  function meter(el, title, value, budget, detail) {
+    var pct = budget > 0 ? value / budget : 0, cls = pct > 1 ? "bad" : (pct > 0.7 ? "warn" : "ok");
+    var lab = pct > 1 ? "Excede el cupo" : (pct > 0.7 ? "Ajustado" : "Holgado");
+    el.innerHTML = '<h3>' + title + '</h3><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span class="big">' + fmt(value) + '</span><span class="mono">de ' + fmt(budget) + ' créditos/mes</span><span class="pill ' + cls + '">' + lab + ' · ' + Math.round(pct * 100) + '%</span></div>' +
+      '<div class="meter ' + cls + '" role="img" aria-label="' + Math.round(pct * 100) + '% del cupo"><div style="width:' + Math.min(100, pct * 100) + '%"></div></div><p>' + detail + '</p>';
+  }
+  function calc() {
+    var budget = num("cPerDev"), devs = Math.max(1, num("devs")), daily = num("daily");
+    var cnt = { FUID: num("nFUID"), FDT: num("nFDT"), MAU: num("nMAU") }, lt = 0, dev = 0;
+    ACT.forEach(function (a, i) {
+      var c = num("ac" + i), q = num("aq" + i), per = c * q;
+      document.getElementById("at" + i).textContent = fmt(per);
+      if (a[2] === "LT") lt += per * cnt[a[0]]; else dev += per * cnt[a[0]];
+    });
+    meter(document.getElementById("resLT"), "Líder técnico", lt + daily, budget, "Spec, plan y tareas de las épicas del equipo, más su uso diario.");
+    meter(document.getElementById("resDev"), "Cada dev (promedio)", dev / devs + daily, budget, "Implementación repartida entre " + fmt(devs) + " devs, más su uso diario.");
+  }
+  document.getElementById("view-creditos").addEventListener("input", calc);
+
+  // prep checklist
+  var PREP = [
+    ["Fijar versión y piloto", "Elegir 1 o 2 equipos piloto y una versión fija de Spec Kit para todos."],
+    ["Repo ingenieria-harness", "Repo central con constitución común y por capa, instrucciones por stack, agentes, hooks, skills, overrides de Spec Kit y sync-harness.sh."],
+    ["Harness en las plantillas", "Agregar el harness y los esqueletos e2e a las plantillas de Flutter, Angular, NestJS y Express."],
+    ["Backstage por MCP", "Pedir a quien opera Backstage habilitar el plugin de acciones MCP y un token para agentes; acordar las anotaciones del harness en catalog-info.yaml."],
+    ["Inicializar cada repo", "specify init . --integration copilot en APP, WEB, BFF, API y MS, subido por MR."],
+    ["Constitución corporativa y por capa", "Plantilla común más reglas de Flutter, Angular, BFF, API y MS, revisada por arquitectura."],
+    ["Plantillas propias de spec", "Override en .specify/templates/overrides/: clave y tipo de épica en el encabezado, criterios en EARS, repos impactados, rendimiento (JMeter) y seguridad (ethical hacking)."],
+    ["Convención de ramas", "feature/<ÉPICA>-spec desde Desarrollo-CI para la spec, y feature/<HISTORIA>-nombre desde esa rama para cada historia; la feature activa en .specify/feature.json apunta a la carpeta de la épica."],
+    ["odin-memory en VS Code", "Servidor MCP en .vscode/mcp.json y reglas de uso en .github/copilot-instructions.md."],
+    ["Ambientes DEV y QA", "Confirmar con el área de plataforma cómo se lanza el despliegue de una rama feature en DEV, cómo llega Desarrollo-CI a QA y en qué orden se despliegan las capas."],
+    ["Extensiones fdt y bug", "Construir la extensión fdt (assess, apply, test) en ingenieria-harness y publicarla en el catálogo interno de Spec Kit; instalar la extensión bug con specify extension add bug en cada repo."],
+    ["specs-tocadas.sh", "Script en ingenieria-harness que, según el diff con Desarrollo-CI, dice qué specs toca un cambio y qué E2E corren en el MR."],
+    ["Plantilla de MR", "En .gitlab/merge_request_templates/: enlace a spec, criterios cubiertos, evidencia de tests y salida de converge. No requiere tocar el CI."],
+    ["Plantilla de brief para el PO", "Prompt fijo para Microsoft Copilot: problema, objetivo, criterios de negocio y fuera de alcance."],
+    ["Acuerdo con dueños de API y MS", "Quién aprueba specs delta y contratos, y en cuánto tiempo (Gate 2)."],
+    ["Acuerdo con el área de plataforma", "Ruta para MAU urgentes y cómo llega Desarrollo-CI al ambiente de QA."],
+    ["Medir créditos en el piloto", "Revisar el reporte de uso de Copilot y reemplazar los valores de ejemplo de la vista Créditos."]
+  ];
+  var KEY = "speckit-prep-v1", done = {};
+  try { done = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { done = {}; }
+  function buildPrep() {
+    var h = [];
+    PREP.forEach(function (p, i) {
+      h.push('<div class="check"><input type="checkbox" id="pc' + i + '"' + (done[i] ? " checked" : "") + '><div><label for="pc' + i + '">' + (i + 1) + '. ' + esc(p[0]) + '</label><p>' + esc(p[1]) + '</p></div></div>');
+    });
+    document.getElementById("prepList").innerHTML = h.join("");
+    prepProgress();
+  }
+  function prepProgress() {
+    var c = 0; PREP.forEach(function (p, i) { if (done[i]) c++; });
+    document.getElementById("prepProgress").textContent = c + " de " + PREP.length + " pasos de preparación listos (se guardan solo en este navegador).";
+  }
+  document.getElementById("prepList").addEventListener("change", function (ev) {
+    var m = /^pc(\d+)$/.exec(ev.target.id); if (!m) return;
+    done[m[1]] = ev.target.checked;
+    try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (e) {}
+    prepProgress();
+  });
+
+  // harness files
+  var FILES = [
+    { g: "Contexto", id: "f1", path: ".github/copilot-instructions.md", why: "Reglas que Copilot aplica en todo el repo: cómo leer la spec, cuándo usar odin-memory y qué no hacer nunca." },
+    { g: "Contexto", id: "f2", path: ".github/instructions/flutter.instructions.md", why: "Instrucciones que se aplican solo a los archivos de la capa (applyTo). Un archivo así por stack: Flutter, Angular y backend." },
+    { g: "Contexto", id: "f3", path: ".specify/memory/constitution.md", why: "Extracto de ejemplo para un BFF. Spec Kit la consulta en specify, plan e implement." },
+    { g: "Contexto", id: "f13", path: "catalog-info.yaml", why: "La ficha de Backstage que ya tiene cada repo, con las anotaciones del harness. El agente la lee en local y consulta el resto del catálogo por MCP." },
+    { g: "Agentes", id: "f14", path: ".github/agents/sdd-orquestador.agent.md", why: "Punto de entrada de todo pedido: clasifica, detecta el paso leyendo el repo y deriva con un botón. No edita archivos." },
+    { g: "Agentes", id: "f16", path: ".github/agents/sdd-planner.agent.md", why: "Specify, clarify, plan, tasks y analyze, más el diagnóstico de MAU y la evaluación de FDT. Modelo de mejor razonamiento." },
+    { g: "Agentes", id: "f4", path: ".github/agents/sdd-tester.agent.md", why: "Tests antes del código, en rojo por la razón correcta. Solo edita tests y planes de JMeter." },
+    { g: "Agentes", id: "f5", path: ".github/agents/sdd-implementer.agent.md", why: "Código por fases y converge. Su hook tests-intactos le bloquea los tests." },
+    { g: "Agentes", id: "f6", path: ".github/agents/sdd-reviewer.agent.md", why: "Revisión de solo lectura antes del MR, con un modelo distinto al que implementó." },
+    { g: "Agentes", id: "f15", path: ".github/skills/sdd-clasificar/SKILL.md", why: "Skill que usa el orquestador para fijar nivel y superficie sensible, siempre con su motivo." },
+    { g: "Herramientas", id: "f7", path: ".vscode/mcp.json", why: "Servidores MCP del agente: odin-memory para memoria, Cycode para escanear desde el chat (modo experimental de su CLI) y el catálogo de Backstage, si se habilita su plugin de acciones MCP." },
+    { g: "Herramientas", id: "f8", path: ".vscode/settings.json", why: "Activa los hooks y aprueba sin preguntar solo los comandos de verificación; push y borrados siempre piden confirmación." },
+    { g: "Control", id: "f9", path: ".github/hooks/guardrails.json", why: "Hooks del agente: antes de cada herramienta revisa que la acción esté permitida; después de cada edición formatea y corre lint." },
+    { g: "Control", id: "f17", path: "scripts/hooks/tests-intactos.sh", why: "Hook propio de sdd-implementer: bloquea ediciones en archivos de test. Leer y correr tests sigue permitido." },
+    { g: "Control", id: "f10", path: "scripts/hooks/bloquear-peligrosos.sh", why: "Bloquea push, borrados masivos, saltarse los git hooks y cualquier cambio al CI." },
+    { g: "Control", id: "f11", path: ".pre-commit-config.yaml", why: "Git hooks locales con la CLI de Cycode: secretos y SAST en cada commit, escaneo de lo que se sube en cada push. Así los hallazgos aparecen antes del pipeline." },
+    { g: "Evidencia", id: "f12", path: ".gitlab/merge_request_templates/spec.md", why: "Plantilla de MR que vive en el repo, no en el CI. Es donde queda la evidencia de los controles locales." }
+  ];
+  var fileSel = "f1";
+  function buildFiles() {
+    var h = [], last = "";
+    FILES.forEach(function (f) {
+      if (f.g !== last) { h.push('<div class="grp">' + esc(f.g) + '</div>'); last = f.g; }
+      h.push('<button type="button" role="tab" id="tab-' + f.id + '" aria-controls="fileView" aria-selected="' + (f.id === fileSel ? "true" : "false") + '" data-file="' + f.id + '">' + esc(f.path) + '</button>');
+    });
+    document.getElementById("fileList").innerHTML = h.join("");
+    var f = FILES.filter(function (x) { return x.id === fileSel; })[0];
+    var code = document.getElementById(f.id).textContent.replace(/^\n/, "");
+    document.getElementById("fileView").innerHTML = '<div class="file-head"><h3>' + esc(f.path) + '</h3><button type="button" class="copy" id="copyFile">Copiar</button></div><p>' + esc(f.why) + '</p><pre><code>' + esc(code) + '</code></pre>' +
+      '<p style="font-size:13px">Ejemplo para adaptar: los nombres de herramientas y de settings cambian entre versiones de VS Code y Copilot.</p>';
+    document.getElementById("copyFile").addEventListener("click", function (ev) {
+      var b = ev.currentTarget;
+      try { navigator.clipboard.writeText(code).then(function () { b.textContent = "Copiado"; setTimeout(function () { b.textContent = "Copiar"; }, 1500); }, function () { b.textContent = "Selecciona y copia"; }); }
+      catch (e) { b.textContent = "Selecciona y copia"; }
+    });
+  }
+  document.getElementById("fileList").addEventListener("click", function (ev) {
+    var b = ev.target.closest("button[data-file]"); if (!b) return;
+    fileSel = b.getAttribute("data-file"); buildFiles();
+    var nb = document.getElementById("tab-" + fileSel); if (nb) nb.focus();
+  });
+
+  (function () {
+    var src = document.getElementById("catalogSrc").textContent.replace(/^\n/, "");
+    document.getElementById("catalogCode").textContent = src;
+    document.getElementById("copyCatalog").addEventListener("click", function (ev) {
+      var b = ev.currentTarget;
+      try { navigator.clipboard.writeText(src).then(function () { b.textContent = "Copiado"; setTimeout(function () { b.textContent = "Copiar"; }, 1500); }, function () { b.textContent = "Selecciona y copia"; }); }
+      catch (e) { b.textContent = "Selecciona y copia"; }
+    });
+  })();
+
+  // workspace del dev
+  (function () {
+    function esc(x) { return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    function wsJson(folders, auto) {
+      var o = { folders: folders, settings: { "files.readonlyInclude": { "**/.ref/**": true }, "chat.useHooks": true, "chat.tools.terminal.autoApprove": {} } };
+      auto.forEach(function (c) { o.settings["chat.tools.terminal.autoApprove"][c] = true; });
+      o.settings["chat.tools.terminal.autoApprove"]["/^git push/"] = false;
+      o.settings["chat.tools.terminal.autoApprove"]["/^rm -rf/"] = false;
+      if (folders.length === 1) delete o.settings["files.readonlyInclude"];
+      return JSON.stringify(o, null, 2);
+    }
+    var WS = {
+      FUID: {
+        intro: "<strong>Historia HADES-101 · suscribirse a un pago recurrente</strong>, de la épica FUID-1234 (pagos recurrentes en boton-pago-generico). Un dev del equipo Hades toma su subtarea en <code>botonpago-api</code>. La API es de Hades y no es compartida, así que no hay Gate 2: el LT del equipo revisa la spec y el contrato.",
+        file: "HADES-101-botonpago-api.code-workspace",
+        tree: [
+          { root: "botonpago-api", tag: "principal", spot: 1 },
+          { t: "▸ .github/", n: "harness", c: "dim" }, { t: "▸ .specify/", n: "constitución", c: "dim" }, { t: "▸ .vscode/mcp.json", c: "dim" },
+          { t: "▸ api/openapi.yaml", spot: 4 },
+          { t: "▾ specs/FUID-1234-pagos-…/", spot: 3 },
+          { t: "  spec.md", n: "delta" }, { t: "  plan.md" }, { t: "  tasks.md", n: "solo API", c: "hl" }, { t: "  contracts/" },
+          { t: "▸ src/", c: "dim" }, { t: "▸ test/e2e/", c: "dim" }, { t: "  catalog-info.yaml", c: "dim" },
+          { root: "spec maestra", tag: "solo lectura", spot: 2 },
+          { t: "  spec.md", c: "ro" }, { t: "  plan.md", c: "ro" }, { t: "  tasks.md", n: "todas las capas", c: "ro" }, { t: "  contracts/", c: "ro" }
+        ],
+        tabs: ["tasks.md · botonpago-api", "spec.md · maestra 🔒"],
+        ed: [["", "# Tareas FUID-1234 · capa API (botonpago-api)"], ["", "Spec maestra: botonpago-bff/specs/FUID-1234-pagos-recurrentes"], ["", "Dueño: equipo Hades · API no compartida, sin Gate 2"], ["", ""],
+          ["", "## US1 · HADES-101 Suscribirse a un pago recurrente (P1)"],
+          ["done", "- [X] T011 [US1] Contrato: POST /suscripciones en\n       api/openapi.yaml, compatible hacia atrás"],
+          ["cur", "- [ ] T012 [US1] e2e de servicio: crear suscripción con\n       botonpago-ms simulado (criterios C1, C2)"],
+          ["", "- [ ] T013 [US1] Implementar endpoint y llamada a botonpago-ms"], ["", "- [ ] T014 [US1] Prueba de proveedor contra openapi.yaml"], ["", ""],
+          ["c", "## US2 · HADES-102 Pausar o cancelar la suscripción (P2)"], ["c", "- [ ] T020 [US2] … (otra historia, otra rama)"]],
+        agent: "sdd-tester", folder: "botonpago-api", cmd: "Escribe los tests de T012 (US1)",
+        tools: ["desde sdd-orquestador · FUID · N2 · sensible: pagos", "odin-memory · buscar \"FUID-1234 HADES-101\"", "backstage · API de botonpago-ms (contrato)"],
+        ans: "Escribí 2 tests en <code class=\"mono\">test/e2e/suscripciones.e2e-spec.ts</code>, uno por criterio (C1, C2). Fallan porque el endpoint no existe: es la razón correcta.",
+        handoff: "Implementar la tarea → sdd-implementer",
+        term: [["c", "$ npm run mock:botonpago-ms   # simulación desde el contrato de botonpago-ms"], ["", "Mock listo en http://127.0.0.1:4010"], ["c", "$ npm run test:e2e -- suscripciones"], ["", "Tests: 2 failed, 2 total   "], ["c", "# rojo esperado antes de T013"], ["c", "$ git commit -m \"HADES-101 T012 e2e crear suscripción\""], ["okl", "cycode (secretos) ........ Passed"], ["okl", "cycode-sast .............. Passed"]],
+        foot: "sdd-reviewer y /speckit.converge van al final, antes del MR.",
+        status: ["⎇ feature/HADES-101-suscribirse", "Historia: HADES-101 · US1", "FUID-1234 · N2", "harness 1.4.0 · madurez 2", "Express · Node 24"],
+        json: wsJson([{ name: "botonpago-api", path: "../botonpago-api" }, { name: "spec maestra FUID-1234 (solo lectura)", path: "../.ref/botonpago-bff-FUID-1234-spec/specs/FUID-1234-pagos-recurrentes" }], ["npm run lint", "npm test", "npm run test:e2e", "npm run mock:botonpago-ms"])
+      },
+      FDT: {
+        intro: "<strong>Historia HADES-120 · migrar botonpago-ms de Node 24 a 26</strong>, única historia de la épica FDT-2345. La regla de oro la clasifica como <strong>solo técnico</strong>: no toca contratos ni cambia comportamiento, así que no cambia la spec y corre la regresión completa.",
+        file: "HADES-120-botonpago-ms.code-workspace",
+        tree: [
+          { root: "botonpago-ms", tag: "principal", spot: 1 },
+          { t: "▸ .github/", n: "harness", c: "dim" }, { t: "▸ .vscode/mcp.json", c: "dim" },
+          { t: "▾ .specify/fdt/node-26/", spot: 3 },
+          { t: "  assessment.md", n: "aprobado", c: "hl" }, { t: "  apply.md" }, { t: "  test.md", n: "pendiente", c: "dim" },
+          { t: "  Dockerfile · package.json", spot: 4 }, { t: "  package-lock.json", c: "dim" },
+          { t: "▸ specs/", n: "sin cambios", c: "dim" },
+          { t: "▸ src/", c: "dim" }, { t: "▸ test/e2e/", c: "dim" }, { t: "  catalog-info.yaml", c: "dim" },
+          { root: "sin segunda carpeta", tag: "", spot: 2 },
+          { t: "  el cambio vive en este repo", c: "ro" }
+        ],
+        tabs: ["assessment.md · fdt/node-26", "apply.md"],
+        ed: [["", "# Assessment FDT-2345 · HADES-120 · botonpago-ms a Node 26"], ["", ""],
+          ["cur", "Regla de oro: SOLO TÉCNICO"],
+          ["", "- ¿Toca un contrato?        No: api/openapi.yaml sin cambios"], ["", "- ¿Cambia comportamiento?   No: spec.md sin cambios"], ["", ""],
+          ["", "Archivos: Dockerfile (node:26), package.json (engines),"], ["", "          package-lock.json"],
+          ["", "Specs afectadas: todas (specs-tocadas.sh: cambia el runtime)"],
+          ["", "Pruebas: regresión completa, unit + e2e de servicio + contrato"],
+          ["", "Consumidores (Backstage): botonpago-api"], ["", ""],
+          ["done", "Estado: aprobado por el LT"]],
+        agent: "sdd-tester", folder: "botonpago-ms", cmd: "/speckit-fdt-test slug=node-26",
+        tools: ["desde sdd-implementer · apply.md sin desvíos", "leer · assessment.md (pruebas a correr)", "odin-memory · guardar tests en rojo"],
+        ans: "test.md: con Node 26 fallan 3 tests de una librería de fechas, veredicto <strong>parcial</strong>. Actualizar esa librería queda fuera del assessment.",
+        handoff: "Registrar el desvío → sdd-planner",
+        term: [["c", "$ nvm use 24 && npm run test:e2e   # línea base"], ["okl", "Tests: 18 passed, 18 total"], ["c", "$ nvm use 26 && npm test"], ["", "Tests: 3 failed, 142 passed   "], ["c", "# veredicto parcial"], ["c", "$ ./specs-tocadas.sh origin/Desarrollo-CI"], ["", "todas: cambiaron Dockerfile y package.json"]],
+        foot: "Solo técnico: sin cambio de spec. Con veredicto parcial, el botón vuelve a sdd-planner.",
+        status: ["⎇ feature/HADES-120-node-26", "Historia: HADES-120", "FDT-2345 · N2 · solo técnico", "harness 1.4.0 · madurez 2", "NestJS · Node 24 → 26"],
+        json: wsJson([{ name: "botonpago-ms", path: "../botonpago-ms" }], ["npm run lint", "npm test", "npm run test:e2e", "./specs-tocadas.sh", "docker build"])
+      },
+      MAU: {
+        intro: "<strong>Historia HADES-130 · corregir el pago con tarjeta guardada</strong>, de la épica MAU-5678 (el cliente no puede pagar en boton-pago-generico). El diagnóstico de <code>/speckit-bug-assess</code> apunta a <code>botonpago-api</code>: responde 500 cuando se paga con una tarjeta guardada sin fecha de vencimiento (causa ilustrativa).",
+        file: "HADES-130-botonpago-api.code-workspace",
+        tree: [
+          { root: "botonpago-api", tag: "principal", spot: 1 },
+          { t: "▸ .github/", n: "harness", c: "dim" }, { t: "▸ .vscode/mcp.json", c: "dim" },
+          { t: "▾ .specify/bugs/tarjeta-guardada/", spot: 3 },
+          { t: "  assessment.md", n: "aprobado", c: "hl" }, { t: "  fix.md" }, { t: "  test.md", n: "pendiente", c: "dim" },
+          { t: "▸ api/openapi.yaml", n: "sin cambios", spot: 4 },
+          { t: "▸ src/", c: "dim" }, { t: "▸ test/e2e/", c: "dim" }, { t: "  catalog-info.yaml", c: "dim" },
+          { root: "evidencia MAU-5678", tag: "solo lectura", spot: 2 },
+          { t: "  incidente.md", c: "ro" }, { t: "  traza-anonimizada.json", c: "ro" }
+        ],
+        tabs: ["assessment.md · bugs/tarjeta-guardada", "incidente.md 🔒"],
+        ed: [["", "# Assessment MAU-5678 · HADES-130"], ["", ""],
+          ["", "¿Bug real? Sí: se reproduce con la traza del incidente"], ["", "Síntoma: 500 al pagar con tarjeta guardada sin vencimiento"],
+          ["cur", "Causa probable: validación de fecha en src/pagos/tarjeta-guardada"],
+          ["", "Contrato: sin cambios, openapi.yaml ya permite el caso"], ["", "Corrección propuesta: tratar el vencimiento como opcional"],
+          ["", "Pruebas: e2e que reproduce el incidente + prueba de proveedor"], ["", ""],
+          ["done", "Estado: diagnóstico aprobado por el LT"]],
+        agent: "sdd-tester", folder: "botonpago-api", cmd: "Test que reproduce MAU-5678",
+        tools: ["desde sdd-orquestador · MAU · N2 · sensible: tarjetas", "leer · .specify/bugs/tarjeta-guardada/assessment.md (aprobado)", "leer · evidencia/incidente.md"],
+        ans: "Escribí <code class=\"mono\">test/e2e/pago-tarjeta-guardada.e2e-spec.ts</code> con los datos anonimizados del incidente. Falla con 500, igual que en producción.",
+        handoff: "Corregir con /speckit-bug-fix → sdd-implementer",
+        term: [["c", "$ npm run mock:botonpago-ms"], ["", "Mock listo en http://127.0.0.1:4010"], ["c", "$ npm run test:e2e -- pago-tarjeta-guardada"], ["", "Tests: 1 failed, 1 total   "], ["c", "# reproduce el MAU; queda como regresión"], ["c", "$ git commit -m \"HADES-130 e2e reproduce el incidente\""], ["okl", "cycode (secretos) ........ Passed"], ["okl", "cycode-sast .............. Passed"]],
+        foot: "Camino corto con la extensión bug: assess → fix → test. El test del incidente queda como regresión.",
+        status: ["⎇ feature/HADES-130-tarjeta-guardada", "Historia: HADES-130", "MAU-5678 · N2", "harness 1.4.0 · madurez 2", "Express · Node 24"],
+        json: wsJson([{ name: "botonpago-api", path: "../botonpago-api" }, { name: "evidencia MAU-5678 (solo lectura)", path: "../.ref/MAU-5678" }], ["npm run lint", "npm test", "npm run test:e2e", "npm run mock:botonpago-ms"])
+      }
+    };
+    var SPOTS = [
+      { t: "Carpeta principal: el repo donde se escribe",
+        p: "botonpago-api va primero y es la carpeta principal de la sesión de Copilot: el directorio desde el que trabaja el agente, donde corren los scripts de Spec Kit y de donde se cargan los hooks. Está en la rama de su historia, feature/HADES-101-suscribirse.",
+        w: "En VS Code, la carpeta principal se elige al empezar la sesión y no se puede cambiar a mitad. Los hooks de las otras carpetas no se usan.",
+        FDT: { t: "botonpago-ms, la única carpeta", p: "En una FDT el workspace tiene una sola carpeta: botonpago-ms en la rama de la historia, feature/HADES-120-node-26. La deuda, la spec y el cambio viven en el mismo repo." },
+        MAU: { t: "botonpago-api, donde está la causa raíz", p: "El diagnóstico va en el repo donde está la causa raíz, en la rama de la historia, feature/HADES-130-tarjeta-guardada. Si la investigación muestra que la causa está en otro repo, se abre una sesión nueva con ese repo como carpeta principal." } },
+      { t: "Spec maestra de solo lectura",
+        p: "No se abre el BFF completo: solo la carpeta de la spec de la épica, desde una copia de botonpago-bff en la rama de spec de la épica, feature/FUID-1234-spec (git worktree). Así el dev y el agente leen la spec maestra, el plan completo y los contratos de las otras capas.",
+        w: "Al abrir solo esa subcarpeta no se duplican las instrucciones, los agentes ni los comandos /speckit.* del BFF. files.readonlyInclude la bloquea en el editor, pero la carpeta principal no limita lo que el agente puede editar: el hook PreToolUse del harness debe rechazar ediciones fuera de botonpago-api. Ese chequeo hay que validarlo con el formato de entrada de los hooks de su versión de VS Code.",
+        FDT: { t: "Sin spec maestra", p: "La FDT no nace de una funcionalidad, así que no hay spec en el BFF. Lo que importa es quién depende del MS: Backstage lista a sus consumidores, en este caso botonpago-api, y su dueño, el propio equipo Hades.", w: "Si el MS fuera compartido, los equipos que lo consumen revisan la spec antes de implementar, igual que en el Gate 2." },
+        MAU: { t: "Evidencia del incidente, solo lectura", p: "Una carpeta fuera del repo con el reporte del incidente y una traza del error. El agente la lee para reproducir el caso sin acceso a producción.", w: "Nada con datos de clientes entra al workspace: números de tarjeta, RUT o correos se anonimizan antes de copiarlos." } },
+      { t: "La carpeta de la épica en la API",
+        p: "specs/FUID-1234-pagos-recurrentes/ trae la spec delta, el plan de esta capa, los contracts/ propuestos y un tasks.md solo con las tareas de la API, agrupadas por historia ([US1] es HADES-101) y con los mismos IDs que la maestra. La carpeta lleva la clave de la épica aunque la rama lleve la de la historia: .specify/feature.json apunta aquí.",
+        w: "/speckit.implement lee el tasks.md de la feature activa del repo. Como la API no es compartida, el LT de Hades copia la sección API del tasks.md maestro al cerrar /speckit.tasks; en una API compartida eso ocurre en el MR del Gate 2.",
+        FDT: { t: "La carpeta del FDT", p: ".specify/fdt/node-26/ guarda los tres reportes de la extensión fdt: assessment.md (clasificación con la regla de oro, archivos, specs afectadas y pruebas), apply.md (qué cambió y cualquier desvío) y test.md (veredicto: verificado, parcial o fallido).", w: "Es un FDT solo técnico: no cambia spec.md ni contratos. Si cambiara comportamiento, primero se actualiza spec.md; si tocara un contrato, primero aprueba su dueño." },
+        MAU: { t: "La carpeta del bug", p: ".specify/bugs/tarjeta-guardada/ guarda los tres reportes de la extensión bug de Spec Kit: assessment.md (diagnóstico sin tocar código), fix.md (qué cambió) y test.md (resultado de la verificación).", w: "El test que reproduce el incidente se escribe antes del fix y queda en test/e2e/ como regresión." } },
+      { t: "El contrato vigente",
+        p: "api/openapi.yaml es el contrato que hoy usa botonpago-bff y el que registra Backstage. La primera tarea lo extiende de forma compatible hacia atrás; un cambio que rompe se versiona, como exige la constitución de la API.",
+        w: "Que el contrato sea la primera tarea permite que el BFF avance en paralelo con una simulación del endpoint nuevo.",
+        FDT: { t: "Donde se declara la versión de Node", p: "La versión se cambia donde se declara: la imagen base del Dockerfile, engines de package.json y el lockfile.", w: "Como cambia el runtime, specs-tocadas.sh devuelve todas las specs del repo: corre la regresión completa." },
+        MAU: { t: "El contrato no cambia", p: "api/openapi.yaml queda igual: el fix corrige la implementación para que cumpla el contrato vigente.", w: "Si el arreglo exigiera cambiar el contrato, deja de ser solo una MAU y el LT lo trata como cambio de contrato con sus consumidores." } },
+      { t: "Un agente por paso, con botones",
+        p: "Todo empezó con sdd-orquestador, que clasificó la historia (FUID, N2, sensible por pagos) y detectó el paso: T012 sin tests. El dev pasó a sdd-tester con su botón; al terminar, el botón de sdd-tester lleva a sdd-implementer.",
+        w: "El botón es la pausa del proceso: el dev revisa lo que hizo un agente antes de pasar al siguiente. El que escribe los tests no escribe el código.",
+        FDT: { p: "sdd-planner evaluó el FDT, sdd-implementer lo aplicó y pasó a sdd-tester, que corre /speckit-fdt-test. Como el veredicto es parcial, el botón vuelve a sdd-planner para registrar el desvío en el assessment." },
+        MAU: { p: "El orquestador clasificó el MAU y sdd-planner dejó el diagnóstico aprobado. sdd-tester escribe el test que reproduce el incidente y su botón pasa a sdd-implementer para /speckit-bug-fix." } },
+      { t: "Servidores MCP",
+        p: "odin-memory recupera lo que ya se decidió en la épica, también lo que guardaron los devs del BFF. Backstage da el contrato y el dueño de botonpago-ms sin abrir su repo. Cycode permite escanear desde el chat.",
+        w: "Los agentes deben declarar 'backstage/*' en sus tools para usarlo; los servidores vienen de .vscode/mcp.json del repo principal.",
+        FDT: { p: "odin-memory recupera lo que otros devs aprendieron al migrar de versión de Node, si guardaron esa memoria donde el equipo la pueda leer. Backstage dice quién consume el MS. Cycode permite escanear dependencias nuevas desde el chat." },
+        MAU: { p: "odin-memory recupera errores anteriores de boton-pago-generico y cómo se resolvieron. Backstage muestra las dependencias de botonpago-api para descartar causas en otros repos. Cycode permite escanear el fix desde el chat." } },
+      { t: "Terminal: pruebas en local",
+        p: "botonpago-ms se simula a partir de su contrato (por ejemplo con Prism y el OpenAPI que publica Backstage), así el e2e de servicio no depende de un ambiente. Los comandos de prueba se aprueban solos; git push y borrados no.",
+        w: "Cada commit pasa por los hooks de pre-commit de Cycode antes de salir del equipo del dev.",
+        FDT: { p: "Los mismos tests se corren con Node 24 y 26, y specs-tocadas.sh confirma que la regresión es completa. Antes de certificar, el rendimiento se compara con la línea base de JMeter.", w: "Un cambio de runtime puede no romper tests y aun así cambiar tiempos de respuesta o consumo de memoria." },
+        MAU: { p: "El test que reproduce el error falla igual que en producción, con botonpago-ms simulado. Después del fix pasa, y ese antes y después es la evidencia para QA.", w: "El camino de la MAU a producción por Desarrollo-CI sigue siendo una decisión pendiente, como en la vista Ramas y pipeline." } },
+      { t: "Barra de estado",
+        p: "Rama, feature activa de Spec Kit y versión y madurez del harness del repo, leídos de catalog-info.yaml. Si algo no coincide, se corrige antes de pedirle nada al agente.",
+        w: "Es una propuesta: la versión y el nivel pueden mostrarse con una tarea de VS Code o una extensión simple; lo importante es verlos antes de empezar." }
+    ];
+    var cur = 0, type = "FUID";
+    var list = document.getElementById("wsList"), body = document.getElementById("wsBody");
+    function spotBtn(n) { return '<button type="button" class="spot" data-spot="' + n + '" aria-label="Detalle ' + n + '">' + n + '</button>'; }
+    function spotData(i) { var s = SPOTS[i], o = s[type] || {}; return { t: o.t || s.t, p: o.p || s.p, w: o.w || s.w }; }
+    function bindSpots() {
+      Array.prototype.forEach.call(document.querySelectorAll("#view-workspace .spot[data-spot]"), function (b) {
+        if (b._bound) return; b._bound = true;
+        b.addEventListener("click", function () { show(+b.dataset.spot - 1); body.scrollIntoView({ block: "nearest", behavior: "smooth" }); });
+      });
+    }
+    function show(i) {
+      cur = i; var s = spotData(i);
+      body.innerHTML = "";
+      var h = document.createElement("h3"); h.textContent = (i + 1) + ". " + s.t;
+      var p = document.createElement("p"); p.textContent = s.p;
+      var w = document.createElement("p"); w.className = "why"; w.textContent = s.w;
+      body.appendChild(h); body.appendChild(p); body.appendChild(w);
+      Array.prototype.forEach.call(list.children, function (b, k) { b.setAttribute("aria-selected", k === i ? "true" : "false"); b.lastChild.textContent = spotData(k).t; });
+      Array.prototype.forEach.call(document.querySelectorAll("#view-workspace .spot[data-spot]"), function (b) { b.setAttribute("aria-pressed", +b.dataset.spot === i + 1 ? "true" : "false"); });
+    }
+    SPOTS.forEach(function (s, i) {
+      var b = document.createElement("button");
+      b.type = "button"; b.setAttribute("role", "tab");
+      b.innerHTML = '<span class="n">' + (i + 1) + '</span><span></span>';
+      b.addEventListener("click", function () { show(i); });
+      list.appendChild(b);
+    });
+    function render(t) {
+      type = WS[t] ? t : "FUID"; var d = WS[type];
+      document.getElementById("wsIntro").innerHTML = d.intro;
+      document.getElementById("wsTitle").textContent = d.file + " — Visual Studio Code";
+      document.getElementById("wsTree").innerHTML = d.tree.map(function (it, k) {
+        if (it.root) return '<div class="root"' + (k ? ' style="margin-top:8px"' : '') + '><span>' + esc(it.root) + (it.tag ? ' <small>· ' + esc(it.tag) + '</small>' : '') + '</span>' + spotBtn(it.spot) + '</div>';
+        var inner = esc(it.t).replace(/^ {2}/, "&nbsp;&nbsp;") + (it.n ? ' <span class="ro">' + esc(it.n) + '</span>' : '');
+        if (it.spot) return '<div class="it ' + (it.c || '') + '" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px"><span>' + inner + '</span>' + spotBtn(it.spot) + '</div>';
+        return '<div class="it ' + (it.c || '') + '">' + inner + '</div>';
+      }).join("");
+      document.getElementById("wsTabs").innerHTML = d.tabs.map(function (x, k) { return '<span' + (k ? '' : ' class="on"') + '>' + esc(x) + '</span>'; }).join("");
+      document.getElementById("wsEditor").innerHTML = d.ed.map(function (l) { return l[0] ? '<span class="' + l[0] + '">' + esc(l[1]) + '</span>' : esc(l[1]); }).join("\n");
+      document.getElementById("wsChat").innerHTML =
+        '<div class="row"><span class="sel">Agente: ' + esc(d.agent) + '</span><span class="sel">Carpeta: ' + esc(d.folder) + '</span></div>' +
+        '<div class="row"><span class="mcp">odin-memory</span><span class="mcp">backstage</span><span class="mcp">cycode</span>' + spotBtn(6) + '</div>' +
+        '<div class="msg me">' + esc(d.cmd) + '</div>' +
+        '<div class="msg">' + d.tools.map(function (x) { return '<div class="tool">' + esc(x) + '</div>'; }).join("") + '<div style="margin-top:6px">' + d.ans + '</div></div>' +
+        '<button type="button" class="handoff" tabindex="-1">' + esc(d.handoff) + '</button>';
+      var term = [], line = "";
+      d.term.forEach(function (l) {
+        var h = l[0] === "c" ? '<span class="c">' + esc(l[1]) + '</span>' : l[0] === "okl" ? '<span class="ok">' + esc(l[1]) + '</span>' : esc(l[1]);
+        if (/ {3}$/.test(l[1])) { line = h; return; }
+        term.push(line + h); line = "";
+      });
+      document.getElementById("wsTerm").innerHTML = term.map(function (x) { return '<span class="tl">' + x + '</span>'; }).join("");
+      document.getElementById("wsFoot").textContent = d.foot;
+      document.getElementById("wsStatus").innerHTML = d.status.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join("");
+      document.getElementById("wsFileName").textContent = d.file;
+      document.getElementById("wsCode").textContent = d.json;
+      bindSpots(); show(cur); play();
+    }
+    function play() {
+      var items = [], q = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+      items = items.concat(q("#wsChat .msg.me"), q("#wsChat .tool"), q("#wsChat .msg:not(.me) > div:last-child"), q("#wsChat .handoff"), q("#wsTerm .tl"));
+      items.forEach(function (el, k) {
+        el.classList.remove("seq"); void el.offsetWidth;
+        el.style.animationDelay = (0.25 + k * 0.38).toFixed(2) + "s"; el.classList.add("seq");
+      });
+      var curEl = document.querySelector("#wsEditor .cur");
+      if (curEl) { curEl.classList.remove("glow"); void curEl.offsetWidth; curEl.classList.add("glow"); }
+    }
+    document.addEventListener("ver-workspace", play);
+    document.getElementById("wsReplay").addEventListener("click", play);
+    document.getElementById("copyWs").addEventListener("click", function (ev) {
+      var b = ev.currentTarget, src = WS[type].json;
+      try { navigator.clipboard.writeText(src).then(function () { b.textContent = "Copiado"; setTimeout(function () { b.textContent = "Copiar"; }, 1500); }, function () { b.textContent = "Selecciona y copia"; }); }
+      catch (e) { b.textContent = "Selecciona y copia"; }
+    });
+    document.addEventListener("tipo-epica", function (e) { render(e.detail); });
+    render(state.type || "FUID");
+  })();
+
+  // puntos que recorren las flechas de los diagramas estáticos
+  function ambientDots() {
+    if (REDUCED) return;
+    Array.prototype.forEach.call(document.querySelectorAll(".view svg:not(#flowSvg)"), function (svg) {
+      var k = 0;
+      Array.prototype.forEach.call(svg.querySelectorAll("path.edge"), function (p) {
+        var d = p.getAttribute("d"); if (!d) return;
+        var len = 200; try { len = p.getTotalLength() || 200; } catch (e) {}
+        var c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("r", "4"); c.setAttribute("class", "amb-dot");
+        var m = document.createElementNS("http://www.w3.org/2000/svg", "animateMotion");
+        m.setAttribute("dur", Math.max(1.4, len / 95).toFixed(2) + "s");
+        m.setAttribute("begin", "-" + ((k++ * 0.45) % 2.4).toFixed(2) + "s");
+        m.setAttribute("repeatCount", "indefinite"); m.setAttribute("path", d);
+        c.appendChild(m); p.parentNode.insertBefore(c, p.nextSibling);
+      });
+    });
+  }
+
+  // routing
+  var VIEWS = ["flujo", "triage", "harness", "workspace", "estandares", "backstage", "repos", "ramas", "creditos", "preparacion"];
+  function route() {
+    var h = (location.hash || "").replace("#", ""); if (VIEWS.indexOf(h) < 0) h = "flujo";
+    VIEWS.forEach(function (v) {
+      document.getElementById("view-" + v).classList.toggle("active", v === h);
+    });
+    document.querySelectorAll("nav.tabs a").forEach(function (a) {
+      if (a.getAttribute("data-view") === h) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+    if (h !== "flujo" && tour.playing) { tourPause(); tourUi(); }
+    if (h === "workspace") document.dispatchEvent(new CustomEvent("ver-workspace"));
+  }
+  window.addEventListener("hashchange", route);
+
+  buildFlow(); renderPanel(); tourUi(); buildActs(); calc(); buildPrep(); buildFiles(); ambientDots(); route();
+})();
+</script>
+</body>
+</html>
