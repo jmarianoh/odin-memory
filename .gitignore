@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Dependencias (no hay package.json en la raíz: es una instalación suelta)
+node_modules/
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs y temporales
+*.log
+npm-debug.log*
+*.tmp
+*.swp
+*~
+
+# Editores / IDE
+.idea/
+.vscode/
+*.code-workspace
+
+# Estado local de Claude Code
+.claude/settings.local.json
