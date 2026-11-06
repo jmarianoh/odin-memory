@@ -92,10 +92,10 @@ Con `cloud` activo, `applyPulledMutation` usa las lápidas por **secuencia remot
 
 Deja de ser un no-op: al inscribir un proyecto (y al arrancar el gestor, para los ya inscritos) encola, vía `journalMutation`, lo que el proyecto ya tiene y que no tenga una mutación `pending` o `quarantined` del mismo destino, entidad, clave y origen. En este orden:
 
-1. **Sesiones** del proyecto con id no vacío: `{ id, project, ownership_mode, directory, started_at, ended_at, summary }` (una sin directorio no viaja).
+1. **Sesiones** del proyecto con id no vacío y con directorio no vacío o `ownership_mode = 'project_owned'`: `{ id, project, ownership_mode, directory, started_at, ended_at, summary }` (una `shared` sin directorio no viaja; una `project_owned` sin él sí, p. ej. los registros aislados).
 2. **Observaciones vivas** (proyecto propio o, si no lo tienen, el de su sesión): `{ sync_id, session_id, type, title, content, tool_name, project, scope, topic_key, revision_count, duplicate_count, last_seen_at, created_at, updated_at, superseded_by_sync_id? }`.
 3. **Observaciones borradas** (blandas) sin `delete` en cola: `{ sync_id, session_id, project, deleted_at, superseded_by_sync_id?, deleted: true, hard_delete: false }`.
-4. **Lápidas** activas de `observation` y `session` del proyecto, sin piso remoto y sin `delete` pendiente, ordenadas observaciones antes que sesiones: `delete` con `deleted: true`, `deleted_at` y `hard_delete` de la lápida.
+4. **Lápidas** activas de `observation` y `session` del proyecto, sin piso remoto y sin una mutación `delete` del mismo origen en `pending` o `quarantined` **ni acusada con `seq` posterior a `last_mutation_seq` de la lápida** (un borrado ya acusado no se vuelve a encolar en cada sincronización; spec 0.32.0), ordenadas observaciones antes que sesiones: `delete` con `deleted: true`, `deleted_at` y `hard_delete` de la lápida.
 5. **Prompts** vivos `{ sync_id, session_id, content, project, created_at, source_inbox_id }` y **lápidas de prompt** sin `delete` en cola `{ sync_id, session_id, project, deleted_at, source_inbox_id, deleted: true, hard_delete: true }`.
 6. **Relaciones** con juicio (estado distinto de `orphaned` y `pending`) y con `marked_by_actor` y `marked_by_kind` no vacíos, entre observaciones vivas, cuyo origen es del proyecto: `{ sync_id, source_id, target_id, relation, reason, evidence, confidence, judgment_status, marked_by_actor, marked_by_kind, marked_by_model, session_id, project, created_at, updated_at }`.
 

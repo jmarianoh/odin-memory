@@ -58,8 +58,8 @@ export function journalMutation(db, { entity, entityKey, op, project = '', sessi
   if (entity === SYNC_ENTITY.session && goTrim(entityKey ?? '') === '') throw storeError('session_id_required');
   const body = typeof payload === 'function' ? payload() : payload;
   source = goTrim(source) === '' ? SYNC_SOURCE_LOCAL : goTrim(source);
-  // Una sesión local sin directorio no viaja: la nube la rechazaría.
-  if (source === SYNC_SOURCE_LOCAL && entity === SYNC_ENTITY.session && op === SYNC_OP_UPSERT && goTrim(body?.directory ?? '') === '') return;
+  // Una sesión local sin directorio no viaja: la nube la rechazaría. Las `project_owned` (registros aislados) sí viajan.
+  if (source === SYNC_SOURCE_LOCAL && entity === SYNC_ENTITY.session && op === SYNC_OP_UPSERT && goTrim(body?.directory ?? '') === '' && body?.ownership_mode !== 'project_owned') return;
   if (op === SYNC_OP_UPSERT && (entity === SYNC_ENTITY.session || entity === SYNC_ENTITY.observation)) {
     db.run('UPDATE sync_delete_tombstones SET active = 0 WHERE entity = ? AND entity_key = ?', entity, entityKey);
   }
@@ -110,8 +110,8 @@ export function backfillProjectSyncMutations(db, project, source = SYNC_SOURCE_L
   // Primero se recoge cada conjunto y después se inserta: así la consulta no ve sus propias escrituras.
   const sessions = db.all(
     `SELECT id, project, ifnull(ownership_mode, '') AS ownership_mode, directory, started_at, ended_at, summary FROM sessions
-     WHERE project = ? AND trim(id, ?) <> '' AND ${notQueued('sessions.id')} ORDER BY started_at ASC, id ASC`,
-    name, SQL_WHITESPACE_TRIM_SET, target, SYNC_ENTITY.session, src,
+     WHERE project = ? AND trim(id, ?) <> '' AND (trim(sessions.directory, ?) <> '' OR sessions.ownership_mode = 'project_owned') AND ${notQueued('sessions.id')} ORDER BY started_at ASC, id ASC`,
+    name, SQL_WHITESPACE_TRIM_SET, SQL_WHITESPACE_TRIM_SET, target, SYNC_ENTITY.session, src,
   );
   for (const row of sessions) enqueue(SYNC_ENTITY.session, row.id, SYNC_OP_UPSERT, { ...row });
 
@@ -139,7 +139,7 @@ export function backfillProjectSyncMutations(db, project, source = SYNC_SOURCE_L
     `SELECT entity, entity_key, ifnull(session_id, '') AS session_id, project, deleted_at, hard_delete FROM sync_delete_tombstones tombstone
      WHERE project = ? AND tombstone.active = 1 AND tombstone.entity IN ('observation', 'session') AND tombstone.last_remote_mutation_seq IS NULL
        AND NOT EXISTS (SELECT 1 FROM sync_mutations sm WHERE sm.target_key = ? AND sm.entity = tombstone.entity AND sm.entity_key = tombstone.entity_key
-                       AND sm.op = ? AND sm.source = ? AND sm.acked_at IS NULL AND sm.disposition IN ('pending', 'quarantined'))
+                       AND sm.op = ? AND sm.source = ? AND sm.disposition IN ('pending', 'quarantined') AND sm.seq > tombstone.last_mutation_seq)
      ORDER BY CASE entity WHEN 'observation' THEN 0 WHEN 'session' THEN 1 ELSE 2 END, deleted_at ASC, entity_key ASC`,
     name, target, SYNC_OP_DELETE, src,
   );

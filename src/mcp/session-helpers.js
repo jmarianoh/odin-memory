@@ -58,10 +58,10 @@ export function captureProjectEvidence(ctx, res, sessionId, rawProject, defaultP
   }
 }
 
-/** Registra (si falta) la sesión implícita con el directorio de trabajo; un fallo se ignora. */
-export function ensureImplicitSession(ctx, sessionId, project, evidence = null) {
+/** Registra (si falta) la sesión implícita con el directorio de trabajo (o `directory`); un fallo se ignora. */
+export function ensureImplicitSession(ctx, sessionId, project, evidence = null, directory = '') {
   try {
-    createSession(ctx.store, sessionId, project, currentWorkingDirectory(ctx), SESSION_OWNERSHIP_SHARED, evidence);
+    createSession(ctx.store, sessionId, project, directory === '' ? currentWorkingDirectory(ctx) : directory, SESSION_OWNERSHIP_SHARED, evidence);
   } catch {
     // Mejor esfuerzo: la escritura posterior informa del problema real.
   }
@@ -101,16 +101,18 @@ export function resolveHostBoundSession(ctx, project) {
 /**
  * Resuelve un `session_id` omitido sin elegir entre sesiones concurrentes: el
  * directorio solo acota los candidatos; el identificador persistido es la única identidad.
+ * `directory` (el de una sola llamada) sustituye al directorio de trabajo del proceso.
  * @returns {string}
  * @throws {Error}
  */
-export function resolveFallbackSessionId(ctx, project, evidence = null) {
+export function resolveFallbackSessionId(ctx, project, evidence = null, directory = '') {
   const bound = resolveHostBoundSession(ctx, project);
   if (bound !== '') return bound;
   const { store } = ctx;
+  const sessionDirectory = directory === '' ? currentWorkingDirectory(ctx) : directory;
   let ids = null;
   try {
-    ids = activeRuntimeSessions(store, project, runtimeSessionDirectory(ctx));
+    ids = activeRuntimeSessions(store, project, runtimeSessionDirectory(ctx, sessionDirectory));
   } catch {
     ids = null;
   }
@@ -124,7 +126,7 @@ export function resolveFallbackSessionId(ctx, project, evidence = null) {
       );
     }
   }
-  return resolveManualSession(store, project, currentWorkingDirectory(ctx), evidence);
+  return resolveManualSession(store, project, sessionDirectory, evidence);
 }
 
 export { defaultSessionId };

@@ -10,11 +10,11 @@ import { strArg } from '../args.js';
 import { addErrorMetadata, defaultSessionId, errorWithMeta, respondWithProject, writeProjectErrorResult } from '../envelope.js';
 import { errorResult, goQuote } from '../json.js';
 import { captureProjectDetector, workingDirectory } from '../projects.js';
+import { promptWorkspaceDirectory, resolvePromptWorkspaceProject } from '../prompt-workspace.js';
 import { captureProjectEvidence, ensureImplicitSession, resolveFallbackSessionId, runtimeSessionDirectory } from '../session-helpers.js';
 import { truncationWarning } from '../warnings.js';
 import {
-  resolveSaveWriteProjectWithProcessOverride, resolveWriteProject, resolveWriteProjectWithChoiceAndProcessOverride,
-  resolveWriteProjectWithProcessOverride,
+  resolveSaveWriteProjectWithProcessOverride, resolveWriteProject, resolveWriteProjectWithProcessOverride,
 } from '../write-projects.js';
 import { prepareWriteProject, recoveryTokenValidator } from '../write-support.js';
 
@@ -24,6 +24,8 @@ export function savePromptTool(ctx) {
   return (args) => {
     const { store, activity, config } = ctx;
     const content = strArg(args, 'content');
+    const { directory: workspaceDir, error: workspaceError } = promptWorkspaceDirectory(args);
+    if (workspaceError) return errorResult(`Invalid workspace directory: ${workspaceError}`);
     let sessionId = strArg(args, 'session_id');
     let projectChoice = strArg(args, 'project');
     let reason = strArg(args, 'project_choice_reason');
@@ -43,23 +45,23 @@ export function savePromptTool(ctx) {
       }
       outcome = resolveSaveWriteProjectWithProcessOverride(ctx, projectChoice, goTrim(projectChoice) !== '', reason, sessionId, validate);
     } else {
-      outcome = resolveWriteProjectWithChoiceAndProcessOverride(ctx, projectChoice, reason, validate);
+      outcome = resolvePromptWorkspaceProject(ctx, workspaceDir, projectChoice, reason, validate);
     }
     if (outcome.err) return writeProjectErrorResult(activity, recoverySessionId, outcome.res, outcome.err);
     const res = outcome.res;
     const project = normalizeProject(res.project ?? '').normalized;
 
+    // La evidencia se captura antes de registrar, para que una sesión implícita nueva la conserve.
+    const provenance = captureProjectEvidence(ctx, res, sessionId, projectChoice, config.defaultProject);
+    if (workspaceDir !== '') provenance.directory = workspaceDir;
     if (sessionId === '') {
       try {
-        sessionId = resolveFallbackSessionId(ctx, project, captureProjectEvidence(ctx, res, sessionId, projectChoice, config.defaultProject));
+        sessionId = resolveFallbackSessionId(ctx, project, provenance, workspaceDir);
       } catch (err) {
         return errorResult(`Failed to save prompt: ${err.message}`);
       }
     }
-
-    // La evidencia se captura antes de registrar, para que una sesión implícita nueva la conserve.
-    const provenance = captureProjectEvidence(ctx, res, sessionId, projectChoice, config.defaultProject);
-    ensureImplicitSession(ctx, sessionId, project, provenance);
+    ensureImplicitSession(ctx, sessionId, project, provenance, workspaceDir);
 
     const truncation = contentTruncation(store, content);
     try {

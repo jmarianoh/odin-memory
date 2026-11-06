@@ -2,7 +2,7 @@ import { normalizeProject } from '../project/canonical.js';
 import { backfillProjectSyncMutations } from './journal.js';
 import { enrollProject, unenrollProject } from './enrollment.js';
 import { DEFAULT_SYNC_TARGET_KEY, cloudTargetKeyForProject, getSyncState, isProjectEnrolled } from './sync-state.js';
-import { goTrim } from './text.js';
+import { SQL_WHITESPACE_TRIM_SET, goTrim } from './text.js';
 
 /**
  * Migración de un proyecto a la sincronización por mutaciones de la nube: estado por etapas, diagnóstico y reparación
@@ -193,6 +193,16 @@ function evaluateMutation(db, mutation) {
       const local = db.get("SELECT ifnull(directory, '') AS directory FROM sessions WHERE id = ?", body.id);
       if (goTrim(local?.directory ?? '') !== directory) return blocked('session payload directory conflicts with local session directory');
     }
+    // Sin `ownership_mode` explícito en la carga, la propiedad `project_owned` de la sesión local se hereda.
+    if (op === 'upsert' && text(body.ownership_mode) === '' && !('ownership_mode' in body)) {
+      const local = db.get("SELECT ifnull(ownership_mode, '') AS mode, ifnull(project, '') AS project FROM sessions WHERE id = ?", body.id);
+      if (local?.mode === 'project_owned') {
+        if (canonical(local.project) !== ownerProject || (text(body.project) !== '' && text(body.project) !== ownerProject)) return blocked('session payload project conflicts with local session project');
+        body.ownership_mode = local.mode;
+        changed = true;
+      }
+    }
+    // Se valida el directorio crudo: la propiedad inferida no convierte un null en blanco.
     if (op === 'upsert' && body.ownership_mode === 'project_owned' && 'directory' in body && typeof body.directory !== 'string') return blocked('pulled session directory is invalid: directory must be a string');
     if (op === 'upsert' && directory === '' && body.ownership_mode !== 'project_owned') {
       const local = db.get("SELECT ifnull(directory, '') AS directory FROM sessions WHERE id = ?", body.id);
@@ -319,7 +329,10 @@ const MANUAL_REASONS = new Map([['auth_required', 'upgrade_policy_auth_required'
 /** ¿Faltan filas del diario para lo que ya hay en el almacén del proyecto? */
 function backfillRequired(db, project) {
   const missing = (entity, entityKey) => `NOT EXISTS (SELECT 1 FROM sync_mutations sm WHERE sm.target_key = ? AND sm.entity = '${entity}' AND sm.entity_key = ${entityKey} AND sm.source = 'local' AND sm.disposition IN ('pending', 'quarantined'))`;
-  const sessions = db.get(`SELECT EXISTS(SELECT 1 FROM sessions sess WHERE sess.project = ? AND ${missing('session', 'sess.id')}) AS n`, project, DEFAULT_SYNC_TARGET_KEY);
+  const sessions = db.get(
+    `SELECT EXISTS(SELECT 1 FROM sessions sess WHERE sess.project = ? AND (trim(sess.directory, ?) <> '' OR sess.ownership_mode = 'project_owned') AND ${missing('session', 'sess.id')}) AS n`,
+    project, SQL_WHITESPACE_TRIM_SET, DEFAULT_SYNC_TARGET_KEY,
+  );
   const observations = db.get(
     `SELECT EXISTS(SELECT 1 FROM observations obs LEFT JOIN sessions sess ON sess.id = obs.session_id
        WHERE (ifnull(obs.project, '') = ? OR (ifnull(obs.project, '') = '' AND ifnull(sess.project, '') = ?)) AND obs.deleted_at IS NULL AND ${missing('observation', 'obs.sync_id')}) AS n`,

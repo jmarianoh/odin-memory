@@ -1,5 +1,5 @@
 import { normalizeProject } from '../../project/canonical.js';
-import { formatContext, limitContextBytes, stats } from '../../store/index.js';
+import { formatContext, limitContextBytes, stats, statsProject } from '../../store/index.js';
 import { goTrim, byteLength } from '../../store/text.js';
 import { strArg, boolArg } from '../args.js';
 import { defaultSessionId, readProjectErrorResult, respondWithProject } from '../envelope.js';
@@ -39,7 +39,8 @@ export function contextTool(ctx) {
     const sessionId = defaultSessionId(project);
     activity.recordToolCall(sessionId);
     const maxBytes = memContextMaxBytes(args.max_bytes);
-    const global = stats(store);
+    // El pie cuenta solo el proyecto efectivo; sin proyecto, el total.
+    const global = contextProject === '' ? stats(store) : statsProject(store, contextProject);
     let suffix = `\n---\nMemory stats: ${global.total_sessions} sessions, ${global.total_observations} observations across projects: ${formatContextProjects(global.projects)}`;
     suffix += activity.nudgeIfNeeded(sessionId, project);
     const budget = Math.max(1, maxBytes - byteLength(suffix));

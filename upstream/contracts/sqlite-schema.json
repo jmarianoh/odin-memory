@@ -123,6 +123,12 @@
     },
     {
       "type": "index",
+      "name": "idx_prompts_project_lower",
+      "tbl_name": "user_prompts",
+      "sql": "CREATE INDEX idx_prompts_project_lower ON user_prompts(LOWER(project))"
+    },
+    {
+      "type": "index",
       "name": "idx_prompts_session",
       "tbl_name": "user_prompts",
       "sql": "CREATE INDEX idx_prompts_session ON user_prompts(session_id)"
@@ -162,6 +168,12 @@
       "name": "idx_sessions_project",
       "tbl_name": "sessions",
       "sql": "CREATE INDEX idx_sessions_project ON sessions(project)"
+    },
+    {
+      "type": "index",
+      "name": "idx_sessions_project_lower",
+      "tbl_name": "sessions",
+      "sql": "CREATE INDEX idx_sessions_project_lower ON sessions(LOWER(project))"
     },
     {
       "type": "index",
@@ -239,7 +251,7 @@
       "type": "table",
       "name": "observations_fts",
       "tbl_name": "observations_fts",
-      "sql": "CREATE VIRTUAL TABLE observations_fts USING fts5(\n\t\ttitle,\n\t\tcontent,\n\t\ttool_name,\n\t\ttype,\n\t\tproject,\n\t\ttopic_key,\n\t\ttokenize='trigram',\n\t\tcontent='observations',\n\t\tcontent_rowid='id'\n\t)"
+      "sql": "CREATE VIRTUAL TABLE observations_fts USING fts5(\n\t\ttitle,\n\t\tcontent,\n\t\ttool_name,\n\t\ttype,\n\t\tproject,\n\t\ttopic_key,\n\t\ttokenize='trigram remove_diacritics 1',\n\t\tcontent='observations',\n\t\tcontent_rowid='id'\n\t)"
     },
     {
       "type": "table",
@@ -287,7 +299,7 @@
       "type": "table",
       "name": "prompts_fts",
       "tbl_name": "prompts_fts",
-      "sql": "CREATE VIRTUAL TABLE prompts_fts USING fts5(\n\t\tcontent,\n\t\tproject,\n\t\ttokenize='trigram',\n\t\tcontent='user_prompts',\n\t\tcontent_rowid='id'\n\t)"
+      "sql": "CREATE VIRTUAL TABLE prompts_fts USING fts5(\n\t\tcontent,\n\t\tproject,\n\t\ttokenize='trigram remove_diacritics 1',\n\t\tcontent='user_prompts',\n\t\tcontent_rowid='id'\n\t)"
     },
     {
       "type": "table",

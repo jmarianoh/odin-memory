@@ -27,14 +27,17 @@ const SELECTED = SOURCE_USER_SELECTED_AFTER_AMBIGUOUS_PROJECT;
 const isAmbiguous = (err) => err?.code === 'ambiguous_project';
 const isInvalidConfig = (err) => err?.code === 'invalid_config';
 
-/** Proyecto detectado desde el directorio de trabajo, exigiendo proyecto explícito en HOME. */
-export function resolveWriteProject(ctx) {
-  const res = captureProjectDetector(ctx.store)(workingDirectory(ctx));
+/**
+ * Proyecto detectado desde el directorio de trabajo (o desde `directory`, el de una sola llamada),
+ * exigiendo proyecto explícito en HOME.
+ */
+export function resolveWriteProject(ctx, directory = '') {
+  const res = captureProjectDetector(ctx.store)(directory === '' ? workingDirectory(ctx) : directory);
   return { res, err: res.error ?? null };
 }
 
 /** Aplica el proyecto fijado para el proceso (`ODIN_PROJECT` / `--project`) si lo hay. */
-function processProjectResult(ctx) {
+export function processProjectResult(ctx) {
   const defaultProject = ctx.config.defaultProject ?? '';
   if (!processOverride(defaultProject, ctx.env).ok) return { ok: false };
   try {
@@ -71,8 +74,8 @@ export function normalizedProjectCollisions(candidates, choice) {
  * los proyectos disponibles, no chocar al normalizarse y venir con un token válido.
  * @param {(res: object, choice: string) => { provided: boolean, valid: boolean }|null} validateToken
  */
-export function resolveWriteProjectWithChoice(ctx, projectChoice, reason, validateToken) {
-  const { res, err } = resolveWriteProject(ctx);
+export function resolveWriteProjectWithChoice(ctx, projectChoice, reason, validateToken, directory = '') {
+  const { res, err } = resolveWriteProject(ctx, directory);
   if (!err) return { res, err: null }; // lo no ambiguo manda: la elección se ignora
   if (!isAmbiguous(err)) return { res, err };
   if (goTrim(reason) !== SELECTED) return { res, err };

@@ -458,3 +458,17 @@ npm test
 npm run check:implementacion
 npm run check:clean-room
 ```
+
+### Seguimiento de la referencia — v3.6.2 (spec 0.32.0)
+
+1. Copiar de `fuentes/` los tests nuevos y modificados (`test/unit/store/{fts-diacritics,soft-delete-timestamps,local-restore-guard,isolated-sessions,conflicts,passive}.test.js`, `test/unit/mcp/{prompt-workspace,tools}.test.js`) y los contratos (`test/contract/fixtures/*`, `src/mcp/tool-definitions.js`, `src/store/schema.js`).
+2. Aplicar `cambios/0.32.0.md` módulo a módulo, con su capítulo: FTS con `remove_diacritics` y migración (`10-store/01`), marcas de tiempo de la aplicación en borrados y ediciones (`10-store/02`, `05`, `07`), guarda de restauración local y relleno del diario (`16-git-sync.md`, `30-cloud/04`, `07`, `08`), escaneo semántico (`10-store/11`), `mem_save_prompt` con `directory`/`cwd` y pie de `mem_context` por proyecto (`12-mcp/02`, `03`).
+3. Crear `src/mcp/prompt-workspace.js`.
+
+Aceptación:
+```bash
+node --test test/unit/store/{fts-diacritics,soft-delete-timestamps,local-restore-guard,isolated-sessions}.test.js test/unit/mcp/prompt-workspace.test.js
+npm test
+npm run check:implementacion
+npm run check:clean-room
+```

@@ -8,8 +8,8 @@ import { openTempStore } from './helpers.js';
 
 function seed(t, rows = [
   ['Usar Redis para la caché', 'a'], ['Redis como caché distribuida', 'b'], ['Caché local en memoria', 'c'], ['Tokens de acceso', 'd'], ['Acceso con tokens', 'e'],
-], project = 'demo') {
-  const store = openTempStore(t);
+], project = 'demo', config = {}) {
+  const store = openTempStore(t, config);
   createSession(store, 's1', project, '/tmp/x');
   const ids = rows.map(([title, content]) => addObservation(store, { session_id: 's1', type: 'decision', title, content, project }).id);
   return { store, ids };
@@ -137,6 +137,28 @@ test('el escaneo semántico juzga cada par una vez y contabiliza los resultados'
   const judged = listRelations(store, {});
   assert.equal(judged.length, applied.semantic_judged);
   assert.ok(judged.every((r) => r.relation === 'conflicts_with' && r.judgment_status === 'judged'));
+});
+
+test('el escaneo semántico omite el par cuyo texto no se puede leer y lo registra', async (t) => {
+  const logs = [];
+  const { store } = seed(t, undefined, 'demo', { log: (line) => logs.push(line) });
+  const opts = { project: 'demo', semantic: true, build_prompt: (a, b) => `${a.sync_id}+${b.sync_id}`, concurrency: 1, timeout_per_call_ms: 5000 };
+  const baseline = fakeRunner(() => verdict('related'));
+  await scanProject(store, { ...opts, runner: baseline });
+  assert.ok(baseline.calls.length > 0);
+
+  // Con la lectura de fragmentos rota, ningún par llega al juez y cada fallo queda en el registro.
+  const original = store.db.get.bind(store.db);
+  store.db.get = (sql, ...args) => {
+    if (typeof sql === 'string' && sql.includes("ifnull(content,'') AS content FROM observations WHERE sync_id")) throw new Error('lectura rota');
+    return original(sql, ...args);
+  };
+  const blind = fakeRunner(() => verdict('related'));
+  const result = await scanProject(store, { ...opts, runner: blind });
+  store.db.get = original;
+  assert.equal(blind.calls.length, 0);
+  assert.equal(result.semantic_judged + result.semantic_errors + result.semantic_skipped, 0);
+  assert.ok(logs.some((l) => l.includes('ScanProject: source snippet obs=') && l.includes('lectura rota')));
 });
 
 test('el escaneo semántico respeta el tope y reporta veredictos inválidos como errores al aplicar', async (t) => {

@@ -145,17 +145,34 @@ test('mem_search_prompts valida los argumentos y filtra por proyecto', async (t)
   assert.equal((await run('mem_search_prompts', { query: 'trigram', all_projects: true })).json.results.length, 2);
 });
 
+test('el pie de mem_context cuenta solo el proyecto efectivo', async (t) => {
+  const { store, run } = setup(t);
+  addObservation(store, { session_id: 's1', type: 'decision', title: 'alfa title', content: 'alfa memory belongs to this project', scope: 'personal' });
+  addObservation(store, { session_id: 's2', type: 'decision', title: 'beta title', content: 'beta memory belongs to this project', scope: 'personal' });
+  for (const [name, args, want] of [
+    ['proyecto del proceso', {}, 'Memory stats: 1 sessions, 1 observations across projects: alfa'],
+    ['proyecto explícito', { project: 'alfa' }, 'Memory stats: 1 sessions, 1 observations across projects: alfa'],
+    ['proyecto normalizado', { project: 'ALFA' }, 'Memory stats: 1 sessions, 1 observations across projects: alfa'],
+    ['personal con proyecto explícito', { project: 'alfa', scope: 'personal' }, 'Memory stats: 1 sessions, 1 observations across projects: alfa'],
+    ['personal de todos los proyectos', { scope: 'personal' }, 'Memory stats: 2 sessions, 2 observations across projects:'],
+  ]) {
+    const text = (await run('mem_context', args)).json.result;
+    assert.ok(text.includes(want), `${name}: ${text}`);
+    if (name !== 'personal de todos los proyectos') assert.ok(!text.split('Memory stats:')[1].includes('beta'), `${name}: filtra otro proyecto`);
+  }
+});
+
 test('mem_context aplica el presupuesto de bytes y añade el pie de estadísticas', async (t) => {
   const { store, run } = setup(t);
   const sessionsOnly = (await run('mem_context')).json.result;
   assert.match(sessionsOnly, /^## Memory from Previous Sessions\n\n### Recent Sessions\n- \*\*alfa\*\* \(.+\) \[0 observations\]/);
-  assert.match(sessionsOnly, /Memory stats: 2 sessions, 0 observations across projects: none$/);
+  assert.match(sessionsOnly, /Memory stats: 1 sessions, 0 observations across projects: none$/);
   const empty = createServer(openTempStore(t), {}, null, { env: {} });
   const emptyRes = await empty.handle({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mem_context', arguments: {} } });
   assert.equal(JSON.parse(emptyRes.result.content[0].text).result, 'No previous session memories found.');
   for (let i = 0; i < 12; i++) addObservation(store, { session_id: 's1', type: 'manual', title: `Hallazgo ${i}`, content: 'x'.repeat(400) });
   const full = await run('mem_context');
-  assert.match(full.json.result, /\n---\nMemory stats: 2 sessions, 12 observations across projects: alfa$/);
+  assert.match(full.json.result, /\n---\nMemory stats: 1 sessions, 12 observations across projects: alfa$/);
   const small = await run('mem_context', { max_bytes: 700 });
   assert.ok(Buffer.byteLength(small.json.result) <= 700);
   assert.ok(Buffer.byteLength(small.json.result) < Buffer.byteLength(full.json.result));

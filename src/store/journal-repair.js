@@ -1,4 +1,5 @@
 import { normalizeProject } from '../project/canonical.js';
+import { now } from '../timeutil/index.js';
 import { listObservationRequiredFieldRows, listPendingProjectMutations, SYNC_MUTATION_DISPOSITION, validateSyncMutationPayload } from './diagnostic.js';
 import { DEFAULT_SYNC_TARGET_KEY, SYNC_INBOX_TARGET_KEY } from './schema.js';
 import { SYNC_ENTITY, SYNC_OP_DELETE, SYNC_OP_UPSERT, SYNC_SOURCE_LOCAL, journalMutation } from './journal.js';
@@ -6,6 +7,7 @@ import { backupSqlite } from './repair.js';
 import { refreshProjectSyncLifecycle, refreshSyncLifecycle } from './sync-queue.js';
 import { normalizeSyncTargetKey } from './sync-state.js';
 import { validateObservationTitle } from './observations.js';
+import { SESSION_OWNERSHIP_PROJECT_OWNED } from './sessions.js';
 import { goTrim, stripPrivateTags, truncate } from './text.js';
 import { evaluateMutationForRepair } from './cloud-upgrade.js';
 
@@ -53,8 +55,9 @@ export function repairPendingSessionDirectories(store, project, apply) {
           continue;
         }
         if (body === null || typeof body !== 'object' || goTrim(body.directory ?? '') !== '' || goTrim(body.id ?? '') === '' || body.id !== mutation.entity_key) continue;
-        const local = db.get('SELECT project FROM sessions WHERE id = ?', body.id);
-        if (!local) continue;
+        if (goTrim(body.ownership_mode ?? '') === SESSION_OWNERSHIP_PROJECT_OWNED) continue;
+        const local = db.get("SELECT project, ifnull(ownership_mode, '') AS ownership_mode FROM sessions WHERE id = ?", body.id);
+        if (!local || goTrim(local.ownership_mode) === SESSION_OWNERSHIP_PROJECT_OWNED) continue;
         if (canonical(local.project) !== c || (mutation.project !== '' && canonical(mutation.project) !== c)) continue;
         const evaluation = evaluateMutationForRepair(db, mutation);
         if (!evaluation.canRepair || !evaluation.repairedPayload) continue;
@@ -400,7 +403,7 @@ export function repairObservationSourceTitles(store, project, apply) {
       actions = sourceTitleActions(current);
       report.unrepairable = sourceUnrepairable(current, actions);
       for (const action of actions) {
-        const res = db.run("UPDATE observations SET title = ?, updated_at = datetime('now') WHERE id = ? AND ifnull(sync_id, '') = ? AND deleted_at IS NULL", action.title, action.id, action.sync_id);
+        const res = db.run("UPDATE observations SET title = ?, updated_at = ? WHERE id = ? AND ifnull(sync_id, '') = ? AND deleted_at IS NULL", action.title, now(), action.id, action.sync_id);
         if (Number(res.changes) !== 1) throw new Error(`repair source observation title ${action.id}`);
         enqueueSourceObservationRepair(db, observationPayload(db, action.id));
       }

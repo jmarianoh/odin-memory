@@ -247,9 +247,9 @@ export function addObservation(store, p) {
         db.run(
           `UPDATE observations
            SET session_id = ?, type = ?, title = ?, content = ?, tool_name = ?, topic_key = ?, normalized_hash = ?,
-               revision_count = revision_count + 1, last_seen_at = datetime('now'), updated_at = datetime('now')
+               revision_count = revision_count + 1, last_seen_at = datetime('now'), updated_at = ?
            WHERE id = ?`,
-          input.session_id, input.type, title, content, nullableString(input.tool_name), nullableString(topicKey), hash, id,
+          input.session_id, input.type, title, content, nullableString(input.tool_name), nullableString(topicKey), hash, now(), id,
         );
         recordSaveOperation(db, input.operation_id, fingerprint, id, getObservationRow(db, id));
         return { id, replayed: false };
@@ -267,8 +267,8 @@ export function addObservation(store, p) {
     if (duplicate) {
       const id = Number(duplicate.id);
       db.run(
-        "UPDATE observations SET duplicate_count = duplicate_count + 1, last_seen_at = datetime('now'), updated_at = datetime('now') WHERE id = ?",
-        id,
+        "UPDATE observations SET duplicate_count = duplicate_count + 1, last_seen_at = datetime('now'), updated_at = ? WHERE id = ?",
+        now(), id,
       );
       recordSaveOperation(db, input.operation_id, fingerprint, id, getObservationRow(db, id));
       return { id, replayed: false };
@@ -434,9 +434,9 @@ export function updateObservation(store, id, p, { expectedProject } = {}) {
     db.run(
       `UPDATE observations
        SET type = ?, title = ?, content = ?, project = CAST(? AS TEXT), scope = ?, topic_key = ?, normalized_hash = ?,
-           revision_count = revision_count + 1, updated_at = datetime('now')
+           revision_count = revision_count + 1, updated_at = ?
        WHERE id = ? AND deleted_at IS NULL`,
-      type, title, content, nullableString(project), scope, nullableString(topicKey), hashNormalized(content), id,
+      type, title, content, nullableString(project), scope, nullableString(topicKey), hashNormalized(content), now(), id,
     );
     const updated = getObservationRow(db, id);
     journalObservation(db, updated);
@@ -473,8 +473,7 @@ export function deleteObservation(store, id, { hardDelete = false, expectedProje
         );
       }
     } else {
-      db.run("UPDATE observations SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL", id);
-      deletedAt = db.get('SELECT deleted_at FROM observations WHERE id = ?', id).deleted_at;
+      db.run('UPDATE observations SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', deletedAt, deletedAt, id);
     }
     journalMutation(db, {
       entity: SYNC_ENTITY.observation,

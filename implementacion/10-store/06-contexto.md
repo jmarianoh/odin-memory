@@ -89,7 +89,7 @@ Sesión inexistente → `session_not_found`. `project` = proyecto normalizado de
 
 ## Lógica de la herramienta `mem_context` (se implementa en la fase MCP)
 
-El manejador usa `formatContext` así: `max_bytes` es el valor de la herramienta si es un entero positivo (por defecto 16384, tope 65536); calcula el pie `"\n---\nMemory stats: <sesiones> sessions, <observaciones> observations across projects: <proyectos>"` con las estadísticas globales (`none` si no hay proyectos; con más de 8, los 8 primeros más `, +<n> more`); `budget = max(1, max_bytes - bytes(pie))`; llama a `formatContext(proyecto, ámbito, { max_bytes: budget, pinned: 20, compact, older_history })` (con ámbito `personal` y sin proyecto explícito, el proyecto es `''`); si el contexto es `''` devuelve «No previous session memories found.»; si no, `limitContextBytes(contexto + pie, max_bytes)`.
+El manejador usa `formatContext` así: `max_bytes` es el valor de la herramienta si es un entero positivo (por defecto 16384, tope 65536); calcula el pie `"\n---\nMemory stats: <sesiones> sessions, <observaciones> observations across projects: <proyectos>"` con las estadísticas del proyecto efectivo (`statsProject(contextProject)`; con `contextProject === ''`, es decir, ámbito `personal` sin proyecto explícito, las globales de `stats`) (`none` si no hay proyectos; con más de 8, los 8 primeros más `, +<n> more`); `budget = max(1, max_bytes - bytes(pie))`; llama a `formatContext(proyecto, ámbito, { max_bytes: budget, pinned: 20, compact, older_history })` (con ámbito `personal` y sin proyecto explícito, el proyecto es `''`); si el contexto es `''` devuelve «No previous session memories found.»; si no, `limitContextBytes(contexto + pie, max_bytes)`.
 
 ## Criterios de aceptación
 

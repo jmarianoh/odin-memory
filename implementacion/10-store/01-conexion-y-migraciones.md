@@ -2,7 +2,7 @@
 
 Módulos: `src/store/{errors,schema,data-dir,instance-id,generation,db,migrate,store,index}.js`, `src/timeutil/index.js`, `src/runtime/warnings.js`.
 
-`src/store/schema.js` se copia **literal** desde `fuentes/` (contiene el DDL completo). El resto se escribe desde esta especificación.
+`src/store/schema.js` se copia **literal** desde `fuentes/` (contiene el DDL completo). El resto se escribe desde esta especificación. Desde 0.32.0 el esquema declara además los índices `idx_sessions_project_lower ON sessions(LOWER(project))` e `idx_prompts_project_lower ON user_prompts(LOWER(project))`; como `TABLES_AND_INDEXES` usa `CREATE INDEX IF NOT EXISTS` y se ejecuta en cada apertura, las bases existentes los reciben sin migración adicional.
 
 ## Secuencia de apertura: `Store.open(config)`
 
@@ -90,7 +90,7 @@ Módulos: `src/store/{errors,schema,data-dir,instance-id,generation,db,migrate,s
   7. `UPDATE sync_state SET lifecycle='inbox', last_enqueued_seq=0, last_acked_seq=0, last_pulled_seq=0 WHERE target_key='cloud:inbox' AND (lifecycle <> 'inbox' OR last_enqueued_seq <> 0 OR last_acked_seq <> 0 OR last_pulled_seq <> 0)`.
 - `backfillLegacySessionOwnershipModes(db)`: clasifica las sesiones que tienen `ownership_mode` NULL. Primero, en una sola sentencia, `UPDATE sessions SET ownership_mode = 'shared' WHERE ownership_mode IS NULL AND id NOT LIKE 'manual-save-%' AND ifnull(trim(project), '') <> ''` (el `LIKE` de SQLite no distingue mayúsculas: `MANUAL-SAVE-x` cuenta como guardado manual). Después recorre las que siguen en NULL con proyecto y marca `project_owned` solo las que cumplen `manualSaveOwnerProject(id, project)`: el ID empieza exactamente por `manual-save-` y su sufijo, normalizado, es el proyecto normalizado (`manual-save-Mi--Proyecto` pertenece a `mi-proyecto`). El resto queda en NULL: **nunca se infiere la propiedad solo por el ID**. Es idempotente.
 - `migrateFts(db)`: para cada tabla FTS decide si hay que reconstruir.
-  - Tabla correcta (`ftsTableMatches`): existe en `sqlite_master`; sus columnas visibles (`SELECT name FROM pragma_table_xinfo(?) WHERE hidden = 0 ORDER BY cid`) son exactamente las esperadas en orden; y su DDL, sin espacios y en minúsculas, contiene `createvirtualtable<tabla>usingfts5(`, `tokenize='trigram'`, `content='<tabla de contenido>'` y `content_rowid='id'`.
+  - Tabla correcta (`ftsTableMatches`): existe en `sqlite_master`; sus columnas visibles (`SELECT name FROM pragma_table_xinfo(?) WHERE hidden = 0 ORDER BY cid`) son exactamente las esperadas en orden; y su DDL, sin espacios y en minúsculas, contiene `createvirtualtable<tabla>usingfts5(`, `tokenize='trigramremove_diacritics1'` (el DDL declara `tokenize='trigram remove_diacritics 1'`), `content='<tabla de contenido>'` y `content_rowid='id'`. Una tabla creada con el tokenizador anterior (`tokenize='trigram'`, odin ≤ 0.31.0) no coincide y se reconstruye al abrir (ver «Reconstrucción»), de modo que «cafe» y «café» se encuentran entre sí. `remove_diacritics` en el tokenizador `trigram` exige SQLite ≥ 3.45; `node:sqlite` de Node 24 incluye una versión que lo admite.
   - Triggers correctos (`ftsTriggersMatch`): cada trigger existe y su DDL normalizado contiene los fragmentos indicados en el código de referencia de `migrate.js`:
     - `obs_fts_insert`: `afterinsertonobservations`, `whennew.deleted_atisnull`
     - `obs_fts_delete`: `beforedeleteonobservations`, `whenold.deleted_atisnull`, `deletefromobservations_ftswhererowid=old.id`

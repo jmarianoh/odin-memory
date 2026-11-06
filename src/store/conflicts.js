@@ -283,9 +283,16 @@ export async function scanProject(store, opts, allProjects = false) {
     (store.config.log ?? (() => {}))(`[store] ScanProject: batched candidates failed, falling back to per-source ranking: ${err.message}`);
   }
 
-  const snippet = (syncId) => {
-    const r = db.get("SELECT id, title, type, ifnull(content,'') AS content FROM observations WHERE sync_id = ?", syncId);
-    return { id: r ? Number(r.id) : 0, sync_id: syncId, title: r?.title ?? '', type: r?.type ?? '', content: r?.content ?? '' };
+  // null si la fila no se puede leer: un par sin texto no se envía al juez.
+  const snippet = (syncId, onError) => {
+    try {
+      const r = db.get("SELECT id, title, type, ifnull(content,'') AS content FROM observations WHERE sync_id = ?", syncId);
+      if (!r) throw new Error('no rows in result set');
+      return { id: Number(r.id), sync_id: syncId, title: r.title ?? '', type: r.type ?? '', content: r.content ?? '' };
+    } catch (err) {
+      onError(err);
+      return null;
+    }
   };
   const semanticPairs = [];
   const semanticKeys = new Set();
@@ -307,7 +314,9 @@ export async function scanProject(store, opts, allProjects = false) {
     result.candidates_found += candidates.length;
 
     if (opts.semantic) {
-      const source = snippet(obs.sync_id);
+      const log = store.config.log ?? (() => {});
+      const source = snippet(obs.sync_id, (err) => log(`[store] ScanProject: source snippet obs=${obs.sync_id}: ${err.message}`));
+      if (!source) continue;
       for (const c of candidates) {
         const key = pairKey(obs.sync_id, c.sync_id);
         if (semanticKeys.has(key)) continue;
@@ -315,7 +324,9 @@ export async function scanProject(store, opts, allProjects = false) {
           result.capped = true;
           break scan;
         }
-        semanticPairs.push({ source, candidate: snippet(c.sync_id) });
+        const candidate = snippet(c.sync_id, (err) => log(`[store] ScanProject: candidate snippet obs=${obs.sync_id} cand=${c.sync_id}: ${err.message}`));
+        if (!candidate) continue;
+        semanticPairs.push({ source, candidate });
         semanticKeys.add(key);
       }
       continue;

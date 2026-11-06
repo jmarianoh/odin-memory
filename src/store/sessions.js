@@ -82,7 +82,8 @@ export function sessionRow(db, id) {
 }
 
 export function journalSession(db, row) {
-  if (goTrim(row.directory ?? '') === '') return; // una sesión sin directorio no se sincroniza
+  // Una sesión sin directorio no se sincroniza, salvo las `project_owned` (registros aislados).
+  if (goTrim(row.directory ?? '') === '' && goTrim(row.ownership_mode ?? '') !== SESSION_OWNERSHIP_PROJECT_OWNED) return;
   journalMutation(db, {
     entity: SYNC_ENTITY.session,
     entityKey: row.id,

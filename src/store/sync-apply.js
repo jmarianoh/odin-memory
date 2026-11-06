@@ -142,6 +142,20 @@ function localUpsertBlockedByTombstone(db, entity, entityKey, generation) {
   return incoming !== '' && deletedAt !== '' && incoming <= deletedAt;
 }
 
+/**
+ * Un snapshot local solo restaura una observación borrada con `deleted_at` si su generación prueba que es
+ * posterior al borrado. La replicación cloud ordena por secuencia y no usa esta admisión por marca de tiempo.
+ * Usa la fila más reciente del `sync_id` (la misma de `observationBySyncId`), también en bases heredadas
+ * donde `sync_id` está indexado pero no es único.
+ */
+function localObservationRestoreBlocked(db, syncId, generation) {
+  const row = db.get('SELECT deleted_at FROM observations WHERE sync_id = ? ORDER BY id DESC LIMIT 1', syncId);
+  if (!row || row.deleted_at == null) return false;
+  const incoming = normalizeComparableTimestamp(generation);
+  const deletion = normalizeComparableTimestamp(row.deleted_at);
+  return incoming === '' || deletion === '' || incoming <= deletion;
+}
+
 // ─── Observaciones ───────────────────────────────────────────────────────────
 
 function requireParentSession(db, sessionId) {
@@ -571,7 +585,12 @@ export function applyPulledMutation(db, mutation, { later = [], targetKey = '', 
         return preserveObservationDeleteProvenance(db, payload, true);
       }
       const generation = goTrim(text(payload.updated_at)) === '' ? text(payload.created_at) : payload.updated_at;
-      if (cloud ? cloudUpsertBlockedByTombstone(db, targetKey, SYNC_ENTITY.observation, payload.sync_id, mutation.seq ?? 0) : localUpsertBlockedByTombstone(db, SYNC_ENTITY.observation, payload.sync_id, generation)) return undefined;
+      if (cloud) {
+        if (cloudUpsertBlockedByTombstone(db, targetKey, SYNC_ENTITY.observation, payload.sync_id, mutation.seq ?? 0)) return undefined;
+      } else {
+        if (localUpsertBlockedByTombstone(db, SYNC_ENTITY.observation, payload.sync_id, generation)) return undefined;
+        if (localObservationRestoreBlocked(db, payload.sync_id, generation)) return undefined;
+      }
       return applyObservationUpsert(db, payload);
     }
     case SYNC_ENTITY.prompt: {

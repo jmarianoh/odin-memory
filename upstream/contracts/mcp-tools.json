@@ -8,7 +8,7 @@
     },
     "serverInfo": {
       "name": "engram",
-      "version": "3.6.1-0.20261027201403-ee1d5ade5e56"
+      "version": "dev"
     },
     "instructions": "Engram provides persistent memory that survives across sessions and compactions.\n\nCORE TOOLS (always available — use without ToolSearch):\n  mem_save — save verified durable conclusions, grouped by topic\n  mem_search — find past work, decisions, or context from previous sessions\n  mem_context — get recent history for useful recall or relevant recovery\n  mem_session_summary — significant explicit closure or handoff; ordinary completion does not require it\n  mem_get_observation — get full untruncated content of a search result by ID\n  mem_save_prompt — save user prompt for context\n  mem_current_project — detect current project from cwd (recommended first call)\n  mem_judge — record a verdict on a pending memory conflict (judgment_required flow)\n  mem_compare — persist a semantic verdict you have already judged externally\n\nDEFERRED TOOLS (use ToolSearch when needed):\n  mem_update, mem_review, mem_pin, mem_unpin, mem_suggest_topic_key, mem_session_start, mem_session_end, mem_doctor, mem_capture_passive, mem_stats, mem_delete, mem_timeline, mem_merge_projects, mem_judge_many, mem_session_finalize, mem_consolidate\n\nPROACTIVE SAVE RULE: Persist verified durable knowledge costly to reconstruct; group related conclusions, not every event.\n\n## DELIVERY GUARANTEE\n\nMemory operations are internal bookkeeping, never the user-facing answer. Complete required memory work before composing the completed-task reply; send the complete answer as the final message of the turn with no later tool calls. If memory work fails or needs follow-up, still send the answer.\n\n## CONFLICT SURFACING\n\nAfter mem_save: if judgment_required, prefer mem_judge_many (max 32) with candidates[].judgment_id; never reuse the top-level judgment_id.\nAsk conversationally when confidence < 0.7 OR (relation in\n{supersedes, conflicts_with} AND type in {architecture, policy, decision}); else\nresolve with related | compatible | scoped | not_conflict. Pass evidence from user reply."
   },
@@ -586,6 +586,14 @@
         "properties": {
           "content": {
             "description": "The user's prompt text",
+            "type": "string"
+          },
+          "cwd": {
+            "description": "Alias for directory; directory takes precedence.",
+            "type": "string"
+          },
+          "directory": {
+            "description": "Absolute workspace directory for this call when the server starts elsewhere. Does not replace session or process project authority. Discovery does not bind later writes.",
             "type": "string"
           },
           "project": {

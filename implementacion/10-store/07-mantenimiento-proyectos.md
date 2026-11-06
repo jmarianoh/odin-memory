@@ -57,7 +57,7 @@ Nombre vacío → `project_name_required`. Si `countObservationsForProject` (obs
 
 `project = goTrim(project)`; vacío → `project_name_required`. En `writeTransaction`:
 1. Cuenta sesiones y observaciones (también borradas) con `project = ?`; ambas 0 → `project_not_found` con detalle `"<project>"` (mensaje `project not found: "<project>"`).
-2. **Duro**: `UPDATE memory_relations SET judgment_status = 'orphaned', updated_at = datetime('now') WHERE source_id IN (SELECT sync_id FROM observations WHERE project = ?) OR target_id IN (…)`; `DELETE FROM observations WHERE project = ?` (cuenta = `observations_deleted`). **Suave**: `UPDATE observations SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE project = ? AND deleted_at IS NULL`.
+2. **Duro**: `UPDATE memory_relations SET judgment_status = 'orphaned', updated_at = datetime('now') WHERE source_id IN (SELECT sync_id FROM observations WHERE project = ?) OR target_id IN (…)`; `DELETE FROM observations WHERE project = ?` (cuenta = `observations_deleted`). **Suave**: `deletedAt = now()` y `UPDATE observations SET deleted_at = ?, updated_at = ? WHERE project = ? AND deleted_at IS NULL` (misma marca de la aplicación en ambas columnas).
 3. `DELETE FROM user_prompts WHERE project = ?` (`prompts_deleted`).
 4. Solo en el borrado duro: `DELETE FROM sessions WHERE project = ? AND NOT EXISTS (observaciones de la sesión) AND NOT EXISTS (prompts de la sesión)` (`sessions_deleted`; una sesión con registros de otro proyecto se conserva) y `recordDeleteTombstone(db, 'project', normalizeProject(project), '', project, now())`. El borrado suave **no** borra sesiones ni deja lápida.
 

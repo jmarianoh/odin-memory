@@ -152,7 +152,9 @@ function registerSession(store, rootId, projectInput, directory, mode, { resume,
         throw err;
       }
       const existingDirectory = db.get("SELECT ifnull(directory, '') AS directory FROM sessions WHERE id = ?", id).directory;
-      identityRepaired = existingProject === '' || existingMode === '' || goTrim(existingDirectory) === '';
+      identityRepaired = existingProject === '' || existingMode === ''
+        || (existingMode !== SESSION_OWNERSHIP_PROJECT_OWNED && goTrim(existingDirectory) === '')
+        || (goTrim(existingDirectory) === '' && goTrim(directory ?? '') !== '');
     }
     let regProject = project;
     let regDirectory = directory ?? '';

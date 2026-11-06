@@ -3,7 +3,7 @@
 ## Runtime
 
 - Node.js **≥ 24** (`engines` en `package.json`; `bin/odin.js` lo comprueba al arrancar).
-- `node:sqlite` es nativo; incluye FTS5 con tokenizador `trigram`.
+- `node:sqlite` es nativo; incluye FTS5 con tokenizador `trigram` y su opción `remove_diacritics 1` (SQLite ≥ 3.45; Node 24 trae 3.51), que es la que usa el esquema.
 - Node emite una advertencia experimental al cargar `node:sqlite`. `bin/odin.js` la descarta con `silenceSqliteWarning()` (`src/runtime/warnings.js`), que filtra solo esa advertencia y deja pasar las demás.
 
 ## Registro npm (Nexus)
@@ -41,7 +41,7 @@ Las versiones exactas se fijan al incorporar cada paquete y se anotan aquí:
 
 ```bash
 node --version                      # v24.x
-node -e "const {DatabaseSync}=require('node:sqlite');const d=new DatabaseSync(':memory:');d.exec(\"create virtual table t using fts5(a, tokenize='trigram')\");console.log('fts5 ok')"
+node -e "const {DatabaseSync}=require('node:sqlite');const d=new DatabaseSync(':memory:');d.exec(\"create virtual table t using fts5(a, tokenize='trigram remove_diacritics 1')\");console.log('fts5 ok')"
 ```
 
 ## Versión del producto

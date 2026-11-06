@@ -49,7 +49,7 @@ Argumentos: `project`, `scope`, `max_bytes`, `compact`, `older_history`.
 2. `contextProject` es `''` (todos) si `scope === 'personal'` y no se pasó `project`; si no, el proyecto normalizado.
 3. `activity.recordToolCall(sessionId)`.
 4. `maxBytes` = `memContextMaxBytes(args.max_bytes)`: un número entero positivo, con tope **65536**; cualquier otro valor (ausente, 0, negativo, decimal, cadena) → **16384**. Constantes: `MEM_CONTEXT_DEFAULT_MAX_BYTES`, `MEM_CONTEXT_MAX_BYTES_CEILING`, `MEM_CONTEXT_MAX_PINNED = 20`, `MEM_CONTEXT_MAX_STATS_PROJECTS = 8`.
-5. Pie: `\n---\nMemory stats: <sesiones> sessions, <observaciones> observations across projects: <lista>` + aviso de guardado. `<lista>` = `none` si no hay; hasta 8 nombres unidos por `, `; con más, los 8 primeros más `, +<resto> more`.
+5. Pie: `\n---\nMemory stats: <sesiones> sessions, <observaciones> observations across projects: <lista>` + aviso de guardado. Las cifras son las del proyecto efectivo (`statsProject(store, contextProject)`), de modo que `<lista>` solo contiene ese proyecto; con `contextProject === ''` (`scope: 'personal'` sin `project`) son las globales (`stats(store)`). Desde 0.32.0 el pie ya no filtra los demás proyectos del almacén. `<lista>` = `none` si no hay; hasta 8 nombres unidos por `, `; con más, los 8 primeros más `, +<resto> more`.
 6. Presupuesto para el contexto = `max(1, maxBytes - bytes(pie))`; `formatContext(store, contextProject, scope, { max_bytes: presupuesto, pinned: 20, compact, older_history })` (`10-store/06`).
 7. Si el contexto es vacío → resultado `No previous session memories found.` (sin pie), recortado a `maxBytes`. Si no, `contexto + pie` recortado a `maxBytes` con `limitContextBytes` (añade el marcador de truncado).
 

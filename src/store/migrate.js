@@ -60,7 +60,7 @@ function ftsTableMatches(db, table, expectedColumns, contentTable) {
   const ddl = normalizeSql(row.sql);
   return (
     ddl.includes(`createvirtualtable${table}usingfts5(`) &&
-    ddl.includes("tokenize='trigram'") &&
+    ddl.includes("tokenize='trigramremove_diacritics1'") &&
     ddl.includes(`content='${contentTable}'`) &&
     ddl.includes("content_rowid='id'")
   );

@@ -72,3 +72,16 @@ test('classifyTool', () => {
   assert.deepEqual(['grep', 'glob', 'ls'].map(classifyTool), ['search', 'search', 'search']);
   assert.equal(classifyTool('otra'), 'tool_use');
 });
+
+test('passiveCapture corta el título en una frontera UTF-8 completa', (t) => {
+  const store = openTempStore(t);
+  createSession(store, 's1', 'proj', '/d');
+  // 25 letras de 2 bytes: el byte 60 cae en mitad de «é» y 3 palabras mínimas se cumplen de sobra.
+  const learning = `${'é'.repeat(25)} ${'ñ'.repeat(10)} y más palabras de relleno suficientes`;
+  passiveCapture(store, { session_id: 's1', content: `## Key Learnings:\n1. ${learning}\n`, project: 'proj', source: 'subagent-stop' });
+  const { title } = store.db.get("SELECT title FROM observations WHERE type = 'passive'");
+  assert.ok(title.endsWith('...'));
+  assert.ok(!title.includes('�'), 'sin caracteres de reemplazo');
+  assert.ok(Buffer.byteLength(title.slice(0, -3)) <= 60);
+  assert.equal(Buffer.from(title, 'utf8').toString('utf8'), title);
+});

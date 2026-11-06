@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { normalizeProject } from '../project/canonical.js';
+import { now } from '../timeutil/index.js';
 import { storeError } from './errors.js';
 import { SYNC_ENTITY, SYNC_OP_DELETE, journalMutation, sessionProject } from './journal.js';
 import { getObservationRow, journalObservation, validateExpectedProject } from './observations.js';
@@ -79,11 +80,11 @@ function execute(db, plan) {
   const survivorId = Number(res.lastInsertRowid);
   journalObservation(db, getObservationRow(db, survivorId));
   for (const src of [...plan.sources].sort((a, b) => a.id - b.id)) {
+    const deletedAt = now();
     db.run(
-      "UPDATE observations SET deleted_at = datetime('now'), superseded_by_sync_id = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL",
-      syncId, src.id,
+      'UPDATE observations SET deleted_at = ?, superseded_by_sync_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
+      deletedAt, syncId, deletedAt, src.id,
     );
-    const deletedAt = db.get('SELECT deleted_at FROM observations WHERE id = ?', src.id).deleted_at;
     journalMutation(db, {
       entity: SYNC_ENTITY.observation,
       entityKey: src.sync_id,

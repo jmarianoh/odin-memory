@@ -264,8 +264,9 @@ export function deleteProject(store, project, hardDelete = false) {
       );
       result.observations_deleted = Number(db.run('DELETE FROM observations WHERE project = ?', project).changes);
     } else {
+      const deletedAt = now();
       result.observations_deleted = Number(
-        db.run("UPDATE observations SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE project = ? AND deleted_at IS NULL", project).changes,
+        db.run('UPDATE observations SET deleted_at = ?, updated_at = ? WHERE project = ? AND deleted_at IS NULL', deletedAt, deletedAt, project).changes,
       );
     }
     result.prompts_deleted = Number(db.run('DELETE FROM user_prompts WHERE project = ?', project).changes);
